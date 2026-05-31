@@ -135,12 +135,24 @@ Contexts returned by `UseCurrentTransaction(...)` are owned by the application a
 
 ## Schema Script
 
-ADO.NET applications should apply the provided SQL Server script with their migration tool of choice:
+ADO.NET applications should apply the TinyEvents SQL Server schema with their migration tool of choice.
 
-```text
-src/TinyEvents.SqlServer.AdoNet/Schema/SqlServer/001_CreateTinyOutbox.sql
+For code-based migration runners:
+
+```csharp
+var sql = TinySqlServerAdoNetSchema.CreateOutboxSql();
 ```
 
-The script creates the default SQL Server shape: `dbo.TinyOutbox`.
-If you configure a custom table name or schema, copy or adjust the script to match that name.
+For custom tables:
+
+```csharp
+var sql = TinySqlServerAdoNetSchema.CreateOutboxSql("app.MyOutbox");
+```
+
+The package also includes the default SQL Server script:
+
+```text
+schema/sqlserver/001_CreateTinyOutbox.sql
+```
+
 TinyEvents owns the schema definition; your application owns when and how the migration runs.

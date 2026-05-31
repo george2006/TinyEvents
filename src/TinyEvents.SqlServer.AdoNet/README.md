@@ -45,13 +45,25 @@ Worker connections returned by `UseWorkerConnectionFactory(...)` are owned by Ti
 
 ## Schema
 
-Apply the SQL Server schema script with your migration tool of choice:
+Apply the SQL Server schema with your migration tool of choice:
+
+```csharp
+var sql = TinySqlServerAdoNetSchema.CreateOutboxSql();
+```
+
+For custom tables:
+
+```csharp
+var sql = TinySqlServerAdoNetSchema.CreateOutboxSql("app.MyOutbox");
+```
+
+The package also includes the default SQL Server script:
 
 ```text
 schema/sqlserver/001_CreateTinyOutbox.sql
 ```
 
-The default table is `dbo.TinyOutbox`. If you configure a custom table name or schema, copy or adjust the script to match that name.
+The default table is `dbo.TinyOutbox`.
 
 ## More Documentation
 

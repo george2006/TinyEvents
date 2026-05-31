@@ -35,7 +35,9 @@ The v1 statuses are:
 
 ## EF Core
 
-EF Core applications should call:
+EF Core applications create the schema through normal EF Core migrations.
+
+Call:
 
 ```csharp
 protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -59,14 +61,29 @@ modelBuilder.UseTinyEventsOutbox("app.MyOutbox");
 
 ## ADO.NET SQL Server
 
-ADO.NET applications should apply the provided SQL Server script from the repository/package content:
+ADO.NET applications create the schema by running the SQL Server migration script through their migration tool of choice.
+
+For the default table:
+
+```csharp
+var sql = TinySqlServerAdoNetSchema.CreateOutboxSql();
+```
+
+For a custom table:
+
+```csharp
+var sql = TinySqlServerAdoNetSchema.CreateOutboxSql("app.MyOutbox");
+```
+
+Run that SQL through DbUp, Flyway, Liquibase, your deployment pipeline, or your existing application migration runner.
+
+The package also includes the default SQL script as package content:
 
 ```text
-src/TinyEvents.SqlServer.AdoNet/Schema/SqlServer/001_CreateTinyOutbox.sql
+schema/sqlserver/001_CreateTinyOutbox.sql
 ```
 
 The script creates the default SQL Server shape: `dbo.TinyOutbox`.
-If you configure a custom table name or schema, copy or adjust the script to match that name.
 TinyEvents owns the schema definition; your application owns when and how the migration runs.
 
 ## Future Migration Helpers

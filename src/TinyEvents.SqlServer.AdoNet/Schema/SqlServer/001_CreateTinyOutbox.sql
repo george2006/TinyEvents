@@ -1,6 +1,6 @@
 IF OBJECT_ID(N'dbo.TinyOutbox', N'U') IS NULL
 BEGIN
-    CREATE TABLE dbo.TinyOutbox
+    CREATE TABLE [dbo].[TinyOutbox]
     (
         Id UNIQUEIDENTIFIER NOT NULL CONSTRAINT PK_TinyOutbox PRIMARY KEY,
         EventType NVARCHAR(512) NOT NULL,
@@ -26,7 +26,7 @@ IF NOT EXISTS
 )
 BEGIN
     CREATE INDEX IX_TinyOutbox_Pending
-    ON dbo.TinyOutbox
+    ON [dbo].[TinyOutbox]
     (
         Status,
         NextAttemptAtUtc,
@@ -43,7 +43,7 @@ IF NOT EXISTS
 )
 BEGIN
     CREATE INDEX IX_TinyOutbox_ExpiredProcessing
-    ON dbo.TinyOutbox
+    ON [dbo].[TinyOutbox]
     (
         Status,
         ClaimExpiresAtUtc
@@ -59,7 +59,7 @@ IF NOT EXISTS
 )
 BEGIN
     CREATE INDEX IX_TinyOutbox_ClaimedBy
-    ON dbo.TinyOutbox
+    ON [dbo].[TinyOutbox]
     (
         ClaimedBy,
         Status

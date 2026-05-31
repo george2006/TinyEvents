@@ -261,6 +261,37 @@ public sealed class TinySqlServerAdoNetProviderTests
     }
 
     [Theory]
+    [InlineData("TinyOutbox", "dbo.TinyOutbox")]
+    [InlineData("app.TinyOutbox", "app.TinyOutbox")]
+    public void Table_name_formats_sql_server_object_names(string tableName, string expected)
+    {
+        var parsed = TinySqlServerAdoNetTableName.Parse(tableName);
+
+        Assert.Equal(expected, parsed.ToSqlServerObjectName());
+    }
+
+    [Fact]
+    public void Schema_helper_creates_default_outbox_sql()
+    {
+        var sql = TinySqlServerAdoNetSchema.CreateOutboxSql();
+
+        Assert.Contains("OBJECT_ID(N'dbo.TinyOutbox'", sql);
+        Assert.Contains("CREATE TABLE [dbo].[TinyOutbox]", sql);
+        Assert.Contains("IX_TinyOutbox_Pending", sql);
+        Assert.Contains("IX_TinyOutbox_ExpiredProcessing", sql);
+        Assert.Contains("IX_TinyOutbox_ClaimedBy", sql);
+    }
+
+    [Fact]
+    public void Schema_helper_creates_custom_table_outbox_sql()
+    {
+        var sql = TinySqlServerAdoNetSchema.CreateOutboxSql("app.MyOutbox");
+
+        Assert.Contains("OBJECT_ID(N'app.MyOutbox'", sql);
+        Assert.Contains("CREATE TABLE [app].[MyOutbox]", sql);
+    }
+
+    [Theory]
     [InlineData("")]
     [InlineData(" ")]
     [InlineData("TinyOutbox;DROP TABLE Users")]

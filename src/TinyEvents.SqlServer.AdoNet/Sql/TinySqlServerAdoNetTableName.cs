@@ -26,6 +26,30 @@ public sealed class TinySqlServerAdoNetTableName
         return string.Join(".", parts.Select(part => $"[{part}]"));
     }
 
+    public string ToSqlServerName(string defaultSchema)
+    {
+        if (string.IsNullOrWhiteSpace(defaultSchema))
+        {
+            throw new ArgumentException("Default schema is required.", nameof(defaultSchema));
+        }
+
+        return parts.Length == 1
+            ? $"[{defaultSchema}].[{parts[0]}]"
+            : ToSqlServerName();
+    }
+
+    public string ToSqlServerObjectName(string defaultSchema = "dbo")
+    {
+        if (string.IsNullOrWhiteSpace(defaultSchema))
+        {
+            throw new ArgumentException("Default schema is required.", nameof(defaultSchema));
+        }
+
+        return parts.Length == 1
+            ? $"{defaultSchema}.{parts[0]}"
+            : string.Join(".", parts);
+    }
+
     private void Validate()
     {
         foreach (var part in parts)

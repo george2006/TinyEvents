@@ -35,6 +35,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TinyEvents.Sample.AdoNet", 
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TinyEvents.Sample.EfCore", "samples\TinyEvents.Sample.EfCore\TinyEvents.Sample.EfCore.csproj", "{D602F870-F917-4D71-9841-E3F2088CE67C}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TinyEvents.PackageSmoke", "samples\TinyEvents.PackageSmoke\TinyEvents.PackageSmoke.csproj", "{F32341BD-DA7B-4143-91B1-88F78659FF24}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -201,6 +203,18 @@ Global
 		{D602F870-F917-4D71-9841-E3F2088CE67C}.Release|x64.Build.0 = Release|Any CPU
 		{D602F870-F917-4D71-9841-E3F2088CE67C}.Release|x86.ActiveCfg = Release|Any CPU
 		{D602F870-F917-4D71-9841-E3F2088CE67C}.Release|x86.Build.0 = Release|Any CPU
+		{F32341BD-DA7B-4143-91B1-88F78659FF24}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F32341BD-DA7B-4143-91B1-88F78659FF24}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F32341BD-DA7B-4143-91B1-88F78659FF24}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{F32341BD-DA7B-4143-91B1-88F78659FF24}.Debug|x64.Build.0 = Debug|Any CPU
+		{F32341BD-DA7B-4143-91B1-88F78659FF24}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{F32341BD-DA7B-4143-91B1-88F78659FF24}.Debug|x86.Build.0 = Debug|Any CPU
+		{F32341BD-DA7B-4143-91B1-88F78659FF24}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F32341BD-DA7B-4143-91B1-88F78659FF24}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F32341BD-DA7B-4143-91B1-88F78659FF24}.Release|x64.ActiveCfg = Release|Any CPU
+		{F32341BD-DA7B-4143-91B1-88F78659FF24}.Release|x64.Build.0 = Release|Any CPU
+		{F32341BD-DA7B-4143-91B1-88F78659FF24}.Release|x86.ActiveCfg = Release|Any CPU
+		{F32341BD-DA7B-4143-91B1-88F78659FF24}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -219,5 +233,6 @@ Global
 		{3E943682-24D1-4995-BF59-700B53BE7B52} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{1C66EB46-7588-408D-8D3A-6F4444C0F275} = {5D20AA90-6969-D8BD-9DCD-8634F4692FDA}
 		{D602F870-F917-4D71-9841-E3F2088CE67C} = {5D20AA90-6969-D8BD-9DCD-8634F4692FDA}
+		{F32341BD-DA7B-4143-91B1-88F78659FF24} = {5D20AA90-6969-D8BD-9DCD-8634F4692FDA}
 	EndGlobalSection
 EndGlobal
