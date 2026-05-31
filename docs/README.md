@@ -11,6 +11,7 @@ TinyEvents is an outbox-first event library. The docs are organized around how u
 - [Source Generator](source-generator.md)
 - [Architecture](architecture.md)
 - [Testing](testing.md)
+- [Samples](../samples/README.md)
 - [Roadmap](roadmap.md)
 
-Start with [Getting Started](getting-started.md). Use the provider pages when wiring a real application.
+Start with [Getting Started](getting-started.md). Use the provider pages when wiring a real application, and use the [samples runbook](../samples/README.md) when you want to run code locally.

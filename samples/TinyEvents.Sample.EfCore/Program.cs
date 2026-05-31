@@ -169,8 +169,7 @@ namespace TinyEvents.Sample.EfCore
                 return connectionString;
             }
 
-            throw new InvalidOperationException(
-                $"Pass a SQL Server connection string as the first argument or set {EnvironmentVariable}.");
+            return "Server=localhost,14333;Database=TinyEventsSamples;User Id=sa;Password=TinyEvents_2026!;Encrypt=False;TrustServerCertificate=True;";
         }
     }
 }

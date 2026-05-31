@@ -7,10 +7,28 @@ internal static class SqlServerSchema
 {
     public static async ValueTask EnsureCreatedAsync(string connectionString)
     {
+        await EnsureDatabaseCreatedAsync(connectionString);
+
         await using var connection = new SqlConnection(connectionString);
         await connection.OpenAsync();
         await ExecuteAsync(connection, CreateUsersTableSql);
         await ExecuteAsync(connection, CreateOutboxTableSql);
+    }
+
+    private static async ValueTask EnsureDatabaseCreatedAsync(string connectionString)
+    {
+        var builder = new SqlConnectionStringBuilder(connectionString);
+        var databaseName = builder.InitialCatalog;
+        builder.InitialCatalog = "master";
+
+        await using var connection = new SqlConnection(builder.ConnectionString);
+        await connection.OpenAsync();
+        await ExecuteAsync(connection, $"""
+            IF DB_ID(N'{databaseName.Replace("'", "''")}') IS NULL
+            BEGIN
+                CREATE DATABASE [{databaseName.Replace("]", "]]")}];
+            END;
+            """);
     }
 
     private static async ValueTask ExecuteAsync(

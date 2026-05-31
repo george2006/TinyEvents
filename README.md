@@ -20,6 +20,7 @@ In practice, TinyEvents gives you domain-event or application-event handlers wit
 - [Providers](#providers)
 - [Workers and leases](#workers-and-leases)
 - [Schema and migrations](#schema-and-migrations)
+- [Run the samples](#run-the-samples)
 - [Tiny suite](#tiny-suite)
 - [Design principles](#design-principles)
 - [Documentation](#documentation)
@@ -178,11 +179,39 @@ EF Core applications should call `modelBuilder.UseTinyEventsOutbox()` and create
 
 ADO.NET applications should use the provided SQL Server script:
 
+```csharp
+var sql = TinySqlServerAdoNetSchema.CreateOutboxSql();
+```
+
+The package also includes the default SQL script as package content:
+
 ```text
-src/TinyEvents.SqlServer.AdoNet/Schema/SqlServer/001_CreateTinyOutbox.sql
+schema/sqlserver/001_CreateTinyOutbox.sql
 ```
 
 TinyEvents does not run migrations automatically.
+
+## Run the samples
+
+First start SQL Server with Docker:
+
+```bash
+docker compose up -d sqlserver
+```
+
+Then run the EF Core sample:
+
+```bash
+dotnet run --project samples/TinyEvents.Sample.EfCore
+```
+
+Or run the ADO.NET sample:
+
+```bash
+dotnet run --project samples/TinyEvents.Sample.AdoNet
+```
+
+The samples default to `TINYEVENTS_SAMPLE_SQLSERVER` or a command-line connection string. See [Samples](samples/README.md) for the full runbook and the package smoke sample.
 
 ## Tiny suite
 
@@ -231,6 +260,7 @@ TinyEvents is intentionally small.
 - [Source Generator](docs/source-generator.md)
 - [Architecture](docs/architecture.md)
 - [Testing](docs/testing.md)
+- [Samples](samples/README.md)
 - [Roadmap](docs/roadmap.md)
 
 ## Current limitations

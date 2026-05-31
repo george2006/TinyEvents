@@ -48,7 +48,7 @@ These tests start an ephemeral SQL Server container and prove behavior fakes can
 
 ## Local SQL Server
 
-For manual development:
+For manual development and app samples, start SQL Server first:
 
 ```bash
 docker compose up -d sqlserver
@@ -65,10 +65,16 @@ TrustServerCertificate=True
 
 ## Running Samples
 
+The full sample runbook lives in:
+
+```text
+samples/README.md
+```
+
 Run the ADO.NET sample:
 
 ```bash
-dotnet run --project samples/TinyEvents.Sample.AdoNet -- "Server=localhost,14333;User Id=sa;Password=TinyEvents_2026!;TrustServerCertificate=True"
+dotnet run --project samples/TinyEvents.Sample.AdoNet -- "Server=localhost,14333;Database=TinyEventsSamples;User Id=sa;Password=TinyEvents_2026!;Encrypt=False;TrustServerCertificate=True"
 ```
 
 Create a user:
@@ -90,7 +96,7 @@ Invoke-RestMethod -Method Post -Uri http://localhost:5000/outbox/process
 Run the EF Core sample:
 
 ```bash
-dotnet run --project samples/TinyEvents.Sample.EfCore -- "Server=localhost,14333;User Id=sa;Password=TinyEvents_2026!;TrustServerCertificate=True"
+dotnet run --project samples/TinyEvents.Sample.EfCore -- "Server=localhost,14333;Database=TinyEventsSamples;User Id=sa;Password=TinyEvents_2026!;Encrypt=False;TrustServerCertificate=True"
 ```
 
 It exposes the same sample endpoints.

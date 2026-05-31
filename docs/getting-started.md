@@ -144,6 +144,7 @@ Workers use lease-based claiming. If a worker crashes, claimed messages become c
 
 ## Next
 
+- [Run the Samples](../samples/README.md)
 - [EF Core Provider](ef-core.md)
 - [ADO.NET Provider](ado-net.md)
 - [Workers and Leases](workers.md)
