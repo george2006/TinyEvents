@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <PackageId>TinyEvents.SqlServer.AdoNet</PackageId>
+    <Version>0.1.0-alpha.1</Version>
+    <Authors>Jorge Durban Antunano</Authors>
+    <Description>SQL Server ADO.NET provider for TinyEvents outbox storage and worker claiming.</Description>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/george2006/TinyEvents</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/george2006/TinyEvents</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageTags>tinyevents;outbox;sqlserver;ado.net;efcore;dotnet;source-generator</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\TinyEvents\TinyEvents.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+    <None Include="Schema\SqlServer\*.sql" Pack="true" PackagePath="schema\sqlserver" />
+  </ItemGroup>
+  <PropertyGroup>
+    <PackageReleaseNotes>
+      TinyEvents.SqlServer.AdoNet 0.1.0-alpha.1
+
+      Added
+      - SQL Server ADO.NET outbox writer using application-owned transactions.
+      - SQL Server worker store with atomic lease-based claiming.
+      - SQL Server schema script packed under schema/sqlserver.
+
+      Notes
+      - Early alpha / active development.
+      - APIs may change before 1.0.
+      - Consumers must be idempotent because delivery is at-least-once.
+    </PackageReleaseNotes>
+  </PropertyGroup>
+</Project>

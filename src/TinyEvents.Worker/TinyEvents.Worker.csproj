@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <PackageId>TinyEvents.Worker</PackageId>
+    <Version>0.1.0-alpha.1</Version>
+    <Authors>Jorge Durban Antunano</Authors>
+    <Description>Hosted worker integration for TinyEvents outbox processing.</Description>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/george2006/TinyEvents</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/george2006/TinyEvents</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageTags>events;outbox;worker;hosting;dotnet;tinyevents</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="8.0.1" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\TinyEvents\TinyEvents.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+  <PropertyGroup>
+    <PackageReleaseNotes>
+      TinyEvents.Worker 0.1.0-alpha.1
+
+      Added
+      - Hosted worker integration for polling and processing TinyEvents outbox messages.
+      - Configurable batch size, polling interval, claim timeout, and worker id.
+
+      Notes
+      - Early alpha / active development.
+      - APIs may change before 1.0.
+      - Requires a configured TinyEvents outbox store provider.
+    </PackageReleaseNotes>
+  </PropertyGroup>
+</Project>

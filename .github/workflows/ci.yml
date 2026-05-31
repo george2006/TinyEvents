@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - "feature/**"
+      - "fix/**"
+      - "hotfix/**"
+      - "refactor/**"
+
+jobs:
+  build_test_pack:
+    runs-on: ubuntu-latest
+
+    env:
+      DOTNET_NOLOGO: true
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build (Release)
+        run: dotnet build -c Release --no-restore
+
+      - name: Test (Release)
+        run: dotnet test -c Release --no-build --no-restore --verbosity minimal
+        env:
+          TINYEVENTS_RUN_SQLSERVER_TESTS: true
+
+      - name: Pack (Release)
+        run: |
+          dotnet pack src/TinyEvents/TinyEvents.csproj -c Release --no-build -o ./artifacts
+          dotnet pack src/TinyEvents.SqlServer.AdoNet/TinyEvents.SqlServer.AdoNet.csproj -c Release --no-build -o ./artifacts
+          dotnet pack src/TinyEvents.SqlServer.EntityFrameworkCore/TinyEvents.SqlServer.EntityFrameworkCore.csproj -c Release --no-build -o ./artifacts
+          dotnet pack src/TinyEvents.Worker/TinyEvents.Worker.csproj -c Release --no-build -o ./artifacts
+
+      - name: Upload NuGet packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: nupkgs
+          path: |
+            ./artifacts/*.nupkg
+            ./artifacts/*.snupkg
