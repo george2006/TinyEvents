@@ -20,6 +20,7 @@ Install the alpha packages:
 ```bash
 dotnet add package TinyEvents --version 0.1.0-alpha.1
 dotnet add package TinyEvents.SqlServer.EntityFrameworkCore --version 0.1.0-alpha.1
+dotnet add package TinyEvents.Worker --version 0.1.0-alpha.1
 ```
 
 TinyEvents core is provider-agnostic. The current alpha SQL Server providers ship as provider packages.

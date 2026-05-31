@@ -49,9 +49,10 @@ Install:
 
 ```bash
 dotnet add package TinyEvents --version 0.1.0-alpha.1
+dotnet add package TinyEvents.Worker --version 0.1.0-alpha.1
 ```
 
-The hosted worker integration is included in the alpha package. It may move to a dedicated package after the first alpha.
+`TinyEvents.Worker` contains the hosted-service integration. You still need one outbox provider package, such as `TinyEvents.SqlServer.EntityFrameworkCore` or `TinyEvents.SqlServer.AdoNet`.
 
 Register:
 
@@ -68,10 +69,13 @@ services.AddTinyEventsWorker(options =>
 
 The hosted worker:
 
+- registers an `IHostedService`
 - creates a scope per processing iteration
 - calls `ITinyOutboxProcessor.ProcessPendingAsync`
 - waits `PollingInterval`
 - stops claiming new work when cancellation is requested
+
+`AddTinyEventsWorker(...)` also configures the core worker options used by `ITinyOutboxProcessor`, including `WorkerId`, `BatchSize`, and `ClaimTimeout`.
 
 On shutdown, TinyEvents does not scan and release claims. If processing does not complete, claims expire naturally.
 

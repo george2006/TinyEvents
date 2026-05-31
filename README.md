@@ -51,6 +51,7 @@ Install the alpha packages:
 ```bash
 dotnet add package TinyEvents --version 0.1.0-alpha.1
 dotnet add package TinyEvents.SqlServer.EntityFrameworkCore --version 0.1.0-alpha.1
+dotnet add package TinyEvents.Worker --version 0.1.0-alpha.1
 ```
 
 Register TinyEvents and the EF Core provider:
