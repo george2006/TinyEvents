@@ -9,8 +9,6 @@ public sealed class TinyEventsSqlServerAdoNetOptions
 
     public string TableName { get; set; } = "TinyOutbox";
 
-    public TinySqlServerAdoNetDialect Dialect { get; set; } = TinySqlServerAdoNetDialect.SqlServer;
-
     public void UseCurrentTransaction(
         Func<IServiceProvider, ITinyAdoNetTransactionContext?> currentTransaction)
     {
