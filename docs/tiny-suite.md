@@ -111,6 +111,27 @@ The result is an application layer with:
 - no broker requirement for local reliable side effects
 - small public contracts
 
+## TheTinyApplicationLayer sample
+
+The shared sample lives in the sibling `TheTinyApplicationLayer` repository.
+
+It is an ASP.NET Core and Blazor application that uses the three TinySuite NuGet packages together:
+
+```text
+Blazor Form
+-> API Endpoint
+-> TinyValidations
+-> TinyDispatcher
+-> Use Case
+-> TinyEvents Outbox
+-> Worker
+-> Event Consumer
+```
+
+TinyEvents appears after the use case accepts the command. The handler publishes an application event, TinyEvents stores it in the outbox with the same persistence boundary, and the worker later claims and processes the message.
+
+Use the sample when you want to see TinyEvents working with TinyDispatcher and TinyValidations through real NuGet package references.
+
 ## Why Small Libraries
 
 Successful open-source projects often grow because users need more integration, more support, more hosting choices, more cloud stories, and more commercial guarantees.
