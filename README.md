@@ -205,13 +205,13 @@ TinyEvents does not run migrations automatically.
 
 ## Run the samples
 
-The current app samples use SQL Server. First start SQL Server with Docker:
+Start the sample database containers with Docker:
 
 ```bash
-docker compose up -d sqlserver
+docker compose up -d sqlserver postgresql
 ```
 
-Then run the EF Core sample:
+Then run the SQL Server EF Core sample:
 
 ```bash
 dotnet run --project samples/TinyEvents.Sample.EfCore
@@ -223,7 +223,13 @@ Or run the ADO.NET sample:
 dotnet run --project samples/TinyEvents.Sample.AdoNet
 ```
 
-The samples default to `TINYEVENTS_SAMPLE_SQLSERVER` or a command-line connection string. See [Samples](samples/README.md) for the full runbook and the package smoke sample.
+Or run the PostgreSQL EF Core sample:
+
+```bash
+dotnet run --project samples/TinyEvents.Sample.PostgreSql.EfCore
+```
+
+SQL Server samples default to `TINYEVENTS_SAMPLE_SQLSERVER`. PostgreSQL samples default to `TINYEVENTS_SAMPLE_POSTGRESQL`. All samples also accept a command-line connection string. See [Samples](samples/README.md) for the full runbook and the package smoke sample.
 
 ## Tiny suite
 

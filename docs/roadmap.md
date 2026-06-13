@@ -8,7 +8,8 @@ Planned hardening:
 
 - polish README and provider docs as APIs settle
 - keep SQL Server and PostgreSQL runtime tests green with Testcontainers
-- split samples by database family and provider style
+- add the remaining PostgreSQL ADO.NET sample
+- keep samples split by database family and provider style
 - review NuGet package boundaries
 - keep provider package publishing explicit and repeatable
 - keep provider package names explicit by database family
