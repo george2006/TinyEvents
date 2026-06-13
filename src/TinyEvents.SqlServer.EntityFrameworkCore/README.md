@@ -58,6 +58,6 @@ The provider option controls SQL claiming and marking. The model builder extensi
 
 ## More Documentation
 
-- EF Core provider guide: https://github.com/george2006/TinyEvents/blob/main/docs/ef-core.md
+- EF Core provider guide: https://github.com/george2006/TinyEvents/blob/main/docs/sql-server/ef-core.md
 - Schema and migrations: https://github.com/george2006/TinyEvents/blob/main/docs/schema-and-migrations.md
 - Worker guide: https://github.com/george2006/TinyEvents/blob/main/docs/workers.md

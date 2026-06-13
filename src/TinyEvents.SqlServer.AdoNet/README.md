@@ -67,6 +67,6 @@ The default table is `dbo.TinyOutbox`.
 
 ## More Documentation
 
-- ADO.NET provider guide: https://github.com/george2006/TinyEvents/blob/main/docs/ado-net.md
+- ADO.NET provider guide: https://github.com/george2006/TinyEvents/blob/main/docs/sql-server/ado-net.md
 - Schema and migrations: https://github.com/george2006/TinyEvents/blob/main/docs/schema-and-migrations.md
 - Worker guide: https://github.com/george2006/TinyEvents/blob/main/docs/workers.md

@@ -62,20 +62,14 @@ Generated contributions make multi-assembly projects work without runtime scanni
 
 Each assembly that contains consumers can contribute registrations. When the host calls a TinyEvents registration method, bootstrap applies the collected contributions once per service collection.
 
+For example:
+
 ```csharp
 services.UseSqlServerEntityFrameworkCoreOutbox<AppDbContext>();
+services.UsePostgreSqlEntityFrameworkCoreOutbox<AppDbContext>();
 ```
 
-or:
-
-```csharp
-services.UseSqlServerAdoNetOutbox(options =>
-{
-    // provider configuration
-});
-```
-
-Both paths register core services and apply generated contributions.
+Provider registration methods register core services and apply generated contributions.
 
 Calling TinyEvents registration more than once on the same service collection is safe.
 

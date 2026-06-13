@@ -16,3 +16,5 @@ set TINYEVENTS_PACKAGE_SMOKE_SQLSERVER=Server=localhost,1433;Database=TinyEvents
 ```
 
 The sample references the public `0.1.0-alpha.1` packages instead of local project references. It verifies that the core package, SQL Server providers, worker package, dependency injection extensions, source-generator consumer registration, publishing, claiming, and processing can be consumed from NuGet.
+
+PostgreSQL package smoke coverage belongs with the planned sample split by database family.

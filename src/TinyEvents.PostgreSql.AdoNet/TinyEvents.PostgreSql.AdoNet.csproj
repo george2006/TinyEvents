@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <PackageId>TinyEvents.PostgreSql.AdoNet</PackageId>
+    <Version>0.1.0-alpha.1</Version>
+    <Authors>Jorge Durban Antunano</Authors>
+    <Description>PostgreSQL ADO.NET provider for TinyEvents outbox storage and worker claiming.</Description>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/george2006/TinyEvents</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/george2006/TinyEvents</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageTags>tinyevents;outbox;postgresql;postgres;ado.net;dotnet;source-generator</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Npgsql" Version="8.0.9" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\TinyEvents\TinyEvents.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
+    <None Include="Schema\PostgreSql\*.sql" Pack="true" PackagePath="schema\postgresql" />
+  </ItemGroup>
+  <PropertyGroup>
+    <PackageReleaseNotes>
+      TinyEvents.PostgreSql.AdoNet 0.1.0-alpha.1
+
+      Added
+      - PostgreSQL ADO.NET provider package boundary.
+
+      Notes
+      - Early alpha / active development.
+      - PostgreSQL runtime behavior will be added in small tested slices.
+      - Consumers must be idempotent because delivery is at-least-once.
+    </PackageReleaseNotes>
+  </PropertyGroup>
+</Project>

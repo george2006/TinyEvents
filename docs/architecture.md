@@ -84,6 +84,8 @@ src/TinyEvents.SourceGen
 ```text
 src/TinyEvents.SqlServer.EntityFrameworkCore
 src/TinyEvents.SqlServer.AdoNet
+src/TinyEvents.PostgreSql.EntityFrameworkCore
+src/TinyEvents.PostgreSql.AdoNet
 src/TinyEvents.Worker
 ```
 
@@ -95,8 +97,10 @@ Current database providers:
 
 - SQL Server ADO.NET provider
 - SQL Server EF Core provider
+- PostgreSQL ADO.NET provider
+- PostgreSQL EF Core provider
 
-Future database providers may target PostgreSQL, MySQL, SQLite, or other engines if they can implement safe atomic claiming for that database.
+Future database providers may target MySQL, SQLite, or other engines if they can implement safe atomic claiming for that database.
 
 ## Publishing Flow
 
@@ -173,7 +177,7 @@ The contribution system is the bridge between compile-time discovery and runtime
 
 1. The generator emits an `ITinyEventsContribution`.
 2. A module initializer adds it to `TinyEventsBootstrap`.
-3. `UseTinyEvents`, `UseSqlServerEntityFrameworkCoreOutbox`, or `UseSqlServerAdoNetOutbox` applies contributions.
+3. `UseTinyEvents` or a provider registration method applies contributions.
 4. Consumers and event type descriptors become normal DI services.
 
 Runtime processing does not use a custom consumer registry. It resolves consumers directly from `IServiceProvider`.

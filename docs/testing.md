@@ -46,6 +46,29 @@ These tests start an ephemeral SQL Server container and prove behavior fakes can
 - Active processing leases are not reclaimed.
 - EF Core SQL Server claim SQL works against the real database.
 
+## PostgreSQL Runtime Suite
+
+The PostgreSQL runtime tests live in:
+
+```text
+tests/TinyEvents.PostgreSql.Tests
+```
+
+They use Testcontainers and are skipped unless this environment variable is set:
+
+```powershell
+$env:TINYEVENTS_RUN_POSTGRESQL_TESTS = "true"
+dotnet test tests\TinyEvents.PostgreSql.Tests\TinyEvents.PostgreSql.Tests.csproj
+```
+
+These tests start an ephemeral PostgreSQL container and prove behavior fakes cannot prove:
+
+- ADO.NET schema creation works against the real database.
+- ADO.NET business data and outbox messages commit together.
+- ADO.NET business data and outbox messages roll back together.
+- ADO.NET worker claim and mark SQL works against the real database.
+- EF Core PostgreSQL writer and store SQL works against the real database.
+
 ## Local SQL Server
 
 For manual development and app samples, start SQL Server first:

@@ -54,7 +54,9 @@ dotnet add package TinyEvents.SqlServer.EntityFrameworkCore --version 0.1.0-alph
 dotnet add package TinyEvents.Worker --version 0.1.0-alpha.1
 ```
 
-Register TinyEvents and the EF Core provider:
+Provider packages are database-specific. Use `TinyEvents.SqlServer.*` for SQL Server or `TinyEvents.PostgreSql.*` for PostgreSQL.
+
+Register TinyEvents and the SQL Server EF Core provider:
 
 ```csharp
 using Microsoft.EntityFrameworkCore;
@@ -144,15 +146,15 @@ No runtime assembly scanning is required, and normal consumers do not need manua
 
 ## Providers
 
-TinyEvents core is provider-agnostic. The current alpha includes SQL Server provider packages:
+TinyEvents core is provider-agnostic. The current alpha includes SQL Server and PostgreSQL provider packages:
 
 - `TinyEvents.SqlServer.EntityFrameworkCore`
 - `TinyEvents.SqlServer.AdoNet`
+- `TinyEvents.PostgreSql.EntityFrameworkCore`
+- `TinyEvents.PostgreSql.AdoNet`
 - `TinyEvents.Worker`
 
-Other databases may be supported later through separate providers.
-
-The SQL Server providers use SQL Server-specific claiming semantics, including SQL Server locking hints and atomic claim statements.
+Each database family has its own provider package. SQL Server providers use SQL Server locking hints and atomic update/output statements. PostgreSQL providers use PostgreSQL claiming semantics, including `FOR UPDATE SKIP LOCKED` with update/returning statements.
 
 EF Core publishing adds the outbox message to the caller's scoped `DbContext`. The caller commits business data and outbox messages with `SaveChangesAsync`.
 
@@ -178,29 +180,38 @@ TinyEvents owns the outbox schema definition. Applications own migration executi
 
 EF Core applications should call `modelBuilder.UseTinyEventsOutbox()` and create normal EF migrations.
 
-ADO.NET applications should use the provided SQL Server script:
+ADO.NET applications should use the script helper for their database provider.
+
+SQL Server:
 
 ```csharp
 var sql = TinySqlServerAdoNetSchema.CreateOutboxSql();
 ```
 
-The package also includes the default SQL script as package content:
+PostgreSQL:
+
+```csharp
+var sql = TinyPostgreSqlAdoNetSchema.CreateOutboxSql();
+```
+
+The ADO.NET packages also include default SQL scripts as package content:
 
 ```text
 schema/sqlserver/001_CreateTinyOutbox.sql
+schema/postgresql/001_CreateTinyOutbox.sql
 ```
 
 TinyEvents does not run migrations automatically.
 
 ## Run the samples
 
-First start SQL Server with Docker:
+Start the sample database containers with Docker:
 
 ```bash
-docker compose up -d sqlserver
+docker compose up -d sqlserver postgresql
 ```
 
-Then run the EF Core sample:
+Then run the SQL Server EF Core sample:
 
 ```bash
 dotnet run --project samples/TinyEvents.Sample.EfCore
@@ -212,7 +223,19 @@ Or run the ADO.NET sample:
 dotnet run --project samples/TinyEvents.Sample.AdoNet
 ```
 
-The samples default to `TINYEVENTS_SAMPLE_SQLSERVER` or a command-line connection string. See [Samples](samples/README.md) for the full runbook and the package smoke sample.
+Or run the PostgreSQL EF Core sample:
+
+```bash
+dotnet run --project samples/TinyEvents.Sample.PostgreSql.EfCore
+```
+
+Or run the PostgreSQL ADO.NET sample:
+
+```bash
+dotnet run --project samples/TinyEvents.Sample.PostgreSql.AdoNet
+```
+
+SQL Server samples default to `TINYEVENTS_SAMPLE_SQLSERVER`. PostgreSQL samples default to `TINYEVENTS_SAMPLE_POSTGRESQL`. All samples also accept a command-line connection string. See [Samples](samples/README.md) for the full runbook and the package smoke sample.
 
 ## Tiny suite
 
@@ -253,8 +276,12 @@ TinyEvents is intentionally small.
 ## Documentation
 
 - [Getting Started](docs/getting-started.md)
-- [EF Core Provider](docs/ef-core.md)
-- [ADO.NET Provider](docs/ado-net.md)
+- [EF Core Providers](docs/ef-core.md)
+- [ADO.NET Providers](docs/ado-net.md)
+- [SQL Server EF Core](docs/sql-server/ef-core.md)
+- [SQL Server ADO.NET](docs/sql-server/ado-net.md)
+- [PostgreSQL EF Core](docs/postgresql/ef-core.md)
+- [PostgreSQL ADO.NET](docs/postgresql/ado-net.md)
 - [Workers and Leases](docs/workers.md)
 - [Schema and Migrations](docs/schema-and-migrations.md)
 - [The Tiny Suite](docs/tiny-suite.md)
@@ -262,14 +289,15 @@ TinyEvents is intentionally small.
 - [Architecture](docs/architecture.md)
 - [Testing](docs/testing.md)
 - [Samples](samples/README.md)
+- [Releasing](docs/releasing.md)
 - [Roadmap](docs/roadmap.md)
 
 ## Current limitations
 
 TinyEvents is an alpha.
 
-- SQL Server is the only real database target in the current providers.
-- SQL Server providers use SQL Server-specific atomic claiming.
+- SQL Server and PostgreSQL are the current real database targets.
+- Providers use database-specific atomic claiming.
 - There is no claim heartbeat or renewal in v1.
 - Long-running consumers must use a long enough `ClaimTimeout`.
 - There is no migration runner.
@@ -286,7 +314,7 @@ The goal of the alpha is to validate:
 
 - package boundaries
 - generated registrations
-- SQL Server provider behavior
+- SQL Server and PostgreSQL provider behavior
 - worker processing
 - sample application ergonomics
 - how TinyDispatcher, TinyValidations, and TinyEvents fit together as an application layer
