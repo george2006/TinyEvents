@@ -64,6 +64,16 @@ dotnet run --project samples/TinyEvents.Sample.PostgreSql.EfCore
 
 The PostgreSQL EF Core sample creates its database schema with `Database.EnsureCreatedAsync()` for local demo purposes.
 
+### PostgreSQL ADO.NET
+
+Runs from local project references and demonstrates PostgreSQL application-owned ADO.NET transactions:
+
+```bash
+dotnet run --project samples/TinyEvents.Sample.PostgreSql.AdoNet
+```
+
+The PostgreSQL ADO.NET sample creates the demo `Users` table and `TinyOutbox` table on startup for local demo purposes. Real applications should run the TinyEvents outbox SQL through their normal migration tool.
+
 ## 3. Try The Endpoints
 
 Create a user:

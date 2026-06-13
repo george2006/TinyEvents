@@ -229,6 +229,12 @@ Or run the PostgreSQL EF Core sample:
 dotnet run --project samples/TinyEvents.Sample.PostgreSql.EfCore
 ```
 
+Or run the PostgreSQL ADO.NET sample:
+
+```bash
+dotnet run --project samples/TinyEvents.Sample.PostgreSql.AdoNet
+```
+
 SQL Server samples default to `TINYEVENTS_SAMPLE_SQLSERVER`. PostgreSQL samples default to `TINYEVENTS_SAMPLE_POSTGRESQL`. All samples also accept a command-line connection string. See [Samples](samples/README.md) for the full runbook and the package smoke sample.
 
 ## Tiny suite
