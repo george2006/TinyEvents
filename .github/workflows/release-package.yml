@@ -1,0 +1,110 @@
+name: Release Package
+
+on:
+  workflow_dispatch:
+    inputs:
+      package:
+        description: "Package to publish"
+        required: true
+        type: choice
+        options:
+          - TinyEvents
+          - TinyEvents.Worker
+          - TinyEvents.SqlServer.AdoNet
+          - TinyEvents.SqlServer.EntityFrameworkCore
+          - TinyEvents.PostgreSql.AdoNet
+          - TinyEvents.PostgreSql.EntityFrameworkCore
+      version:
+        description: "Package version to publish"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment: nuget-prod
+
+    env:
+      DOTNET_NOLOGO: true
+      PACKAGE_ID: ${{ inputs.package }}
+      PACKAGE_VERSION: ${{ inputs.version }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+
+      - name: Resolve package project
+        shell: bash
+        run: |
+          case "$PACKAGE_ID" in
+            TinyEvents)
+              PROJECT="src/TinyEvents/TinyEvents.csproj"
+              ;;
+            TinyEvents.Worker)
+              PROJECT="src/TinyEvents.Worker/TinyEvents.Worker.csproj"
+              ;;
+            TinyEvents.SqlServer.AdoNet)
+              PROJECT="src/TinyEvents.SqlServer.AdoNet/TinyEvents.SqlServer.AdoNet.csproj"
+              ;;
+            TinyEvents.SqlServer.EntityFrameworkCore)
+              PROJECT="src/TinyEvents.SqlServer.EntityFrameworkCore/TinyEvents.SqlServer.EntityFrameworkCore.csproj"
+              ;;
+            TinyEvents.PostgreSql.AdoNet)
+              PROJECT="src/TinyEvents.PostgreSql.AdoNet/TinyEvents.PostgreSql.AdoNet.csproj"
+              ;;
+            TinyEvents.PostgreSql.EntityFrameworkCore)
+              PROJECT="src/TinyEvents.PostgreSql.EntityFrameworkCore/TinyEvents.PostgreSql.EntityFrameworkCore.csproj"
+              ;;
+            *)
+              echo "Unsupported package: $PACKAGE_ID"
+              exit 1
+              ;;
+          esac
+
+          echo "PROJECT=$PROJECT" >> "$GITHUB_ENV"
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build (Release)
+        run: dotnet build -c Release --no-restore
+
+      - name: Test (Release)
+        run: dotnet test -c Release --no-build --no-restore
+        env:
+          TINYEVENTS_RUN_SQLSERVER_TESTS: true
+          TINYEVENTS_RUN_POSTGRESQL_TESTS: true
+
+      - name: Pack selected package
+        run: dotnet pack "$PROJECT" -c Release --no-build -o ./artifacts /p:PackageVersion="$PACKAGE_VERSION" /p:Version="$PACKAGE_VERSION"
+
+      - name: Verify selected package
+        shell: bash
+        run: |
+          PACKAGE="./artifacts/${PACKAGE_ID}.${PACKAGE_VERSION}.nupkg"
+
+          if [ ! -f "$PACKAGE" ]; then
+            echo "ERROR: Expected $PACKAGE but it was not found."
+            exit 1
+          fi
+
+      - name: Publish selected package to NuGet
+        run: dotnet nuget push "./artifacts/${PACKAGE_ID}.${PACKAGE_VERSION}.nupkg" --api-key "${{ secrets.NUGET_API_KEY }}" --source "https://api.nuget.org/v3/index.json" --skip-duplicate
+
+      - name: Upload selected package
+        uses: actions/upload-artifact@v4
+        with:
+          name: nupkg
+          path: ./artifacts/*.nupkg

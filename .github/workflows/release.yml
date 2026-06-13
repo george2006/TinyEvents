@@ -36,6 +36,7 @@ jobs:
         run: dotnet test -c Release --no-build --no-restore
         env:
           TINYEVENTS_RUN_SQLSERVER_TESTS: true
+          TINYEVENTS_RUN_POSTGRESQL_TESTS: true
 
       - name: Pack (Release)
         shell: bash
@@ -45,6 +46,8 @@ jobs:
           dotnet pack src/TinyEvents/TinyEvents.csproj -c Release --no-build -o ./artifacts /p:PackageVersion="$TAG" /p:Version="$TAG"
           dotnet pack src/TinyEvents.SqlServer.AdoNet/TinyEvents.SqlServer.AdoNet.csproj -c Release --no-build -o ./artifacts /p:PackageVersion="$TAG" /p:Version="$TAG"
           dotnet pack src/TinyEvents.SqlServer.EntityFrameworkCore/TinyEvents.SqlServer.EntityFrameworkCore.csproj -c Release --no-build -o ./artifacts /p:PackageVersion="$TAG" /p:Version="$TAG"
+          dotnet pack src/TinyEvents.PostgreSql.AdoNet/TinyEvents.PostgreSql.AdoNet.csproj -c Release --no-build -o ./artifacts /p:PackageVersion="$TAG" /p:Version="$TAG"
+          dotnet pack src/TinyEvents.PostgreSql.EntityFrameworkCore/TinyEvents.PostgreSql.EntityFrameworkCore.csproj -c Release --no-build -o ./artifacts /p:PackageVersion="$TAG" /p:Version="$TAG"
           dotnet pack src/TinyEvents.Worker/TinyEvents.Worker.csproj -c Release --no-build -o ./artifacts /p:PackageVersion="$TAG" /p:Version="$TAG"
 
       - name: Verify package version matches tag
@@ -55,7 +58,7 @@ jobs:
           echo "Artifacts:"
           ls -la ./artifacts
 
-          for PACKAGE_ID in TinyEvents TinyEvents.SqlServer.AdoNet TinyEvents.SqlServer.EntityFrameworkCore TinyEvents.Worker; do
+          for PACKAGE_ID in TinyEvents TinyEvents.SqlServer.AdoNet TinyEvents.SqlServer.EntityFrameworkCore TinyEvents.PostgreSql.AdoNet TinyEvents.PostgreSql.EntityFrameworkCore TinyEvents.Worker; do
             if [ ! -f "./artifacts/${PACKAGE_ID}.${TAG}.nupkg" ]; then
               echo "ERROR: Expected ./artifacts/${PACKAGE_ID}.${TAG}.nupkg but it was not found."
               exit 1
