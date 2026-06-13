@@ -1,6 +1,5 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
 using Npgsql;
 using TinyEvents.PostgreSql.EntityFrameworkCore;
 using Xunit;
@@ -74,8 +73,7 @@ public sealed class EfCorePostgreSqlWriterRuntimeTests : IClassFixture<PostgreSq
         {
             options.UseNpgsql(fixture.ConnectionString);
         });
-        services.UseTinyEvents();
-        services.Replace(ServiceDescriptor.Scoped<ITinyOutboxWriter, TinyPostgreSqlEfCoreOutboxWriter<TestDbContext>>());
+        services.UsePostgreSqlEntityFrameworkCoreOutbox<TestDbContext>();
 
         return services.BuildServiceProvider();
     }

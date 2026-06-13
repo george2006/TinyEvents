@@ -1,10 +1,52 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace TinyEvents.PostgreSql.EntityFrameworkCore.Tests;
 
 public sealed class TinyPostgreSqlEfCoreOutboxStoreTests
 {
+    [Fact]
+    public void Use_postgre_sql_entity_framework_core_outbox_rejects_null_services()
+    {
+        Assert.Throws<ArgumentNullException>(() =>
+            TinyEventsPostgreSqlEntityFrameworkCoreServiceCollectionExtensions
+                .UsePostgreSqlEntityFrameworkCoreOutbox<TestDbContext>(null!));
+    }
+
+    [Fact]
+    public void Use_postgre_sql_entity_framework_core_outbox_registers_writer_and_store()
+    {
+        var services = new ServiceCollection();
+
+        services.UsePostgreSqlEntityFrameworkCoreOutbox<TestDbContext>();
+
+        AssertService<ITinyOutboxWriter, TinyPostgreSqlEfCoreOutboxWriter<TestDbContext>>(services);
+        AssertService<ITinyOutboxStore, TinyPostgreSqlEfCoreOutboxStore<TestDbContext>>(services);
+    }
+
+    [Fact]
+    public void Use_postgre_sql_entity_framework_core_outbox_registers_configured_options()
+    {
+        var services = new ServiceCollection();
+
+        services.UsePostgreSqlEntityFrameworkCoreOutbox<TestDbContext>(options =>
+        {
+            options.TableName = "app.MyOutbox";
+        });
+
+        using var provider = services.BuildServiceProvider();
+
+        var options = provider.GetRequiredService<TinyEventsPostgreSqlEntityFrameworkCoreOptions>();
+        Assert.Equal("app.MyOutbox", options.TableName);
+    }
+
+    [Fact]
+    public void EF_store_does_not_implement_writer()
+    {
+        Assert.False(typeof(ITinyOutboxWriter).IsAssignableFrom(typeof(TinyPostgreSqlEfCoreOutboxStore<TestDbContext>)));
+    }
+
     [Fact]
     public void Store_rejects_null_db_context()
     {
@@ -138,6 +180,15 @@ public sealed class TinyPostgreSqlEfCoreOutboxStoreTests
         return new TinyPostgreSqlEfCoreOutboxStore<TestDbContext>(
             dbContext,
             new TinyEventsPostgreSqlEntityFrameworkCoreOptions());
+    }
+
+    private static void AssertService<TService, TImplementation>(IServiceCollection services)
+    {
+        var descriptor = Assert.Single(
+            services,
+            descriptor => descriptor.ServiceType == typeof(TService));
+
+        Assert.Equal(typeof(TImplementation), descriptor.ImplementationType);
     }
 
     private static TestDbContext NewTestDbContext()
