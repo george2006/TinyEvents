@@ -6,6 +6,10 @@ public sealed class SmokeLog
 
     public int AdoNetCount { get; private set; }
 
+    public int PostgreSqlEfCoreCount { get; private set; }
+
+    public int PostgreSqlAdoNetCount { get; private set; }
+
     public void RecordEfCore()
     {
         EfCoreCount++;
@@ -14,5 +18,15 @@ public sealed class SmokeLog
     public void RecordAdoNet()
     {
         AdoNetCount++;
+    }
+
+    public void RecordPostgreSqlEfCore()
+    {
+        PostgreSqlEfCoreCount++;
+    }
+
+    public void RecordPostgreSqlAdoNet()
+    {
+        PostgreSqlAdoNetCount++;
     }
 }

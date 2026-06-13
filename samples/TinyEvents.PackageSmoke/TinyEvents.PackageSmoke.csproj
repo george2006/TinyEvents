@@ -8,9 +8,13 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.Data.SqlClient" Version="7.0.1" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="8.0.16" />
-    <PackageReference Include="TinyEvents" Version="0.1.0-alpha.1" />
-    <PackageReference Include="TinyEvents.SqlServer.AdoNet" Version="0.1.0-alpha.1" />
-    <PackageReference Include="TinyEvents.SqlServer.EntityFrameworkCore" Version="0.1.0-alpha.1" />
-    <PackageReference Include="TinyEvents.Worker" Version="0.1.0-alpha.1" />
+    <PackageReference Include="Npgsql" Version="8.0.9" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.11" />
+    <PackageReference Include="TinyEvents" Version="0.1.0-alpha.2" />
+    <PackageReference Include="TinyEvents.PostgreSql.AdoNet" Version="0.1.0-alpha.2" />
+    <PackageReference Include="TinyEvents.PostgreSql.EntityFrameworkCore" Version="0.1.0-alpha.2" />
+    <PackageReference Include="TinyEvents.SqlServer.AdoNet" Version="0.1.0-alpha.2" />
+    <PackageReference Include="TinyEvents.SqlServer.EntityFrameworkCore" Version="0.1.0-alpha.2" />
+    <PackageReference Include="TinyEvents.Worker" Version="0.1.0-alpha.2" />
   </ItemGroup>
 </Project>

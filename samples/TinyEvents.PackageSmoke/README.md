@@ -8,6 +8,7 @@ dotnet run --project samples/TinyEvents.PackageSmoke/TinyEvents.PackageSmoke.csp
 ```
 
 The default connection string targets the SQL Server container on port `14334`.
+The PostgreSQL smoke path targets the PostgreSQL container on port `54324`.
 
 To use a different SQL Server instance:
 
@@ -15,6 +16,10 @@ To use a different SQL Server instance:
 set TINYEVENTS_PACKAGE_SMOKE_SQLSERVER=Server=localhost,1433;Database=TinyEventsPackageSmoke;User Id=sa;Password=your-password;Encrypt=False;TrustServerCertificate=True;
 ```
 
-The sample references the public `0.1.0-alpha.1` packages instead of local project references. It verifies that the core package, SQL Server providers, worker package, dependency injection extensions, source-generator consumer registration, publishing, claiming, and processing can be consumed from NuGet.
+To use a different PostgreSQL instance:
 
-PostgreSQL package smoke coverage belongs with the planned sample split by database family.
+```bash
+set TINYEVENTS_PACKAGE_SMOKE_POSTGRESQL=Host=localhost;Port=5432;Database=TinyEventsPackageSmoke;Username=postgres;Password=your-password;
+```
+
+The sample references the public `0.1.0-alpha.2` packages instead of local project references. It verifies that the core package, SQL Server providers, PostgreSQL providers, worker package, dependency injection extensions, source-generator consumer registration, publishing, claiming, and processing can be consumed from NuGet.

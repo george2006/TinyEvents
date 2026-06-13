@@ -1,9 +1,14 @@
 using TinyEvents.PackageSmoke;
 
-var connectionString = PackageSmokeSettings.GetConnectionString();
+var sqlServerConnectionString = PackageSmokeSettings.GetSqlServerConnectionString();
+var postgreSqlConnectionString = PackageSmokeSettings.GetPostgreSqlConnectionString();
 
-await PackageSmokeDatabase.EnsureCreatedAsync(connectionString);
-await EfCorePackageSmoke.RunAsync(connectionString);
-await AdoNetPackageSmoke.RunAsync(connectionString);
+await PackageSmokeDatabase.EnsureCreatedAsync(sqlServerConnectionString);
+await EfCorePackageSmoke.RunAsync(sqlServerConnectionString);
+await AdoNetPackageSmoke.RunAsync(sqlServerConnectionString);
+
+await PostgreSqlPackageSmokeDatabase.EnsureCreatedAsync(postgreSqlConnectionString);
+await PostgreSqlEfCorePackageSmoke.RunAsync(postgreSqlConnectionString);
+await PostgreSqlAdoNetPackageSmoke.RunAsync(postgreSqlConnectionString);
 
 Console.WriteLine("TinyEvents package smoke test passed.");
