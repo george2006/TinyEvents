@@ -246,6 +246,110 @@ public sealed class TinyPostgreSqlAdoNetWriterTests
         Assert.Contains("@LastError", sql);
     }
 
+    [Fact]
+    public void Store_rejects_null_options()
+    {
+        var factory = new RecordingWorkerConnectionFactory(new RecordingConnection());
+
+        Assert.Throws<ArgumentNullException>(() => new TinyPostgreSqlAdoNetOutboxStore(null!, factory));
+    }
+
+    [Fact]
+    public void Store_rejects_null_connection_factory()
+    {
+        var options = new TinyEventsPostgreSqlAdoNetOptions();
+
+        Assert.Throws<ArgumentNullException>(() => new TinyPostgreSqlAdoNetOutboxStore(options, null!));
+    }
+
+    [Fact]
+    public async Task Claim_pending_uses_worker_connection_factory()
+    {
+        var factory = new RecordingWorkerConnectionFactory(new RecordingConnection());
+        var store = NewStore(factory);
+
+        await store.ClaimPendingAsync(1, "worker", DateTimeOffset.UtcNow, TimeSpan.FromMinutes(1), CancellationToken.None);
+
+        Assert.Equal(1, factory.CallCount);
+    }
+
+    [Fact]
+    public async Task Mark_processed_uses_worker_connection_factory()
+    {
+        var factory = new RecordingWorkerConnectionFactory(new RecordingConnection());
+        var store = NewStore(factory);
+
+        await store.MarkProcessedAsync(Guid.NewGuid(), "worker", DateTimeOffset.UtcNow, CancellationToken.None);
+
+        Assert.Equal(1, factory.CallCount);
+    }
+
+    [Fact]
+    public async Task Mark_failed_uses_worker_connection_factory()
+    {
+        var factory = new RecordingWorkerConnectionFactory(new RecordingConnection());
+        var store = NewStore(factory);
+
+        await store.MarkFailedAsync(Guid.NewGuid(), "worker", "boom", 1, null, CancellationToken.None);
+
+        Assert.Equal(1, factory.CallCount);
+    }
+
+    [Fact]
+    public async Task Worker_connection_is_disposed_after_worker_operation_if_owned_by_factory()
+    {
+        var connection = new RecordingConnection();
+        var store = NewStore(new RecordingWorkerConnectionFactory(connection));
+
+        await store.MarkProcessedAsync(Guid.NewGuid(), "worker", DateTimeOffset.UtcNow, CancellationToken.None);
+
+        Assert.True(connection.WasDisposed);
+    }
+
+    [Fact]
+    public async Task Claim_pending_rejects_null_worker_id()
+    {
+        var store = NewStore(new RecordingWorkerConnectionFactory(new RecordingConnection()));
+
+        await Assert.ThrowsAsync<ArgumentNullException>(
+            async () => await store.ClaimPendingAsync(1, null!, DateTimeOffset.UtcNow, TimeSpan.FromMinutes(1), CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Mark_processed_rejects_null_worker_id()
+    {
+        var store = NewStore(new RecordingWorkerConnectionFactory(new RecordingConnection()));
+
+        await Assert.ThrowsAsync<ArgumentNullException>(
+            async () => await store.MarkProcessedAsync(Guid.NewGuid(), null!, DateTimeOffset.UtcNow, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Mark_failed_rejects_null_worker_id()
+    {
+        var store = NewStore(new RecordingWorkerConnectionFactory(new RecordingConnection()));
+
+        await Assert.ThrowsAsync<ArgumentNullException>(
+            async () => await store.MarkFailedAsync(Guid.NewGuid(), null!, "boom", 1, null, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Mark_failed_rejects_null_error()
+    {
+        var store = NewStore(new RecordingWorkerConnectionFactory(new RecordingConnection()));
+
+        await Assert.ThrowsAsync<ArgumentNullException>(
+            async () => await store.MarkFailedAsync(Guid.NewGuid(), "worker", null!, 1, null, CancellationToken.None));
+    }
+
+    private static TinyPostgreSqlAdoNetOutboxStore NewStore(
+        ITinyPostgreSqlAdoNetWorkerConnectionFactory factory)
+    {
+        return new TinyPostgreSqlAdoNetOutboxStore(
+            new TinyEventsPostgreSqlAdoNetOptions(),
+            factory);
+    }
+
     private static TinyPostgreSqlAdoNetOutboxWriter NewWriter(
         DbConnection connection,
         DbTransaction transaction)
@@ -282,6 +386,24 @@ public sealed class TinyPostgreSqlAdoNetWriterTests
         public object GetService(Type serviceType)
         {
             return null;
+        }
+    }
+
+    private sealed class RecordingWorkerConnectionFactory : ITinyPostgreSqlAdoNetWorkerConnectionFactory
+    {
+        private readonly RecordingConnection connection;
+
+        public RecordingWorkerConnectionFactory(RecordingConnection connection)
+        {
+            this.connection = connection;
+        }
+
+        public int CallCount { get; private set; }
+
+        public ValueTask<DbConnection> CreateOpenConnectionAsync(CancellationToken cancellationToken)
+        {
+            CallCount++;
+            return new ValueTask<DbConnection>(connection);
         }
     }
 
@@ -441,13 +563,107 @@ public sealed class TinyPostgreSqlAdoNetWriterTests
 
         protected override DbDataReader ExecuteDbDataReader(CommandBehavior behavior)
         {
-            throw new NotSupportedException();
+            return new EmptyDataReader();
+        }
+
+        protected override Task<DbDataReader> ExecuteDbDataReaderAsync(
+            CommandBehavior behavior,
+            CancellationToken cancellationToken)
+        {
+            return Task.FromResult<DbDataReader>(new EmptyDataReader());
         }
 
         public override Task<int> ExecuteNonQueryAsync(CancellationToken cancellationToken)
         {
             return Task.FromResult(1);
         }
+    }
+
+    private sealed class EmptyDataReader : DbDataReader
+    {
+        public override int FieldCount => 0;
+
+        public override bool HasRows => false;
+
+        public override bool IsClosed => false;
+
+        public override int RecordsAffected => 0;
+
+        public override int Depth => 0;
+
+        public override object this[int ordinal] => throw new IndexOutOfRangeException();
+
+        public override object this[string name] => throw new IndexOutOfRangeException();
+
+        public override bool Read()
+        {
+            return false;
+        }
+
+        public override Task<bool> ReadAsync(CancellationToken cancellationToken)
+        {
+            return Task.FromResult(false);
+        }
+
+        public override bool NextResult()
+        {
+            return false;
+        }
+
+        public override object GetValue(int ordinal)
+        {
+            throw new IndexOutOfRangeException();
+        }
+
+        public override int GetValues(object[] values)
+        {
+            return 0;
+        }
+
+        public override string GetName(int ordinal)
+        {
+            throw new IndexOutOfRangeException();
+        }
+
+        public override int GetOrdinal(string name)
+        {
+            throw new IndexOutOfRangeException();
+        }
+
+        public override string GetDataTypeName(int ordinal)
+        {
+            throw new IndexOutOfRangeException();
+        }
+
+        public override Type GetFieldType(int ordinal)
+        {
+            throw new IndexOutOfRangeException();
+        }
+
+        public override bool IsDBNull(int ordinal)
+        {
+            throw new IndexOutOfRangeException();
+        }
+
+        public override System.Collections.IEnumerator GetEnumerator()
+        {
+            return Array.Empty<object>().GetEnumerator();
+        }
+
+        public override bool GetBoolean(int ordinal) => throw new IndexOutOfRangeException();
+        public override byte GetByte(int ordinal) => throw new IndexOutOfRangeException();
+        public override long GetBytes(int ordinal, long dataOffset, byte[] buffer, int bufferOffset, int length) => throw new IndexOutOfRangeException();
+        public override char GetChar(int ordinal) => throw new IndexOutOfRangeException();
+        public override long GetChars(int ordinal, long dataOffset, char[] buffer, int bufferOffset, int length) => throw new IndexOutOfRangeException();
+        public override Guid GetGuid(int ordinal) => throw new IndexOutOfRangeException();
+        public override short GetInt16(int ordinal) => throw new IndexOutOfRangeException();
+        public override int GetInt32(int ordinal) => throw new IndexOutOfRangeException();
+        public override long GetInt64(int ordinal) => throw new IndexOutOfRangeException();
+        public override float GetFloat(int ordinal) => throw new IndexOutOfRangeException();
+        public override double GetDouble(int ordinal) => throw new IndexOutOfRangeException();
+        public override string GetString(int ordinal) => throw new IndexOutOfRangeException();
+        public override decimal GetDecimal(int ordinal) => throw new IndexOutOfRangeException();
+        public override DateTime GetDateTime(int ordinal) => throw new IndexOutOfRangeException();
     }
 
     private sealed class RecordingParameter : DbParameter
