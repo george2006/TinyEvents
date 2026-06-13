@@ -382,8 +382,7 @@ Goal: publish through caller-owned `DbContext` changes.
 Work:
 
 - Add `TinyPostgreSqlEfCoreOutboxWriter<TDbContext>`.
-- Add provider options.
-- Register writer through provider extension.
+- Keep provider registration for the dedicated dependency injection slice.
 
 Tests:
 
@@ -440,8 +439,8 @@ services.UsePostgreSqlEntityFrameworkCoreOutbox<TDbContext>(...)
 - Register:
   - TinyEvents core services
   - generated contributions
-  - provider writer
-  - provider store
+  - PostgreSQL ADO.NET writer and store
+  - PostgreSQL EF Core writer and store
   - provider options
 
 Tests:
