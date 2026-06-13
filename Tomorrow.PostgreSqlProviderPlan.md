@@ -488,9 +488,11 @@ Goal: make local usage easy.
 Work:
 
 - Add PostgreSQL service to root `docker-compose.yml`.
-- Add either:
-  - PostgreSQL EF Core sample, or
-  - extend package smoke sample to include PostgreSQL
+- End with four provider-focused samples:
+  - SQL Server ADO.NET
+  - SQL Server EF Core
+  - PostgreSQL ADO.NET
+  - PostgreSQL EF Core
 - Keep sample small and operational.
 
 Tests:

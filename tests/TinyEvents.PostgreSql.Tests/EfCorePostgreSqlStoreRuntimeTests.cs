@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
 using TinyEvents.PostgreSql.EntityFrameworkCore;
 using Xunit;
@@ -12,6 +13,27 @@ public sealed class EfCorePostgreSqlStoreRuntimeTests : IClassFixture<PostgreSql
     public EfCorePostgreSqlStoreRuntimeTests(PostgreSqlFixture fixture)
     {
         this.fixture = fixture;
+    }
+
+    [PostgreSqlIntegrationFact]
+    public async Task Processor_publishes_consumes_and_marks_message_processed()
+    {
+        RecordingConsumer.Consumed.Clear();
+        await fixture.ResetSchemaAsync();
+        using var provider = BuildServices();
+        using var scope = provider.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<TestDbContext>();
+        var publisher = scope.ServiceProvider.GetRequiredService<ITinyEventPublisher>();
+        var processor = scope.ServiceProvider.GetRequiredService<ITinyOutboxProcessor>();
+        var userId = Guid.NewGuid();
+
+        await publisher.PublishAsync(new UserCreated(userId));
+        await dbContext.SaveChangesAsync();
+        await processor.ProcessPendingAsync();
+
+        var consumed = Assert.Single(RecordingConsumer.Consumed);
+        Assert.Equal(userId, consumed.UserId);
+        Assert.Equal(TinyOutboxMessageStatus.Processed, await ReadStatusAsync());
     }
 
     [PostgreSqlIntegrationFact]
@@ -124,6 +146,25 @@ public sealed class EfCorePostgreSqlStoreRuntimeTests : IClassFixture<PostgreSql
         Assert.NotNull(row.NextAttemptAtUtc);
     }
 
+    private ServiceProvider BuildServices()
+    {
+        var services = new ServiceCollection();
+
+        services.AddDbContext<TestDbContext>(options =>
+        {
+            options.UseNpgsql(fixture.ConnectionString);
+        });
+        services.UsePostgreSqlEntityFrameworkCoreOutbox<TestDbContext>(options =>
+        {
+            options.TableName = "TinyOutbox";
+        });
+        services.AddSingleton<TinyEventTypeDescriptor>(
+            new TinyEventTypeDescriptor(typeof(UserCreated).FullName!, typeof(UserCreated)));
+        services.AddScoped<IEventConsumer<UserCreated>, RecordingConsumer>();
+
+        return services.BuildServiceProvider();
+    }
+
     private TestDbContext NewDbContext()
     {
         var options = new DbContextOptionsBuilder<TestDbContext>()
@@ -203,6 +244,16 @@ public sealed class EfCorePostgreSqlStoreRuntimeTests : IClassFixture<PostgreSql
         return (TinyOutboxMessageStatus)Convert.ToInt32(result);
     }
 
+    private async Task<TinyOutboxMessageStatus> ReadStatusAsync()
+    {
+        await using var connection = new NpgsqlConnection(fixture.ConnectionString);
+        await connection.OpenAsync();
+        await using var command = connection.CreateCommand();
+        command.CommandText = """SELECT "Status" FROM "TinyOutbox";""";
+        var result = await command.ExecuteScalarAsync();
+        return (TinyOutboxMessageStatus)Convert.ToInt32(result);
+    }
+
     private async Task<FailureRow> ReadFailureAsync(Guid messageId)
     {
         await using var connection = new NpgsqlConnection(fixture.ConnectionString);
@@ -250,6 +301,17 @@ public sealed class EfCorePostgreSqlStoreRuntimeTests : IClassFixture<PostgreSql
     }
 
     private sealed record UserCreated(Guid UserId);
+
+    private sealed class RecordingConsumer : IEventConsumer<UserCreated>
+    {
+        public static List<UserCreated> Consumed { get; } = new List<UserCreated>();
+
+        public ValueTask ConsumeAsync(UserCreated @event, CancellationToken cancellationToken)
+        {
+            Consumed.Add(@event);
+            return ValueTask.CompletedTask;
+        }
+    }
 
     private sealed record FailureRow(
         TinyOutboxMessageStatus Status,
