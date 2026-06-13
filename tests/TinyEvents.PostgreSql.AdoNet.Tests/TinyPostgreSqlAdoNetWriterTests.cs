@@ -176,6 +176,76 @@ public sealed class TinyPostgreSqlAdoNetWriterTests
         Assert.Contains("@Payload", sql);
     }
 
+    [Fact]
+    public void Claim_sql_rejects_null_table_name()
+    {
+        Assert.Throws<ArgumentNullException>(() => TinyPostgreSqlAdoNetSql.ClaimPending(null!));
+    }
+
+    [Fact]
+    public void Claim_sql_uses_atomic_update_with_postgre_sql_skip_locked()
+    {
+        var sql = TinyPostgreSqlAdoNetSql.ClaimPending(TinyPostgreSqlAdoNetTableName.Parse("public.TinyOutbox"));
+
+        Assert.Contains("WITH claimed AS", sql);
+        Assert.Contains("FOR UPDATE SKIP LOCKED", sql);
+        Assert.Contains("UPDATE \"public\".\"TinyOutbox\" AS outbox", sql);
+        Assert.Contains("FROM claimed", sql);
+        Assert.Contains("RETURNING", sql);
+        Assert.Contains("@WorkerId", sql);
+        Assert.Contains("@ClaimExpiresAtUtc", sql);
+    }
+
+    [Fact]
+    public void Claim_sql_reclaims_expired_processing_messages()
+    {
+        var sql = TinyPostgreSqlAdoNetSql.ClaimPending(TinyPostgreSqlAdoNetTableName.Parse("TinyOutbox"));
+
+        Assert.Contains("\"Status\" = @ProcessingStatus", sql);
+        Assert.Contains("\"ClaimExpiresAtUtc\" <= @Now", sql);
+    }
+
+    [Fact]
+    public void Claim_sql_does_not_claim_future_retry_messages()
+    {
+        var sql = TinyPostgreSqlAdoNetSql.ClaimPending(TinyPostgreSqlAdoNetTableName.Parse("TinyOutbox"));
+
+        Assert.Contains("\"NextAttemptAtUtc\" IS NULL OR \"NextAttemptAtUtc\" <= @Now", sql);
+    }
+
+    [Fact]
+    public void Mark_processed_sql_rejects_null_table_name()
+    {
+        Assert.Throws<ArgumentNullException>(() => TinyPostgreSqlAdoNetSql.MarkProcessed(null!));
+    }
+
+    [Fact]
+    public void Mark_processed_sql_limits_update_to_current_worker()
+    {
+        var sql = TinyPostgreSqlAdoNetSql.MarkProcessed(TinyPostgreSqlAdoNetTableName.Parse("TinyOutbox"));
+
+        Assert.Contains("\"ClaimedBy\" = @WorkerId", sql);
+        Assert.Contains("\"Status\" = @ProcessingStatus", sql);
+        Assert.Contains("@ProcessedAtUtc", sql);
+    }
+
+    [Fact]
+    public void Mark_failed_sql_rejects_null_table_name()
+    {
+        Assert.Throws<ArgumentNullException>(() => TinyPostgreSqlAdoNetSql.MarkFailed(null!));
+    }
+
+    [Fact]
+    public void Mark_failed_sql_limits_update_to_current_worker()
+    {
+        var sql = TinyPostgreSqlAdoNetSql.MarkFailed(TinyPostgreSqlAdoNetTableName.Parse("TinyOutbox"));
+
+        Assert.Contains("\"ClaimedBy\" = @WorkerId", sql);
+        Assert.Contains("\"Status\" = @ProcessingStatus", sql);
+        Assert.Contains("@NextAttemptAtUtc", sql);
+        Assert.Contains("@LastError", sql);
+    }
+
     private static TinyPostgreSqlAdoNetOutboxWriter NewWriter(
         DbConnection connection,
         DbTransaction transaction)
