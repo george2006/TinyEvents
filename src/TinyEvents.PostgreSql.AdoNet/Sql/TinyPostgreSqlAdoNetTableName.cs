@@ -38,6 +38,18 @@ public sealed class TinyPostgreSqlAdoNetTableName
             : ToPostgreSqlName();
     }
 
+    public string ToPostgreSqlSchemaName(string defaultSchema = "public")
+    {
+        if (string.IsNullOrWhiteSpace(defaultSchema))
+        {
+            throw new ArgumentException("Default schema is required.", nameof(defaultSchema));
+        }
+
+        return parts.Length == 1
+            ? Quote(defaultSchema)
+            : Quote(parts[0]);
+    }
+
     public string ToPostgreSqlObjectName(string defaultSchema = "public")
     {
         if (string.IsNullOrWhiteSpace(defaultSchema))

@@ -26,6 +26,16 @@ public sealed class TinyPostgreSqlAdoNetTableNameTests
     }
 
     [Theory]
+    [InlineData("TinyOutbox", "\"public\"")]
+    [InlineData("app.MyOutbox", "\"app\"")]
+    public void To_postgre_sql_schema_name_reads_schema_or_default(string tableName, string expected)
+    {
+        var parsed = TinyPostgreSqlAdoNetTableName.Parse(tableName);
+
+        Assert.Equal(expected, parsed.ToPostgreSqlSchemaName());
+    }
+
+    [Theory]
     [InlineData("TinyOutbox", "public.TinyOutbox")]
     [InlineData("app.MyOutbox", "app.MyOutbox")]
     public void To_postgre_sql_object_name_applies_default_schema_to_unqualified_table(string tableName, string expected)
@@ -70,5 +80,16 @@ public sealed class TinyPostgreSqlAdoNetTableNameTests
         var parsed = TinyPostgreSqlAdoNetTableName.Parse("TinyOutbox");
 
         Assert.Throws<ArgumentException>(() => parsed.ToPostgreSqlObjectName(defaultSchema!));
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData(" ")]
+    public void To_postgre_sql_schema_name_rejects_invalid_default_schema(string? defaultSchema)
+    {
+        var parsed = TinyPostgreSqlAdoNetTableName.Parse("TinyOutbox");
+
+        Assert.Throws<ArgumentException>(() => parsed.ToPostgreSqlSchemaName(defaultSchema!));
     }
 }
