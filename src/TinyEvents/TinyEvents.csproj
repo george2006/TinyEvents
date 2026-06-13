@@ -2,7 +2,7 @@
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <PackageId>TinyEvents</PackageId>
-    <Version>0.1.0-alpha.1</Version>
+    <Version>0.1.0-alpha.2</Version>
     <Authors>Jorge Durban Antunano</Authors>
     <Description>Provider-agnostic outbox-first application event library for durable same-process event processing.</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
@@ -28,17 +28,17 @@
   </ItemGroup>
   <PropertyGroup>
     <PackageReleaseNotes>
-      TinyEvents 0.1.0-alpha.1
+      TinyEvents 0.1.0-alpha.2
 
       Added
-      - Outbox-first application event publishing.
-      - Incremental source generator for consumer registration and event type descriptors.
-      - Runtime processor for durable event handling.
+      - Alpha.2 release train for the PostgreSQL provider milestone.
+      - Documentation updates for SQL Server and PostgreSQL provider families.
+      - Release workflow support for full-train and single-package publishing.
 
       Notes
       - Early alpha / active development.
       - APIs may change before 1.0.
-      - Published to validate the full Tiny Suite sample with real package references.
+      - Core publishing, processing, and source-generator contracts remain provider-agnostic.
     </PackageReleaseNotes>
   </PropertyGroup>
 </Project>

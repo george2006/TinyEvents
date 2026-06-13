@@ -2,7 +2,7 @@
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <PackageId>TinyEvents.Worker</PackageId>
-    <Version>0.1.0-alpha.1</Version>
+    <Version>0.1.0-alpha.2</Version>
     <Authors>Jorge Durban Antunano</Authors>
     <Description>Hosted worker integration for TinyEvents outbox processing.</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
@@ -24,16 +24,16 @@
   </ItemGroup>
   <PropertyGroup>
     <PackageReleaseNotes>
-      TinyEvents.Worker 0.1.0-alpha.1
+      TinyEvents.Worker 0.1.0-alpha.2
 
       Added
-      - Hosted worker integration for polling and processing TinyEvents outbox messages.
-      - Configurable batch size, polling interval, claim timeout, and worker id.
+      - Alpha.2 release train alignment with SQL Server and PostgreSQL providers.
+      - Documentation updates for provider-specific worker setup.
 
       Notes
       - Early alpha / active development.
       - APIs may change before 1.0.
-      - Requires a configured TinyEvents outbox store provider.
+      - Worker behavior is provider-agnostic and requires a configured TinyEvents outbox store provider.
     </PackageReleaseNotes>
   </PropertyGroup>
 </Project>

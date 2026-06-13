@@ -2,7 +2,7 @@
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <PackageId>TinyEvents.PostgreSql.AdoNet</PackageId>
-    <Version>0.1.0-alpha.1</Version>
+    <Version>0.1.0-alpha.2</Version>
     <Authors>Jorge Durban Antunano</Authors>
     <Description>PostgreSQL ADO.NET provider for TinyEvents outbox storage and worker claiming.</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
@@ -25,14 +25,17 @@
   </ItemGroup>
   <PropertyGroup>
     <PackageReleaseNotes>
-      TinyEvents.PostgreSql.AdoNet 0.1.0-alpha.1
+      TinyEvents.PostgreSql.AdoNet 0.1.0-alpha.2
 
       Added
-      - PostgreSQL ADO.NET provider package boundary.
+      - PostgreSQL ADO.NET outbox writer using application-owned transactions.
+      - PostgreSQL worker store with atomic lease-based claiming.
+      - PostgreSQL schema helper and packed schema script.
+      - Dependency injection registration for PostgreSQL ADO.NET publishing and worker processing.
+      - PostgreSQL runtime tests and sample application.
 
       Notes
       - Early alpha / active development.
-      - PostgreSQL runtime behavior will be added in small tested slices.
       - Consumers must be idempotent because delivery is at-least-once.
     </PackageReleaseNotes>
   </PropertyGroup>

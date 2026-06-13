@@ -49,9 +49,9 @@ That means TinyEvents sits in the space between plain in-process event handlers 
 Install the alpha packages:
 
 ```bash
-dotnet add package TinyEvents --version 0.1.0-alpha.1
-dotnet add package TinyEvents.SqlServer.EntityFrameworkCore --version 0.1.0-alpha.1
-dotnet add package TinyEvents.Worker --version 0.1.0-alpha.1
+dotnet add package TinyEvents --version 0.1.0-alpha.2
+dotnet add package TinyEvents.SqlServer.EntityFrameworkCore --version 0.1.0-alpha.2
+dotnet add package TinyEvents.Worker --version 0.1.0-alpha.2
 ```
 
 Provider packages are database-specific. Use `TinyEvents.SqlServer.*` for SQL Server or `TinyEvents.PostgreSql.*` for PostgreSQL.

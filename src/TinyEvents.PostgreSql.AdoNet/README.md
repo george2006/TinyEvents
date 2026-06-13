@@ -16,8 +16,8 @@ PostgreSQL worker claiming uses `FOR UPDATE SKIP LOCKED`.
 ## Install
 
 ```bash
-dotnet add package TinyEvents --version 0.1.0-alpha.1
-dotnet add package TinyEvents.PostgreSql.AdoNet --version 0.1.0-alpha.1
+dotnet add package TinyEvents --version 0.1.0-alpha.2
+dotnet add package TinyEvents.PostgreSql.AdoNet --version 0.1.0-alpha.2
 ```
 
 ## Register

@@ -18,9 +18,9 @@ Think of consumers as domain-event or application-event handlers with outbox rel
 Install the alpha packages:
 
 ```bash
-dotnet add package TinyEvents --version 0.1.0-alpha.1
-dotnet add package TinyEvents.SqlServer.EntityFrameworkCore --version 0.1.0-alpha.1
-dotnet add package TinyEvents.Worker --version 0.1.0-alpha.1
+dotnet add package TinyEvents --version 0.1.0-alpha.2
+dotnet add package TinyEvents.SqlServer.EntityFrameworkCore --version 0.1.0-alpha.2
+dotnet add package TinyEvents.Worker --version 0.1.0-alpha.2
 ```
 
 TinyEvents core is provider-agnostic. Provider packages are database-specific:
