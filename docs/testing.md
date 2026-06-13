@@ -61,7 +61,13 @@ $env:TINYEVENTS_RUN_POSTGRESQL_TESTS = "true"
 dotnet test tests\TinyEvents.PostgreSql.Tests\TinyEvents.PostgreSql.Tests.csproj
 ```
 
-These tests start an ephemeral PostgreSQL container. The first lane proves the container and connection setup. Provider behavior tests should be added here as PostgreSQL support grows.
+These tests start an ephemeral PostgreSQL container and prove behavior fakes cannot prove:
+
+- ADO.NET schema creation works against the real database.
+- ADO.NET business data and outbox messages commit together.
+- ADO.NET business data and outbox messages roll back together.
+- ADO.NET worker claim and mark SQL works against the real database.
+- EF Core PostgreSQL writer and store SQL works against the real database.
 
 ## Local SQL Server
 

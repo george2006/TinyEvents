@@ -23,7 +23,10 @@ dotnet add package TinyEvents.SqlServer.EntityFrameworkCore --version 0.1.0-alph
 dotnet add package TinyEvents.Worker --version 0.1.0-alpha.1
 ```
 
-TinyEvents core is provider-agnostic. The current alpha SQL Server providers ship as provider packages.
+TinyEvents core is provider-agnostic. Provider packages are database-specific:
+
+- SQL Server: `TinyEvents.SqlServer.EntityFrameworkCore` or `TinyEvents.SqlServer.AdoNet`
+- PostgreSQL: `TinyEvents.PostgreSql.EntityFrameworkCore` or `TinyEvents.PostgreSql.AdoNet`
 
 ## Register Services
 
@@ -48,6 +51,14 @@ services.UseSqlServerEntityFrameworkCoreOutbox<AppDbContext>();
 `UseSqlServerEntityFrameworkCoreOutbox<TDbContext>` registers TinyEvents core services, the EF Core outbox writer, and the EF Core outbox store.
 
 It also applies generated TinyEvents contributions for the assemblies loaded in the process. Those contributions contain the consumer registrations and event type descriptors emitted by the source generator.
+
+For PostgreSQL EF Core, use the PostgreSQL provider package and registration method:
+
+```csharp
+using TinyEvents.PostgreSql.EntityFrameworkCore;
+
+services.UsePostgreSqlEntityFrameworkCoreOutbox<AppDbContext>();
+```
 
 ## Map The Outbox
 
@@ -146,8 +157,10 @@ Workers use lease-based claiming. If a worker crashes, claimed messages become c
 ## Next
 
 - [Run the Samples](../samples/README.md)
-- [EF Core Provider](ef-core.md)
-- [ADO.NET Provider](ado-net.md)
+- [EF Core Providers](ef-core.md)
+- [ADO.NET Providers](ado-net.md)
+- [SQL Server EF Core](sql-server/ef-core.md)
+- [PostgreSQL EF Core](postgresql/ef-core.md)
 - [Workers and Leases](workers.md)
 - [Schema and Migrations](schema-and-migrations.md)
 - [The Tiny Suite](tiny-suite.md)

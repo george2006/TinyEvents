@@ -1,6 +1,8 @@
 # TinyEvents Samples
 
-The app samples need SQL Server. Start the Docker SQL Server container first, then run a sample.
+The current app samples use SQL Server. Start the Docker SQL Server container first, then run a sample.
+
+TinyEvents also ships PostgreSQL providers. PostgreSQL behavior is covered by the runtime test suite while the sample set is being split by database family and provider style.
 
 ## Prerequisites
 

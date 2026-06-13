@@ -52,7 +52,12 @@ dotnet add package TinyEvents --version 0.1.0-alpha.1
 dotnet add package TinyEvents.Worker --version 0.1.0-alpha.1
 ```
 
-`TinyEvents.Worker` contains the hosted-service integration. You still need one outbox provider package, such as `TinyEvents.SqlServer.EntityFrameworkCore` or `TinyEvents.SqlServer.AdoNet`.
+`TinyEvents.Worker` contains the hosted-service integration. You still need one outbox provider package, such as:
+
+- `TinyEvents.SqlServer.EntityFrameworkCore`
+- `TinyEvents.SqlServer.AdoNet`
+- `TinyEvents.PostgreSql.EntityFrameworkCore`
+- `TinyEvents.PostgreSql.AdoNet`
 
 Register:
 

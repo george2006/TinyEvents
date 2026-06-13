@@ -1,26 +1,28 @@
 # Roadmap
 
-TinyEvents is in alpha. The current goal is to keep the core model small while proving the runtime against SQL Server.
+TinyEvents is in alpha. The current goal is to keep the core model small while proving the runtime against SQL Server and PostgreSQL.
 
 ## Before 1.0
 
 Planned hardening:
 
 - polish README and provider docs as APIs settle
-- keep SQL Server runtime tests green with Testcontainers
-- add more sample documentation
+- keep SQL Server and PostgreSQL runtime tests green with Testcontainers
+- split samples by database family and provider style
 - review NuGet package boundaries
-- publish provider packages after the first alpha
-- decide whether SQL Server providers should use explicit package names
+- keep provider package publishing explicit and repeatable
+- keep provider package names explicit by database family
 - keep source generator diagnostics focused and useful
 
 ## Provider Boundaries
 
-The first alpha prepares these package boundaries:
+The current package boundaries are:
 
 - `TinyEvents`
 - `TinyEvents.SqlServer.EntityFrameworkCore`
 - `TinyEvents.SqlServer.AdoNet`
+- `TinyEvents.PostgreSql.EntityFrameworkCore`
+- `TinyEvents.PostgreSql.AdoNet`
 - `TinyEvents.Worker`
 
 Other databases should be separate provider packages once they exist.
