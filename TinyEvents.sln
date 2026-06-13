@@ -45,6 +45,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TinyEvents.PostgreSql.AdoNe
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TinyEvents.PostgreSql.EntityFrameworkCore.Tests", "tests\TinyEvents.PostgreSql.EntityFrameworkCore.Tests\TinyEvents.PostgreSql.EntityFrameworkCore.Tests.csproj", "{E6BEADE4-4296-466D-9FDE-403633842E54}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TinyEvents.PostgreSql.Tests", "tests\TinyEvents.PostgreSql.Tests\TinyEvents.PostgreSql.Tests.csproj", "{BCB14138-4406-4AD6-AEF3-F389C09D1706}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -271,6 +273,18 @@ Global
 		{E6BEADE4-4296-466D-9FDE-403633842E54}.Release|x64.Build.0 = Release|Any CPU
 		{E6BEADE4-4296-466D-9FDE-403633842E54}.Release|x86.ActiveCfg = Release|Any CPU
 		{E6BEADE4-4296-466D-9FDE-403633842E54}.Release|x86.Build.0 = Release|Any CPU
+		{BCB14138-4406-4AD6-AEF3-F389C09D1706}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BCB14138-4406-4AD6-AEF3-F389C09D1706}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BCB14138-4406-4AD6-AEF3-F389C09D1706}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{BCB14138-4406-4AD6-AEF3-F389C09D1706}.Debug|x64.Build.0 = Debug|Any CPU
+		{BCB14138-4406-4AD6-AEF3-F389C09D1706}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{BCB14138-4406-4AD6-AEF3-F389C09D1706}.Debug|x86.Build.0 = Debug|Any CPU
+		{BCB14138-4406-4AD6-AEF3-F389C09D1706}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BCB14138-4406-4AD6-AEF3-F389C09D1706}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BCB14138-4406-4AD6-AEF3-F389C09D1706}.Release|x64.ActiveCfg = Release|Any CPU
+		{BCB14138-4406-4AD6-AEF3-F389C09D1706}.Release|x64.Build.0 = Release|Any CPU
+		{BCB14138-4406-4AD6-AEF3-F389C09D1706}.Release|x86.ActiveCfg = Release|Any CPU
+		{BCB14138-4406-4AD6-AEF3-F389C09D1706}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -294,5 +308,6 @@ Global
 		{BE429123-7A4B-475F-B8CC-263B799C85FD} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{A8EF6D4A-A8F0-412D-823B-BEFB93E32BB9} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{E6BEADE4-4296-466D-9FDE-403633842E54} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
+		{BCB14138-4406-4AD6-AEF3-F389C09D1706} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 	EndGlobalSection
 EndGlobal
