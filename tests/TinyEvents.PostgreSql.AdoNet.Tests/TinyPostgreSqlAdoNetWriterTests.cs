@@ -1,11 +1,62 @@
 using System.Data;
 using System.Data.Common;
+using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace TinyEvents.PostgreSql.AdoNet.Tests;
 
 public sealed class TinyPostgreSqlAdoNetWriterTests
 {
+    [Fact]
+    public void Use_postgre_sql_ado_net_outbox_rejects_null_services()
+    {
+        Assert.Throws<ArgumentNullException>(() =>
+            TinyEventsPostgreSqlAdoNetServiceCollectionExtensions.UsePostgreSqlAdoNetOutbox(null!, _ => { }));
+    }
+
+    [Fact]
+    public void Use_postgre_sql_ado_net_outbox_rejects_null_configure()
+    {
+        var services = new ServiceCollection();
+
+        Assert.Throws<ArgumentNullException>(() => services.UsePostgreSqlAdoNetOutbox(null!));
+    }
+
+    [Fact]
+    public void Use_postgre_sql_ado_net_outbox_registers_provider_services()
+    {
+        var services = new ServiceCollection();
+
+        services.UsePostgreSqlAdoNetOutbox(options =>
+        {
+            options.UseWorkerConnectionFactory((_, _) => new ValueTask<DbConnection>(new RecordingConnection()));
+        });
+
+        using var provider = services.BuildServiceProvider();
+
+        Assert.IsType<TinyPostgreSqlAdoNetOutboxWriter>(
+            provider.GetRequiredService<ITinyOutboxWriter>());
+        Assert.IsType<TinyPostgreSqlAdoNetOutboxStore>(
+            provider.GetRequiredService<ITinyOutboxStore>());
+        Assert.IsType<TinyPostgreSqlAdoNetWorkerConnectionFactory>(
+            provider.GetRequiredService<ITinyPostgreSqlAdoNetWorkerConnectionFactory>());
+    }
+
+    [Fact]
+    public void Use_postgre_sql_ado_net_outbox_does_not_register_unit_of_work()
+    {
+        var services = new ServiceCollection();
+
+        services.UsePostgreSqlAdoNetOutbox(options =>
+        {
+            options.UseWorkerConnectionFactory((_, _) => new ValueTask<DbConnection>(new RecordingConnection()));
+        });
+
+        Assert.DoesNotContain(
+            services,
+            descriptor => descriptor.ServiceType.Name.Contains("UnitOfWork", StringComparison.Ordinal));
+    }
+
     [Fact]
     public void Writer_rejects_null_options()
     {
