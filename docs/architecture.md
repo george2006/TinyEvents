@@ -128,6 +128,8 @@ ADO.NET publishing inserts the message through the current application transacti
 
 One outbox message represents one event, not one message per consumer. If one consumer fails, the event message is retried.
 
+If marking a message as processed or failed no longer updates a row because the worker lost ownership of the processing lease, the processor leaves the message alone and continues. Lease loss is not recorded as a consumer failure.
+
 ## Claiming Contract
 
 ```csharp
@@ -164,6 +166,8 @@ public interface ITinyOutboxStore
 ```
 
 Provider claiming must be atomic. Query-then-update claiming is not acceptable for DB providers.
+
+Provider completion and failure updates must validate affected row counts. A mark operation that updates no rows means the worker no longer owns a processing lease for that message.
 
 New database providers must implement atomic claiming safely for their database engine. Query-then-update is not acceptable for multi-worker processing.
 

@@ -77,12 +77,16 @@ The hosted worker:
 - registers an `IHostedService`
 - creates a scope per processing iteration
 - calls `ITinyOutboxProcessor.ProcessPendingAsync`
+- logs processing-iteration failures
+- continues polling after non-cancellation processing failures
 - waits `PollingInterval`
 - stops claiming new work when cancellation is requested
 
 `AddTinyEventsWorker(...)` also configures the core worker options used by `ITinyOutboxProcessor`, including `WorkerId`, `BatchSize`, and `ClaimTimeout`.
 
 On shutdown, TinyEvents does not scan and release claims. If processing does not complete, claims expire naturally.
+
+A hosted worker can remain running while processing iterations repeatedly fail, for example during a database outage. Treat worker logs and host-level health checks as part of production operations.
 
 ## Marking Processed Or Failed
 
@@ -93,6 +97,8 @@ Providers mark messages only when:
 - `Status = Processing`
 
 This prevents worker A from marking worker B's work.
+
+If the mark operation affects no rows, TinyEvents treats that as a lost lease. The processor does not record a failed attempt for that message and continues with the next claimed message.
 
 ## Claim Timeout
 
