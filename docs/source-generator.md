@@ -59,7 +59,9 @@ Dependency injection is the consumer registry. `ITinyEventDispatcher` is the eve
 
 Generated contributions make multi-assembly projects work without runtime scanning.
 
-Each assembly that contains consumers can contribute registrations. When the host calls a TinyEvents registration method, bootstrap applies the collected contributions once per service collection.
+Each assembly that contains consumers generates its own contribution. When that assembly is loaded, its module initializer adds the contribution to TinyEvents bootstrap. When the host calls a TinyEvents registration method, bootstrap applies the collected contributions once per service collection.
+
+TinyEvents does not scan application assemblies or force-load referenced assemblies. If a consumer assembly has not been loaded before TinyEvents registration runs, that assembly's consumers and event dispatchers will not be registered in that service collection.
 
 For example:
 

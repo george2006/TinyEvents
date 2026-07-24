@@ -35,7 +35,7 @@ TinyEvents is deliberately different:
 
 - `PublishAsync` stores an outbox message.
 - Consumers run later through the processor or hosted worker.
-- Incremental source generation registers consumers and event type descriptors automatically.
+- Incremental source generation registers consumers and event dispatchers automatically.
 - Runtime dispatch resolves consumers from Microsoft dependency injection.
 - Worker claiming is database-backed and lease-based.
 - Delivery is at-least-once, not exactly-once.
@@ -139,7 +139,7 @@ public sealed class SendWelcomeEmail : IEventConsumer<UserCreated>
 The source generator discovers concrete closed consumers and emits:
 
 - `IEventConsumer<TEvent>` DI registrations
-- event type descriptors for deserialization
+- event dispatchers for deserialization and consumer invocation
 - a module-initialized contribution to TinyEvents bootstrap
 
 No runtime assembly scanning is required, and normal consumers do not need manual DI registration.
@@ -265,7 +265,7 @@ TinyEvents is intentionally small.
 - Domain/application event handling with outbox reliability.
 - Plain event objects, no marker interface.
 - No runtime scanning.
-- Source generation for consumer registration and event type descriptors.
+- Source generation for consumer registration and event dispatchers.
 - Contribution-based bootstrap for generated registrations.
 - Provider isolation.
 - Database-backed lease claiming.

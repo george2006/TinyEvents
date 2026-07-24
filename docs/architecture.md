@@ -24,7 +24,7 @@ TinyEvents is designed to stay small enough to reason about.
 - Providers are isolated in separate class libraries.
 - No runtime assembly scanning.
 - Source generation removes registration and event-map boilerplate.
-- Generated contributions register consumers with dependency injection.
+- Generated contributions register consumers and event dispatchers with dependency injection.
 - Delivery is at-least-once, not exactly-once.
 - Database-backed claim leases support multiple workers.
 - Consumers should be idempotent.
@@ -119,10 +119,10 @@ ADO.NET publishing inserts the message through the current application transacti
 
 1. Resolve the current worker id.
 2. Claim pending or expired processing messages.
-3. Resolve event type through generated event descriptors.
+3. Resolve the event dispatcher for the stored event type.
 4. Deserialize the payload.
 5. Resolve all `IEventConsumer<TEvent>` instances from DI.
-6. Invoke consumers.
+6. Invoke consumers through the generated dispatcher.
 7. Mark processed if all consumers succeed.
 8. Mark failed or scheduled for retry when a consumer fails.
 
@@ -178,6 +178,8 @@ The contribution system is the bridge between compile-time discovery and runtime
 1. The generator emits an `ITinyEventsContribution`.
 2. A module initializer adds it to `TinyEventsBootstrap`.
 3. `UseTinyEvents` or a provider registration method applies contributions.
-4. Consumers and event type descriptors become normal DI services.
+4. Consumers and event dispatchers become normal DI services.
 
-Runtime processing does not use a custom consumer registry. It resolves consumers directly from `IServiceProvider`.
+TinyEvents does not scan assemblies or load consumer assemblies at runtime. Contributions are available only after the assembly that contains them has been loaded and its module initializer has run. Call TinyEvents registration after consumer assemblies are loaded.
+
+Runtime processing does not use a custom consumer registry. It resolves consumers directly from `IServiceProvider` through generated dispatchers.

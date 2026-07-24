@@ -50,7 +50,7 @@ services.UseSqlServerEntityFrameworkCoreOutbox<AppDbContext>();
 
 `UseSqlServerEntityFrameworkCoreOutbox<TDbContext>` registers TinyEvents core services, the EF Core outbox writer, and the EF Core outbox store.
 
-It also applies generated TinyEvents contributions for the assemblies loaded in the process. Those contributions contain the consumer registrations and event type descriptors emitted by the source generator.
+It also applies generated TinyEvents contributions for assemblies already loaded in the process. Those contributions contain the consumer and event dispatcher registrations emitted by the source generator.
 
 For PostgreSQL EF Core, use the PostgreSQL provider package and registration method:
 
