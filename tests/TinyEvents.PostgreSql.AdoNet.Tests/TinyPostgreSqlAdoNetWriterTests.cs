@@ -336,6 +336,17 @@ public sealed class TinyPostgreSqlAdoNetWriterTests
     }
 
     [Fact]
+    public async Task Mark_processed_throws_when_no_rows_are_updated()
+    {
+        var store = NewStore(new RecordingWorkerConnectionFactory(new RecordingConnection(affectedRows: 0)));
+
+        var exception = await Assert.ThrowsAnyAsync<InvalidOperationException>(
+            async () => await store.MarkProcessedAsync(Guid.NewGuid(), "worker", DateTimeOffset.UtcNow, CancellationToken.None));
+
+        Assert.Contains("no longer owns a processing lease", exception.Message);
+    }
+
+    [Fact]
     public async Task Mark_failed_uses_worker_connection_factory()
     {
         var factory = new RecordingWorkerConnectionFactory(new RecordingConnection());
@@ -344,6 +355,17 @@ public sealed class TinyPostgreSqlAdoNetWriterTests
         await store.MarkFailedAsync(Guid.NewGuid(), "worker", "boom", 1, null, CancellationToken.None);
 
         Assert.Equal(1, factory.CallCount);
+    }
+
+    [Fact]
+    public async Task Mark_failed_throws_when_no_rows_are_updated()
+    {
+        var store = NewStore(new RecordingWorkerConnectionFactory(new RecordingConnection(affectedRows: 0)));
+
+        var exception = await Assert.ThrowsAnyAsync<InvalidOperationException>(
+            async () => await store.MarkFailedAsync(Guid.NewGuid(), "worker", "boom", 1, null, CancellationToken.None));
+
+        Assert.Contains("no longer owns a processing lease", exception.Message);
     }
 
     [Fact]
@@ -461,7 +483,13 @@ public sealed class TinyPostgreSqlAdoNetWriterTests
     private sealed class RecordingConnection : DbConnection
     {
         private readonly RecordingParameterCollection parameters = new RecordingParameterCollection();
+        private readonly int affectedRows;
         private ConnectionState state = ConnectionState.Open;
+
+        public RecordingConnection(int affectedRows = 1)
+        {
+            this.affectedRows = affectedRows;
+        }
 
         public RecordingCommand LastCommand { get; private set; }
 
@@ -504,7 +532,7 @@ public sealed class TinyPostgreSqlAdoNetWriterTests
 
         protected override DbCommand CreateDbCommand()
         {
-            LastCommand = new RecordingCommand(this);
+            LastCommand = new RecordingCommand(this, affectedRows);
             return LastCommand;
         }
 
@@ -555,10 +583,12 @@ public sealed class TinyPostgreSqlAdoNetWriterTests
     {
         private readonly RecordingParameterCollection parameters = new RecordingParameterCollection();
         private readonly DbConnection connection;
+        private readonly int affectedRows;
 
-        public RecordingCommand(DbConnection connection)
+        public RecordingCommand(DbConnection connection, int affectedRows)
         {
             this.connection = connection;
+            this.affectedRows = affectedRows;
         }
 
         public override string CommandText { get; set; } = string.Empty;
@@ -595,7 +625,7 @@ public sealed class TinyPostgreSqlAdoNetWriterTests
 
         public override int ExecuteNonQuery()
         {
-            return 1;
+            return affectedRows;
         }
 
         public override object ExecuteScalar()
@@ -626,7 +656,7 @@ public sealed class TinyPostgreSqlAdoNetWriterTests
 
         public override Task<int> ExecuteNonQueryAsync(CancellationToken cancellationToken)
         {
-            return Task.FromResult(1);
+            return Task.FromResult(affectedRows);
         }
     }
 

@@ -76,7 +76,8 @@ public sealed class TinySqlServerAdoNetOutboxStore : ITinyOutboxStore
         TinySqlServerAdoNetCommandParameters.Add(command, "@ProcessedStatus", (int)TinyOutboxMessageStatus.Processed);
         TinySqlServerAdoNetCommandParameters.Add(command, "@ProcessingStatus", (int)TinyOutboxMessageStatus.Processing);
 
-        await command.ExecuteNonQueryAsync(cancellationToken);
+        var affectedRows = await command.ExecuteNonQueryAsync(cancellationToken);
+        ThrowIfLeaseWasLost(affectedRows, messageId, workerId, "processed");
     }
 
     public async ValueTask MarkFailedAsync(
@@ -109,7 +110,8 @@ public sealed class TinySqlServerAdoNetOutboxStore : ITinyOutboxStore
         TinySqlServerAdoNetCommandParameters.Add(command, "@LastError", error);
         TinySqlServerAdoNetCommandParameters.Add(command, "@ProcessingStatus", (int)TinyOutboxMessageStatus.Processing);
 
-        await command.ExecuteNonQueryAsync(cancellationToken);
+        var affectedRows = await command.ExecuteNonQueryAsync(cancellationToken);
+        ThrowIfLeaseWasLost(affectedRows, messageId, workerId, "failed");
     }
 
     private async ValueTask<DbConnection> CreateOpenConnectionAsync(CancellationToken cancellationToken)
@@ -178,5 +180,17 @@ public sealed class TinySqlServerAdoNetOutboxStore : ITinyOutboxStore
         }
 
         return TinyOutboxMessageStatus.Pending;
+    }
+
+    private static void ThrowIfLeaseWasLost(
+        int affectedRows,
+        Guid messageId,
+        string workerId,
+        string operation)
+    {
+        if (affectedRows == 0)
+        {
+            throw new TinyOutboxLeaseLostException(messageId, workerId, operation);
+        }
     }
 }

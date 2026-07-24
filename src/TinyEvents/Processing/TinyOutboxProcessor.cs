@@ -88,9 +88,18 @@ public sealed class TinyOutboxProcessor : ITinyOutboxProcessor
         {
             throw;
         }
+        catch (TinyOutboxLeaseLostException)
+        {
+        }
         catch (Exception exception)
         {
-            await MarkFailedAsync(message, workerId, exception, cancellationToken);
+            try
+            {
+                await MarkFailedAsync(message, workerId, exception, cancellationToken);
+            }
+            catch (TinyOutboxLeaseLostException)
+            {
+            }
         }
     }
 

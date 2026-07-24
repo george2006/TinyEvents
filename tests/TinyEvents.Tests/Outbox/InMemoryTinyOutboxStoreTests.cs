@@ -116,20 +116,30 @@ public sealed class InMemoryTinyOutboxStoreTests
     }
 
     [Fact]
-    public async Task Mark_processed_async_updates_only_message_claimed_by_worker()
+    public async Task Mark_processed_async_throws_when_message_is_not_claimed_by_worker()
     {
         var store = new InMemoryTinyOutboxStore();
         var messageId = Guid.NewGuid();
         var processedAt = DateTimeOffset.UtcNow;
         await store.AddAsync(NewProcessingMessage(id: messageId, workerId: "worker-1"), CancellationToken.None);
 
-        await store.MarkProcessedAsync(
-            messageId,
-            workerId: "worker-2",
-            processedAtUtc: processedAt,
-            cancellationToken: CancellationToken.None);
+        await Assert.ThrowsAsync<TinyOutboxLeaseLostException>(
+            async () => await store.MarkProcessedAsync(
+                messageId,
+                workerId: "worker-2",
+                processedAtUtc: processedAt,
+                cancellationToken: CancellationToken.None));
 
         Assert.Equal(TinyOutboxMessageStatus.Processing, Assert.Single(store.Snapshot()).Status);
+    }
+
+    [Fact]
+    public async Task Mark_processed_async_updates_message_claimed_by_worker()
+    {
+        var store = new InMemoryTinyOutboxStore();
+        var messageId = Guid.NewGuid();
+        var processedAt = DateTimeOffset.UtcNow;
+        await store.AddAsync(NewProcessingMessage(id: messageId, workerId: "worker-1"), CancellationToken.None);
 
         await store.MarkProcessedAsync(
             messageId,
@@ -151,32 +161,43 @@ public sealed class InMemoryTinyOutboxStoreTests
             NewPendingMessage(id: messageId, claimedBy: "worker-1"),
             CancellationToken.None);
 
-        await store.MarkProcessedAsync(
-            messageId,
-            workerId: "worker-1",
-            processedAtUtc: DateTimeOffset.UtcNow,
-            cancellationToken: CancellationToken.None);
+        await Assert.ThrowsAsync<TinyOutboxLeaseLostException>(
+            async () => await store.MarkProcessedAsync(
+                messageId,
+                workerId: "worker-1",
+                processedAtUtc: DateTimeOffset.UtcNow,
+                cancellationToken: CancellationToken.None));
 
         Assert.Equal(TinyOutboxMessageStatus.Pending, Assert.Single(store.Snapshot()).Status);
     }
 
     [Fact]
-    public async Task Mark_failed_async_updates_only_message_claimed_by_worker()
+    public async Task Mark_failed_async_throws_when_message_is_not_claimed_by_worker()
     {
         var store = new InMemoryTinyOutboxStore();
         var messageId = Guid.NewGuid();
         var nextAttemptAt = DateTimeOffset.UtcNow.AddSeconds(30);
         await store.AddAsync(NewProcessingMessage(id: messageId, workerId: "worker-1"), CancellationToken.None);
 
-        await store.MarkFailedAsync(
-            messageId,
-            workerId: "worker-2",
-            error: "nope",
-            attemptCount: 1,
-            nextAttemptAtUtc: nextAttemptAt,
-            cancellationToken: CancellationToken.None);
+        await Assert.ThrowsAsync<TinyOutboxLeaseLostException>(
+            async () => await store.MarkFailedAsync(
+                messageId,
+                workerId: "worker-2",
+                error: "nope",
+                attemptCount: 1,
+                nextAttemptAtUtc: nextAttemptAt,
+                cancellationToken: CancellationToken.None));
 
         Assert.Equal(TinyOutboxMessageStatus.Processing, Assert.Single(store.Snapshot()).Status);
+    }
+
+    [Fact]
+    public async Task Mark_failed_async_updates_message_claimed_by_worker()
+    {
+        var store = new InMemoryTinyOutboxStore();
+        var messageId = Guid.NewGuid();
+        var nextAttemptAt = DateTimeOffset.UtcNow.AddSeconds(30);
+        await store.AddAsync(NewProcessingMessage(id: messageId, workerId: "worker-1"), CancellationToken.None);
 
         await store.MarkFailedAsync(
             messageId,
@@ -202,13 +223,14 @@ public sealed class InMemoryTinyOutboxStoreTests
             NewPendingMessage(id: messageId, claimedBy: "worker-1"),
             CancellationToken.None);
 
-        await store.MarkFailedAsync(
-            messageId,
-            workerId: "worker-1",
-            error: "boom",
-            attemptCount: 1,
-            nextAttemptAtUtc: null,
-            cancellationToken: CancellationToken.None);
+        await Assert.ThrowsAsync<TinyOutboxLeaseLostException>(
+            async () => await store.MarkFailedAsync(
+                messageId,
+                workerId: "worker-1",
+                error: "boom",
+                attemptCount: 1,
+                nextAttemptAtUtc: null,
+                cancellationToken: CancellationToken.None));
 
         var message = Assert.Single(store.Snapshot());
         Assert.Equal(TinyOutboxMessageStatus.Pending, message.Status);

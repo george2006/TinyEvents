@@ -65,6 +65,7 @@ public sealed class InMemoryTinyOutboxStore : ITinyOutboxStore, ITinyOutboxWrite
             ReplaceClaimedMessage(
                 messageId,
                 workerId,
+                operation: "processed",
                 message => MarkProcessed(message, processedAtUtc));
         }
 
@@ -96,6 +97,7 @@ public sealed class InMemoryTinyOutboxStore : ITinyOutboxStore, ITinyOutboxWrite
             ReplaceClaimedMessage(
                 messageId,
                 workerId,
+                operation: "failed",
                 message => MarkFailed(message, error, attemptCount, nextAttemptAtUtc));
         }
 
@@ -182,6 +184,7 @@ public sealed class InMemoryTinyOutboxStore : ITinyOutboxStore, ITinyOutboxWrite
     private void ReplaceClaimedMessage(
         Guid messageId,
         string workerId,
+        string operation,
         Func<TinyOutboxMessage, TinyOutboxMessage> replace)
     {
         for (var index = 0; index < messages.Count; index++)
@@ -198,6 +201,8 @@ public sealed class InMemoryTinyOutboxStore : ITinyOutboxStore, ITinyOutboxWrite
             messages[index] = replace(message);
             return;
         }
+
+        throw new TinyOutboxLeaseLostException(messageId, workerId, operation);
     }
 
     private static TinyOutboxMessage Copy(TinyOutboxMessage message)

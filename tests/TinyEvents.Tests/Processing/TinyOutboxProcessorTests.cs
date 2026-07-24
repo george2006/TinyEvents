@@ -296,6 +296,36 @@ public sealed class TinyOutboxProcessorTests
         Assert.Equal(0, store.MarkFailedCount);
     }
 
+    [Fact]
+    public async Task Process_pending_async_continues_when_mark_processed_loses_lease()
+    {
+        RecordingConsumer.Consumed.Clear();
+        var firstMessage = NewProcessingMessage(new UserCreated(Guid.NewGuid(), "first@example.com"));
+        var secondMessage = NewProcessingMessage(new UserCreated(Guid.NewGuid(), "second@example.com"));
+        var store = new LeaseLostOnFirstProcessedStore(firstMessage, secondMessage);
+        var processor = BuildProcessor(store);
+
+        await processor.ProcessPendingAsync();
+
+        Assert.Equal(2, RecordingConsumer.Consumed.Count);
+        Assert.Equal(secondMessage.Id, Assert.Single(store.ProcessedMessageIds));
+        Assert.Equal(0, store.MarkFailedCount);
+    }
+
+    [Fact]
+    public async Task Process_pending_async_continues_when_mark_failed_loses_lease()
+    {
+        ThrowingConsumer.Throw = true;
+        var message = NewProcessingMessage(new UserCreated(Guid.NewGuid(), "user@example.com"));
+        var store = new LeaseLostOnFailedStore(message);
+        var processor = BuildProcessor(store, includeThrowingConsumer: true);
+
+        await processor.ProcessPendingAsync();
+
+        Assert.Equal(1, store.MarkFailedCount);
+        ThrowingConsumer.Throw = false;
+    }
+
     private static ITinyOutboxProcessor BuildProcessor(
         ITinyOutboxStore store,
         bool includeSecondConsumer = false,
@@ -573,6 +603,102 @@ public sealed class TinyOutboxProcessorTests
         {
             MarkFailedCount++;
             return ValueTask.CompletedTask;
+        }
+    }
+
+    private sealed class LeaseLostOnFirstProcessedStore : ITinyOutboxStore
+    {
+        private readonly IReadOnlyList<TinyOutboxMessage> claimedMessages;
+        private bool hasLostLease;
+
+        public LeaseLostOnFirstProcessedStore(params TinyOutboxMessage[] claimedMessages)
+        {
+            this.claimedMessages = claimedMessages;
+        }
+
+        public List<Guid> ProcessedMessageIds { get; } = new List<Guid>();
+
+        public int MarkFailedCount { get; private set; }
+
+        public ValueTask<IReadOnlyList<TinyOutboxMessage>> ClaimPendingAsync(
+            int maxCount,
+            string workerId,
+            DateTimeOffset now,
+            TimeSpan claimTimeout,
+            CancellationToken cancellationToken)
+        {
+            return ValueTask.FromResult(claimedMessages);
+        }
+
+        public ValueTask MarkProcessedAsync(
+            Guid messageId,
+            string workerId,
+            DateTimeOffset processedAtUtc,
+            CancellationToken cancellationToken)
+        {
+            if (!hasLostLease)
+            {
+                hasLostLease = true;
+                throw new TinyOutboxLeaseLostException(messageId, workerId, "processed");
+            }
+
+            ProcessedMessageIds.Add(messageId);
+            return ValueTask.CompletedTask;
+        }
+
+        public ValueTask MarkFailedAsync(
+            Guid messageId,
+            string workerId,
+            string error,
+            int attemptCount,
+            DateTimeOffset? nextAttemptAtUtc,
+            CancellationToken cancellationToken)
+        {
+            MarkFailedCount++;
+            return ValueTask.CompletedTask;
+        }
+    }
+
+    private sealed class LeaseLostOnFailedStore : ITinyOutboxStore
+    {
+        private readonly IReadOnlyList<TinyOutboxMessage> claimedMessages;
+
+        public LeaseLostOnFailedStore(params TinyOutboxMessage[] claimedMessages)
+        {
+            this.claimedMessages = claimedMessages;
+        }
+
+        public int MarkFailedCount { get; private set; }
+
+        public ValueTask<IReadOnlyList<TinyOutboxMessage>> ClaimPendingAsync(
+            int maxCount,
+            string workerId,
+            DateTimeOffset now,
+            TimeSpan claimTimeout,
+            CancellationToken cancellationToken)
+        {
+            return ValueTask.FromResult(claimedMessages);
+        }
+
+        public ValueTask MarkProcessedAsync(
+            Guid messageId,
+            string workerId,
+            DateTimeOffset processedAtUtc,
+            CancellationToken cancellationToken)
+        {
+            return ValueTask.CompletedTask;
+        }
+
+        public ValueTask MarkFailedAsync(
+            Guid messageId,
+            string workerId,
+            string error,
+            int attemptCount,
+            DateTimeOffset? nextAttemptAtUtc,
+            CancellationToken cancellationToken)
+        {
+            MarkFailedCount++;
+            throw new TinyOutboxLeaseLostException(messageId, workerId, "failed");
         }
     }
 }
