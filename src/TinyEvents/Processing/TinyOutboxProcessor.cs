@@ -78,6 +78,7 @@ public sealed class TinyOutboxProcessor : ITinyOutboxProcessor
 
         foreach (var message in messages)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             await ProcessMessageAsync(message, workerId, cancellationToken);
         }
     }
