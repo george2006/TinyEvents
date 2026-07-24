@@ -137,6 +137,50 @@ public sealed class TinyEventsWorkerTests
             () => services.AddTinyEventsWorker(options => options.WorkerId = " "));
     }
 
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void Add_tiny_events_worker_rejects_non_positive_batch_size(int batchSize)
+    {
+        var services = new ServiceCollection();
+
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () => services.AddTinyEventsWorker(options => options.BatchSize = batchSize));
+    }
+
+    [Fact]
+    public void Add_tiny_events_worker_rejects_negative_polling_interval()
+    {
+        var services = new ServiceCollection();
+
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () => services.AddTinyEventsWorker(options => options.PollingInterval = TimeSpan.FromMilliseconds(-1)));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void Add_tiny_events_worker_rejects_non_positive_claim_timeout(int milliseconds)
+    {
+        var services = new ServiceCollection();
+
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () => services.AddTinyEventsWorker(options => options.ClaimTimeout = TimeSpan.FromMilliseconds(milliseconds)));
+    }
+
+    [Fact]
+    public void Add_tiny_events_worker_allows_zero_polling_interval()
+    {
+        var services = new ServiceCollection();
+
+        services.AddTinyEventsWorker(options => options.PollingInterval = TimeSpan.Zero);
+
+        using var provider = services.BuildServiceProvider();
+        var workerOptions = provider.GetRequiredService<TinyEventsWorkerOptions>();
+
+        Assert.Equal(TimeSpan.Zero, workerOptions.PollingInterval);
+    }
+
     [Fact]
     public void Add_tiny_events_worker_leaves_worker_id_unset_when_not_configured()
     {

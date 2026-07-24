@@ -80,6 +80,47 @@ public sealed class TinyOutboxProcessorTests
         Assert.Throws<ArgumentException>(() => new TinyEventsOptions { WorkerId = " " });
     }
 
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void Options_reject_non_positive_batch_size(int batchSize)
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => new TinyEventsOptions { BatchSize = batchSize });
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void Options_reject_non_positive_max_attempts(int maxAttempts)
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => new TinyEventsOptions { MaxAttempts = maxAttempts });
+    }
+
+    [Fact]
+    public void Options_reject_negative_retry_delay()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => new TinyEventsOptions { RetryDelay = TimeSpan.FromMilliseconds(-1) });
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void Options_reject_non_positive_claim_timeout(int milliseconds)
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => new TinyEventsOptions { ClaimTimeout = TimeSpan.FromMilliseconds(milliseconds) });
+    }
+
+    [Fact]
+    public void Options_allow_zero_retry_delay()
+    {
+        var options = new TinyEventsOptions
+        {
+            RetryDelay = TimeSpan.Zero
+        };
+
+        Assert.Equal(TimeSpan.Zero, options.RetryDelay);
+    }
+
     [Fact]
     public async Task Process_pending_async_invokes_matching_consumer()
     {
