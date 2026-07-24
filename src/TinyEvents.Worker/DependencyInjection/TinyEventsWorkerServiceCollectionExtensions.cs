@@ -40,17 +40,5 @@ public static class TinyEventsWorkerServiceCollectionExtensions
             options.BatchSize = workerOptions.BatchSize;
             options.ClaimTimeout = workerOptions.ClaimTimeout;
         });
-
-        services.Replace(ServiceDescriptor.Singleton(CreateCoreOptions(workerOptions)));
-    }
-
-    private static TinyEventsOptions CreateCoreOptions(TinyEventsWorkerOptions workerOptions)
-    {
-        return new TinyEventsOptions
-        {
-            WorkerId = workerOptions.WorkerId,
-            BatchSize = workerOptions.BatchSize,
-            ClaimTimeout = workerOptions.ClaimTimeout
-        };
     }
 }

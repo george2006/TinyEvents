@@ -61,7 +61,11 @@ public sealed class TinyEventsWorkerTests
             options.BatchSize = 3;
             options.ClaimTimeout = TimeSpan.FromSeconds(11);
         });
-        services.UseTinyEvents();
+        services.UseTinyEvents(options =>
+        {
+            options.MaxAttempts = 9;
+            options.RetryDelay = TimeSpan.FromSeconds(13);
+        });
 
         using var provider = services.BuildServiceProvider();
         var coreOptions = provider.GetRequiredService<TinyEventsOptions>();
@@ -69,6 +73,8 @@ public sealed class TinyEventsWorkerTests
         Assert.Equal("worker-before", coreOptions.WorkerId);
         Assert.Equal(3, coreOptions.BatchSize);
         Assert.Equal(TimeSpan.FromSeconds(11), coreOptions.ClaimTimeout);
+        Assert.Equal(9, coreOptions.MaxAttempts);
+        Assert.Equal(TimeSpan.FromSeconds(13), coreOptions.RetryDelay);
     }
 
     [Fact]
@@ -76,7 +82,11 @@ public sealed class TinyEventsWorkerTests
     {
         var services = new ServiceCollection();
 
-        services.UseTinyEvents();
+        services.UseTinyEvents(options =>
+        {
+            options.MaxAttempts = 9;
+            options.RetryDelay = TimeSpan.FromSeconds(13);
+        });
         services.AddTinyEventsWorker(options =>
         {
             options.WorkerId = "worker-after";
@@ -90,6 +100,32 @@ public sealed class TinyEventsWorkerTests
         Assert.Equal("worker-after", coreOptions.WorkerId);
         Assert.Equal(4, coreOptions.BatchSize);
         Assert.Equal(TimeSpan.FromSeconds(12), coreOptions.ClaimTimeout);
+        Assert.Equal(9, coreOptions.MaxAttempts);
+        Assert.Equal(TimeSpan.FromSeconds(13), coreOptions.RetryDelay);
+    }
+
+    [Fact]
+    public void Add_tiny_events_worker_preserves_core_retry_configuration()
+    {
+        var services = new ServiceCollection();
+
+        services.UseTinyEvents(options =>
+        {
+            options.MaxAttempts = 11;
+            options.RetryDelay = TimeSpan.FromSeconds(17);
+        });
+        services.AddTinyEventsWorker(options =>
+        {
+            options.WorkerId = "worker-1";
+            options.BatchSize = 12;
+            options.ClaimTimeout = TimeSpan.FromSeconds(45);
+        });
+
+        using var provider = services.BuildServiceProvider();
+        var coreOptions = provider.GetRequiredService<TinyEventsOptions>();
+
+        Assert.Equal(11, coreOptions.MaxAttempts);
+        Assert.Equal(TimeSpan.FromSeconds(17), coreOptions.RetryDelay);
     }
 
     [Fact]
