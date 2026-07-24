@@ -319,8 +319,8 @@ public sealed class TinyOutboxProcessorTests
             ClaimTimeout = claimTimeout ?? TimeSpan.FromMinutes(5)
         });
         services.AddSingleton<ITinyEventSerializer, SystemTextJsonTinyEventSerializer>();
-        services.AddSingleton<TinyEventTypeDescriptor>(
-            new TinyEventTypeDescriptor(typeof(UserCreated).FullName!, typeof(UserCreated)));
+        services.AddSingleton<ITinyEventDispatcher>(
+            new TinyEventDispatcher<UserCreated>(typeof(UserCreated).FullName!));
         services.AddSingleton<ITinyOutboxProcessor, TinyOutboxProcessor>();
         services.AddSingleton<IEventConsumer<UserCreated>, RecordingConsumer>();
 

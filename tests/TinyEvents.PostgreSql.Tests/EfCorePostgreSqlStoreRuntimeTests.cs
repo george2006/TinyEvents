@@ -158,8 +158,8 @@ public sealed class EfCorePostgreSqlStoreRuntimeTests : IClassFixture<PostgreSql
         {
             options.TableName = "TinyOutbox";
         });
-        services.AddSingleton<TinyEventTypeDescriptor>(
-            new TinyEventTypeDescriptor(typeof(UserCreated).FullName!, typeof(UserCreated)));
+        services.AddSingleton<ITinyEventDispatcher>(
+            new TinyEventDispatcher<UserCreated>(typeof(UserCreated).FullName!));
         services.AddScoped<IEventConsumer<UserCreated>, RecordingConsumer>();
 
         return services.BuildServiceProvider();
