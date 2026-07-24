@@ -23,7 +23,7 @@ public sealed class SendWelcomeEmail : IEventConsumer<UserCreated>
 For each discovered consumer, the generator emits:
 
 - DI registration for `IEventConsumer<TEvent>`
-- event type descriptor registration for deserialization
+- event dispatcher registration for deserialization and consumer invocation
 - a generated contribution
 - a module initializer that adds the contribution to TinyEvents bootstrap
 
@@ -31,9 +31,8 @@ The generated registration is equivalent to:
 
 ```csharp
 services.AddScoped<IEventConsumer<UserCreated>, SendWelcomeEmail>();
-services.AddSingleton(new TinyEventTypeDescriptor(
-    "MyApp.UserCreated",
-    typeof(UserCreated)));
+services.AddSingleton<ITinyEventDispatcher>(
+    new TinyEventDispatcher<UserCreated>("MyApp.UserCreated"));
 ```
 
 The generated code is packaged as an `ITinyEventsContribution`. A module initializer calls:
@@ -50,11 +49,11 @@ TinyEvents does not scan assemblies at runtime to find consumers.
 
 Runtime processing uses:
 
-1. Generated `TinyEventTypeDescriptor` services to resolve the stored event type name.
+1. Generated `ITinyEventDispatcher` services to resolve the stored event type name.
 2. `ITinyEventSerializer` to deserialize the payload.
-3. Dependency injection to resolve `IEnumerable<IEventConsumer<TEvent>>`.
+3. Dependency injection to resolve and invoke `IEventConsumer<TEvent>` services.
 
-Dependency injection is the consumer registry. `TinyEventTypeDescriptor` is only the event-name-to-CLR-type map needed for deserialization.
+Dependency injection is the consumer registry. `ITinyEventDispatcher` is the event-name-to-typed-dispatch map needed for deserialization and consumer invocation.
 
 ## Contribution Bootstrap
 
@@ -88,7 +87,7 @@ Analysis reads Roslyn syntax and symbols.
 
 Model stores TinyEvents-owned facts.
 
-Planning creates consumer registration and event descriptor plans.
+Planning creates consumer registration and event dispatcher plans.
 
 Emission writes generated C#.
 

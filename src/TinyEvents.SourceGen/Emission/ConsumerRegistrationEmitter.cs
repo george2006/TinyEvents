@@ -21,9 +21,9 @@ internal static class ConsumerRegistrationEmitter
             WriteConsumerRegistration(writer, registration);
         }
 
-        foreach (var descriptor in plan.EventTypeDescriptors)
+        foreach (var dispatcher in plan.EventDispatchers)
         {
-            EventTypeDescriptorEmitter.Emit(writer, descriptor);
+            EventDispatcherEmitter.Emit(writer, dispatcher);
         }
 
         writer.Unindent();

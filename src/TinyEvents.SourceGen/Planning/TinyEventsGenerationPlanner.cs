@@ -14,13 +14,13 @@ internal static class TinyEventsGenerationPlanner
             .ThenBy(registration => registration.ImplementationTypeName, StringComparer.Ordinal)
             .ToArray();
 
-        var descriptors = discovery.Consumers
+        var dispatchers = discovery.Consumers
             .GroupBy(consumer => consumer.EventTypeDisplayName, StringComparer.Ordinal)
-            .Select(group => CreateEventTypeDescriptor(group.First()))
-            .OrderBy(descriptor => descriptor.EventTypeDisplayName, StringComparer.Ordinal)
+            .Select(group => CreateEventDispatcher(group.First()))
+            .OrderBy(dispatcher => dispatcher.EventTypeDisplayName, StringComparer.Ordinal)
             .ToArray();
 
-        return new TinyEventsGenerationPlan(registrations, descriptors);
+        return new TinyEventsGenerationPlan(registrations, dispatchers);
     }
 
     private static ConsumerRegistrationPlan CreateConsumerRegistration(DiscoveredConsumer consumer)
@@ -30,9 +30,9 @@ internal static class TinyEventsGenerationPlanner
             consumer.EventTypeName);
     }
 
-    private static EventTypeDescriptorPlan CreateEventTypeDescriptor(DiscoveredConsumer consumer)
+    private static EventDispatcherPlan CreateEventDispatcher(DiscoveredConsumer consumer)
     {
-        return new EventTypeDescriptorPlan(
+        return new EventDispatcherPlan(
             consumer.EventTypeName,
             consumer.EventTypeDisplayName);
     }

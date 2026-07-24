@@ -137,7 +137,7 @@ var processor = provider.GetRequiredService<ITinyOutboxProcessor>();
 await processor.ProcessPendingAsync(ct);
 ```
 
-Processing resolves generated `TinyEventTypeDescriptor` services to deserialize the payload, then resolves `IEnumerable<IEventConsumer<TEvent>>` from dependency injection.
+Processing resolves a generated `ITinyEventDispatcher` for the stored event type, deserializes the payload, and invokes matching `IEventConsumer<TEvent>` services through dependency injection.
 
 For hosted processing:
 

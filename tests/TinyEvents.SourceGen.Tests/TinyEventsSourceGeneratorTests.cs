@@ -187,7 +187,6 @@ public sealed class TinyEventsSourceGeneratorTests
 
         Assert.Contains("IEventConsumer<global::MyApp.UserCreated>", source);
         Assert.Contains("global::MyApp.SendWelcomeEmail", source);
-        Assert.Contains("TinyEventTypeDescriptor", source);
         Assert.Contains("ITinyEventDispatcher", source);
         Assert.Contains("TinyEventDispatcher<global::MyApp.UserCreated>", source);
         Assert.Contains("\"MyApp.UserCreated\"", source);
@@ -228,7 +227,6 @@ public sealed class TinyEventsSourceGeneratorTests
 
         Assert.Contains("global::MyApp.SendWelcomeEmail", source);
         Assert.Contains("global::MyApp.UpdateProjection", source);
-        Assert.Equal(1, source.Split("TinyEventTypeDescriptor").Length - 1);
         Assert.Equal(1, source.Split("TinyEventDispatcher<").Length - 1);
     }
 
