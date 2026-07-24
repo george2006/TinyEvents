@@ -14,5 +14,10 @@ internal static class EventTypeDescriptorEmitter
         writer.Write(", typeof(");
         writer.Write(descriptor.EventTypeName);
         writer.WriteLine(")));");
+        writer.Write("global::Microsoft.Extensions.DependencyInjection.ServiceCollectionServiceExtensions.AddSingleton<global::TinyEvents.ITinyEventDispatcher>(services, new global::TinyEvents.TinyEventDispatcher<");
+        writer.Write(descriptor.EventTypeName);
+        writer.Write(">(");
+        writer.Write(StringLiteral.From(descriptor.EventTypeDisplayName));
+        writer.WriteLine("));");
     }
 }
