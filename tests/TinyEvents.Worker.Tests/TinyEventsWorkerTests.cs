@@ -228,6 +228,28 @@ public sealed class TinyEventsWorkerTests
         Assert.NotEqual(ScopedProcessor.InstanceIds[0], ScopedProcessor.InstanceIds[1]);
     }
 
+    [Fact]
+    public async Task Background_service_continues_after_processing_iteration_fails()
+    {
+        FailingThenRecordingProcessor.Reset();
+        var services = new ServiceCollection();
+        services.AddSingleton<ITinyOutboxProcessor, FailingThenRecordingProcessor>();
+        services.AddSingleton(new TinyEventsWorkerOptions
+        {
+            PollingInterval = TimeSpan.FromMilliseconds(1)
+        });
+        services.AddSingleton<TinyEventsBackgroundService>();
+        using var provider = services.BuildServiceProvider();
+        var worker = provider.GetRequiredService<TinyEventsBackgroundService>();
+        using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+
+        await worker.StartAsync(cancellation.Token);
+        await FailingThenRecordingProcessor.SecondCall.Task.WaitAsync(cancellation.Token);
+        await worker.StopAsync(CancellationToken.None).WaitAsync(cancellation.Token);
+
+        Assert.True(FailingThenRecordingProcessor.CallCount >= 2);
+    }
+
     private sealed class RecordingProcessor : ITinyOutboxProcessor
     {
         public static int CallCount { get; set; }
@@ -249,6 +271,37 @@ public sealed class TinyEventsWorkerTests
         {
             InstanceIds.Add(instanceId);
             return ValueTask.CompletedTask;
+        }
+    }
+
+    private sealed class FailingThenRecordingProcessor : ITinyOutboxProcessor
+    {
+        public static int CallCount { get; private set; }
+
+        public static TaskCompletionSource SecondCall { get; private set; } = NewTaskCompletionSource();
+
+        public static void Reset()
+        {
+            CallCount = 0;
+            SecondCall = NewTaskCompletionSource();
+        }
+
+        public ValueTask ProcessPendingAsync(CancellationToken cancellationToken = default)
+        {
+            CallCount++;
+
+            if (CallCount == 1)
+            {
+                throw new InvalidOperationException("database failed");
+            }
+
+            SecondCall.TrySetResult();
+            return ValueTask.CompletedTask;
+        }
+
+        private static TaskCompletionSource NewTaskCompletionSource()
+        {
+            return new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         }
     }
 }
