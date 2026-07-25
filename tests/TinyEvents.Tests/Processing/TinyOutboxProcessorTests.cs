@@ -288,11 +288,15 @@ public sealed class TinyOutboxProcessorTests
     public async Task Process_pending_async_marks_failed_without_retry_after_max_attempts()
     {
         ThrowingConsumer.Throw = true;
+        var logger = new RecordingLogger<TinyOutboxProcessor>();
         var store = new InMemoryTinyOutboxStore();
         await store.AddAsync(
             NewPendingMessage(new UserCreated(Guid.NewGuid(), "user@example.com"), attemptCount: 4),
             CancellationToken.None);
-        var processor = BuildProcessor(store, includeThrowingConsumer: true);
+        var processor = BuildProcessor(
+            store,
+            includeThrowingConsumer: true,
+            logger: logger);
 
         await processor.ProcessPendingAsync();
 
@@ -300,6 +304,12 @@ public sealed class TinyOutboxProcessorTests
         Assert.Equal(TinyOutboxMessageStatus.Failed, message.Status);
         Assert.Equal(5, message.AttemptCount);
         Assert.Null(message.NextAttemptAtUtc);
+        var entry = Assert.Single(logger.Entries);
+        Assert.Equal(1204, entry.EventId.Id);
+        Assert.Equal("EventRetriesExhausted", entry.EventId.Name);
+        Assert.Equal(LogLevel.Error, entry.LogLevel);
+        Assert.Contains("at attempt 5 of 5", entry.Message, StringComparison.Ordinal);
+        Assert.IsType<InvalidOperationException>(entry.Exception);
         ThrowingConsumer.Throw = false;
     }
 

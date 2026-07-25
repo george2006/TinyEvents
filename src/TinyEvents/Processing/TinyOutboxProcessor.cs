@@ -263,14 +263,14 @@ public sealed class TinyOutboxProcessor : ITinyOutboxProcessor
             return;
         }
 
-        logger.LogWarning(
-            exception,
-            "TinyEvents outbox message {MessageId} for event type {EventType} failed processing on worker {WorkerId} at attempt {AttemptCount}. Next attempt at {NextAttemptAtUtc}.",
+        TinyOutboxProcessorLog.RetriesExhausted(
+            logger,
             message.Id,
             message.EventType,
             workerId,
             failure.AttemptCount,
-            failure.NextAttemptAtUtc);
+            options.MaxAttempts,
+            exception);
     }
 
     private void LogLeaseLost(
