@@ -57,6 +57,17 @@ The provider option controls SQL claiming and marking. The model builder extensi
 
 The SQL Server mapping uses `NVARCHAR(512)` for `EventType`, `NVARCHAR(MAX)` for `Payload`, `NVARCHAR(256)` for `ClaimedBy`, and `NVARCHAR(MAX)` for `LastError`.
 
+## Worker Startup Validation
+
+The hosted worker validates that `TDbContext` uses the SQL Server EF Core
+provider before polling. A missing or different EF Core provider stops startup
+because the worker store executes SQL Server-specific claim and mark commands.
+
+Validation reads EF Core provider metadata only. It does not open a database
+connection, check credentials, inspect the schema, or run migrations. Connection
+failures after startup remain operational iteration failures and follow the
+worker's retry behavior.
+
 ## Worker Claiming
 
 The SQL Server EF Core store opens the underlying relational connection when needed and executes SQL Server claim/mark statements.
