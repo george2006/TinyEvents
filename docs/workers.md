@@ -100,6 +100,30 @@ This prevents worker A from marking worker B's work.
 
 If the mark operation affects no rows, TinyEvents treats that as a lost lease. The processor does not record a failed attempt for that message and continues with the next claimed message.
 
+## Retries And Attempts
+
+TinyEvents increments `AttemptCount` only when processing fails and the processor records that failure through the outbox store.
+
+When processing fails before `MaxAttempts` is reached:
+
+- `AttemptCount` is incremented
+- `LastError` stores the failure message
+- `Status` returns to `Pending`
+- `NextAttemptAtUtc` is set to the current time plus `RetryDelay`
+
+When processing fails and the next attempt would reach `MaxAttempts`:
+
+- `AttemptCount` is incremented
+- `LastError` stores the failure message
+- `Status` becomes `Failed`
+- `NextAttemptAtUtc` is cleared
+
+Cancellation requested through the worker cancellation token is not recorded as a failed attempt.
+
+Lost leases are not recorded as failed attempts. Another worker may already own the message or may reclaim it after the current lease expires.
+
+An unknown event type is treated as a processing failure. It follows the same attempt and retry rules as a consumer failure.
+
 ## Claim Timeout
 
 TinyEvents v1 does not implement claim renewal or heartbeat.

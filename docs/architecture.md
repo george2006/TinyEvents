@@ -130,6 +130,10 @@ One outbox message represents one event, not one message per consumer. If one co
 
 If marking a message as processed or failed no longer updates a row because the worker lost ownership of the processing lease, the processor leaves the message alone and continues. Lease loss is not recorded as a consumer failure.
 
+Failures that are recorded through `MarkFailedAsync` advance the message attempt count. Before `MaxAttempts` is reached, the message is made pending again and delayed until `NextAttemptAtUtc`. When `MaxAttempts` is reached, the message is marked failed and no next attempt is scheduled.
+
+Unknown event types are processing failures because the processor cannot resolve a generated dispatcher for the stored event type.
+
 ## Claiming Contract
 
 ```csharp
