@@ -22,6 +22,8 @@ internal sealed class TinyPostgreSqlAdoNetWorkerConnectionFactory : ITinyPostgre
             throw new ArgumentNullException(nameof(serviceProvider));
         }
 
+        options.ValidateWorkerConfiguration();
+
         this.options = options;
         this.serviceProvider = serviceProvider;
     }
