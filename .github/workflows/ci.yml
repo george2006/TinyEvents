@@ -2,13 +2,11 @@ name: CI
 
 on:
   pull_request:
+    branches:
+      - main
   push:
     branches:
       - main
-      - "feature/**"
-      - "fix/**"
-      - "hotfix/**"
-      - "refactor/**"
 
 jobs:
   build_test_pack:
