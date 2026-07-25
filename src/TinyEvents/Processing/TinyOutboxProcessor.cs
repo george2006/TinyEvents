@@ -132,7 +132,12 @@ public sealed class TinyOutboxProcessor : ITinyOutboxProcessor
         }
         catch (TinyOutboxLeaseLostException exception)
         {
-            LogLeaseLost(message, workerId, exception, "marked as processed");
+            TinyOutboxProcessorLog.LeaseLost(
+                logger,
+                message,
+                workerId,
+                "marked as processed",
+                exception);
         }
     }
 
@@ -145,11 +150,23 @@ public sealed class TinyOutboxProcessor : ITinyOutboxProcessor
         try
         {
             var failure = await MarkFailedAsync(message, workerId, exception, cancellationToken);
-            LogProcessingFailure(message, workerId, exception, failure);
+            TinyOutboxProcessorLog.ProcessingFailure(
+                logger,
+                message,
+                workerId,
+                failure.AttemptCount,
+                options.MaxAttempts,
+                failure.NextAttemptAtUtc,
+                exception);
         }
         catch (TinyOutboxLeaseLostException leaseLostException)
         {
-            LogLeaseLost(message, workerId, leaseLostException, "recording a processing failure");
+            TinyOutboxProcessorLog.LeaseLost(
+                logger,
+                message,
+                workerId,
+                "recording a processing failure",
+                leaseLostException);
         }
     }
 
@@ -242,50 +259,6 @@ public sealed class TinyOutboxProcessor : ITinyOutboxProcessor
         }
 
         dispatchers.Add(dispatcher.EventTypeName, dispatcher);
-    }
-
-    private void LogProcessingFailure(
-        TinyOutboxMessage message,
-        string workerId,
-        Exception exception,
-        RecordedFailure failure)
-    {
-        if (failure.NextAttemptAtUtc is not null)
-        {
-            TinyOutboxProcessorLog.ProcessingFailed(
-                logger,
-                message.Id,
-                message.EventType,
-                workerId,
-                failure.AttemptCount,
-                failure.NextAttemptAtUtc.Value,
-                exception);
-            return;
-        }
-
-        TinyOutboxProcessorLog.RetriesExhausted(
-            logger,
-            message.Id,
-            message.EventType,
-            workerId,
-            failure.AttemptCount,
-            options.MaxAttempts,
-            exception);
-    }
-
-    private void LogLeaseLost(
-        TinyOutboxMessage message,
-        string workerId,
-        TinyOutboxLeaseLostException exception,
-        string operation)
-    {
-        TinyOutboxProcessorLog.LeaseLost(
-            logger,
-            message.Id,
-            message.EventType,
-            operation,
-            workerId,
-            exception);
     }
 
     private readonly record struct RecordedFailure(

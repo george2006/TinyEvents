@@ -194,6 +194,18 @@ public sealed class TinyOutboxProcessorTests
         Assert.Equal("EventProcessingFailed", entry.EventId.Name);
         Assert.Equal(LogLevel.Warning, entry.LogLevel);
         Assert.Contains("failed processing", entry.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain("user@example.com", entry.Message, StringComparison.Ordinal);
+        Assert.Equal("worker-1", entry.Properties["WorkerId"]);
+        Assert.Equal(1, entry.Properties["Attempt"]);
+        Assert.Equal(typeof(UserCreated).FullName, entry.Properties["EventType"]);
+        Assert.IsType<Guid>(entry.Properties["MessageId"]);
+        Assert.IsType<DateTimeOffset>(entry.Properties["NextAttemptAtUtc"]);
+        Assert.DoesNotContain(
+            entry.Properties.Values,
+            value => string.Equals(
+                value?.ToString(),
+                "user@example.com",
+                StringComparison.Ordinal));
         Assert.IsType<InvalidOperationException>(entry.Exception);
         ThrowingConsumer.Throw = false;
     }
@@ -1019,7 +1031,25 @@ public sealed class TinyOutboxProcessorTests
             Exception? exception,
             Func<TState, Exception?, string> formatter)
         {
-            Entries.Add(new LogEntry(eventId, logLevel, formatter(state, exception), exception));
+            Entries.Add(new LogEntry(
+                eventId,
+                logLevel,
+                formatter(state, exception),
+                exception,
+                GetProperties(state)));
+        }
+
+        private static IReadOnlyDictionary<string, object?> GetProperties<TState>(TState state)
+        {
+            if (state is not IEnumerable<KeyValuePair<string, object?>> properties)
+            {
+                return new Dictionary<string, object?>(StringComparer.Ordinal);
+            }
+
+            return properties.ToDictionary(
+                property => property.Key,
+                property => property.Value,
+                StringComparer.Ordinal);
         }
     }
 
@@ -1027,5 +1057,6 @@ public sealed class TinyOutboxProcessorTests
         EventId EventId,
         LogLevel LogLevel,
         string Message,
-        Exception? Exception);
+        Exception? Exception,
+        IReadOnlyDictionary<string, object?> Properties);
 }
