@@ -137,6 +137,8 @@ Non-goals:
 
 ### W2 — Protect Failure-Persistence Boundaries
 
+Status: completed; awaiting review.
+
 Files:
 
 - `src/TinyEvents/Processing/TinyOutboxProcessor.cs`

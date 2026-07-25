@@ -242,6 +242,22 @@ public sealed class TinyOutboxProcessorTests
     }
 
     [Fact]
+    public async Task Process_pending_async_propagates_failure_persistence_errors()
+    {
+        ThrowingConsumer.Throw = true;
+        var message = NewProcessingMessage(new UserCreated(Guid.NewGuid(), "user@example.com"));
+        var store = new FailingMarkFailedStore(message);
+        var processor = BuildProcessor(store, includeThrowingConsumer: true);
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(
+            async () => await processor.ProcessPendingAsync());
+
+        Assert.Equal("database failed while marking failed", exception.Message);
+        Assert.Equal(1, store.MarkFailedCount);
+        ThrowingConsumer.Throw = false;
+    }
+
+    [Fact]
     public async Task Process_pending_async_retries_expired_claim_after_worker_crash_simulation()
     {
         RecordingConsumer.Consumed.Clear();
@@ -700,6 +716,49 @@ public sealed class TinyOutboxProcessorTests
         {
             MarkFailedCount++;
             return ValueTask.CompletedTask;
+        }
+    }
+
+    private sealed class FailingMarkFailedStore : ITinyOutboxStore
+    {
+        private readonly IReadOnlyList<TinyOutboxMessage> claimedMessages;
+
+        public FailingMarkFailedStore(params TinyOutboxMessage[] claimedMessages)
+        {
+            this.claimedMessages = claimedMessages;
+        }
+
+        public int MarkFailedCount { get; private set; }
+
+        public ValueTask<IReadOnlyList<TinyOutboxMessage>> ClaimPendingAsync(
+            int maxCount,
+            string workerId,
+            DateTimeOffset now,
+            TimeSpan claimTimeout,
+            CancellationToken cancellationToken)
+        {
+            return ValueTask.FromResult(claimedMessages);
+        }
+
+        public ValueTask MarkProcessedAsync(
+            Guid messageId,
+            string workerId,
+            DateTimeOffset processedAtUtc,
+            CancellationToken cancellationToken)
+        {
+            throw new InvalidOperationException("A failed consumer must not be marked as processed.");
+        }
+
+        public ValueTask MarkFailedAsync(
+            Guid messageId,
+            string workerId,
+            string error,
+            int attemptCount,
+            DateTimeOffset? nextAttemptAtUtc,
+            CancellationToken cancellationToken)
+        {
+            MarkFailedCount++;
+            throw new InvalidOperationException("database failed while marking failed");
         }
     }
 
