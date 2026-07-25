@@ -231,6 +231,25 @@ public sealed class TinyEventsWorkerTests
     }
 
     [Fact]
+    public async Task Background_service_skips_startup_validation_when_already_stopping()
+    {
+        StartupTrackingProcessor.ConstructionCount = 0;
+        var services = new ServiceCollection();
+        services.AddScoped<ITinyOutboxProcessor, StartupTrackingProcessor>();
+        services.AddSingleton(new TinyEventsWorkerOptions());
+        services.AddSingleton<TinyEventsBackgroundService>();
+        using var provider = services.BuildServiceProvider();
+        var worker = provider.GetRequiredService<TinyEventsBackgroundService>();
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => worker.StartAsync(cancellation.Token));
+
+        Assert.Equal(0, StartupTrackingProcessor.ConstructionCount);
+    }
+
+    [Fact]
     public async Task Background_service_creates_scope_per_processing_iteration()
     {
         ScopedProcessor.InstanceIds.Clear();
@@ -370,6 +389,21 @@ public sealed class TinyEventsWorkerTests
         public ValueTask ProcessPendingAsync(CancellationToken cancellationToken = default)
         {
             CallCount++;
+            return ValueTask.CompletedTask;
+        }
+    }
+
+    private sealed class StartupTrackingProcessor : ITinyOutboxProcessor
+    {
+        public StartupTrackingProcessor()
+        {
+            ConstructionCount++;
+        }
+
+        public static int ConstructionCount { get; set; }
+
+        public ValueTask ProcessPendingAsync(CancellationToken cancellationToken = default)
+        {
             return ValueTask.CompletedTask;
         }
     }

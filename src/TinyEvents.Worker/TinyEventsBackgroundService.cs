@@ -55,6 +55,8 @@ public sealed class TinyEventsBackgroundService : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        stoppingToken.ThrowIfCancellationRequested();
+
         startupValidator.ValidateConfiguration();
 
         var failures = new TinyEventsWorkerFailureTracker();
