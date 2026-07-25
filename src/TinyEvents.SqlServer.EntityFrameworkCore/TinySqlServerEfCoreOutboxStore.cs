@@ -8,6 +8,8 @@ namespace TinyEvents.SqlServer.EntityFrameworkCore;
 internal sealed class TinySqlServerEfCoreOutboxStore<TDbContext> : ITinyOutboxStore
     where TDbContext : DbContext
 {
+    private const string SqlServerProviderName = "Microsoft.EntityFrameworkCore.SqlServer";
+
     private readonly TDbContext dbContext;
     private readonly TinySqlServerEfCoreTableName tableName;
 
@@ -25,8 +27,22 @@ internal sealed class TinySqlServerEfCoreOutboxStore<TDbContext> : ITinyOutboxSt
             throw new ArgumentNullException(nameof(options));
         }
 
+        ValidateDatabaseProvider(dbContext);
+
         this.dbContext = dbContext;
         tableName = TinySqlServerEfCoreTableName.Parse(options.TableName);
+    }
+
+    private static void ValidateDatabaseProvider(TDbContext dbContext)
+    {
+        if (!string.Equals(
+                dbContext.Database.ProviderName,
+                SqlServerProviderName,
+                StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException(
+                "The TinyEvents SQL Server EF Core provider requires the SQL Server EF Core provider. Configure the DbContext with UseSqlServer(...).");
+        }
     }
 
     public async ValueTask<IReadOnlyList<TinyOutboxMessage>> ClaimPendingAsync(
