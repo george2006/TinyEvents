@@ -42,6 +42,35 @@ public sealed class TinyPostgreSqlEfCoreOutboxStoreTests
     }
 
     [Fact]
+    public void Resolving_processor_rejects_non_postgre_sql_db_context()
+    {
+        var services = new ServiceCollection();
+        services.AddDbContext<TestDbContext>(options =>
+            options.UseInMemoryDatabase(Guid.NewGuid().ToString()));
+        services.UsePostgreSqlEntityFrameworkCoreOutbox<TestDbContext>();
+        using var provider = services.BuildServiceProvider();
+        using var scope = provider.CreateScope();
+
+        var exception = Assert.Throws<InvalidOperationException>(
+            () => scope.ServiceProvider.GetRequiredService<ITinyOutboxProcessor>());
+
+        Assert.Contains("requires the Npgsql EF Core provider", exception.Message);
+    }
+
+    [Fact]
+    public void Resolving_processor_accepts_postgre_sql_db_context_without_connecting()
+    {
+        var services = new ServiceCollection();
+        services.AddDbContext<TestDbContext>(options =>
+            options.UseNpgsql("Host=localhost;Database=TinyEvents"));
+        services.UsePostgreSqlEntityFrameworkCoreOutbox<TestDbContext>();
+        using var provider = services.BuildServiceProvider();
+        using var scope = provider.CreateScope();
+
+        _ = scope.ServiceProvider.GetRequiredService<ITinyOutboxProcessor>();
+    }
+
+    [Fact]
     public void EF_store_does_not_implement_writer()
     {
         Assert.False(typeof(ITinyOutboxWriter).IsAssignableFrom(typeof(TinyPostgreSqlEfCoreOutboxStore<TestDbContext>)));
@@ -194,7 +223,7 @@ public sealed class TinyPostgreSqlEfCoreOutboxStoreTests
     private static TestDbContext NewTestDbContext()
     {
         var options = new DbContextOptionsBuilder<TestDbContext>()
-            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .UseNpgsql("Host=localhost;Database=TinyEvents")
             .Options;
 
         return new TestDbContext(options);

@@ -8,6 +8,8 @@ namespace TinyEvents.PostgreSql.EntityFrameworkCore;
 internal sealed class TinyPostgreSqlEfCoreOutboxStore<TDbContext> : ITinyOutboxStore
     where TDbContext : DbContext
 {
+    private const string PostgreSqlProviderName = "Npgsql.EntityFrameworkCore.PostgreSQL";
+
     private readonly TDbContext dbContext;
     private readonly TinyPostgreSqlEfCoreTableName tableName;
 
@@ -25,8 +27,22 @@ internal sealed class TinyPostgreSqlEfCoreOutboxStore<TDbContext> : ITinyOutboxS
             throw new ArgumentNullException(nameof(options));
         }
 
+        ValidateDatabaseProvider(dbContext);
+
         this.dbContext = dbContext;
         tableName = TinyPostgreSqlEfCoreTableName.Parse(options.TableName);
+    }
+
+    private static void ValidateDatabaseProvider(TDbContext dbContext)
+    {
+        if (!string.Equals(
+                dbContext.Database.ProviderName,
+                PostgreSqlProviderName,
+                StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException(
+                "The TinyEvents PostgreSQL EF Core provider requires the Npgsql EF Core provider. Configure the DbContext with UseNpgsql(...).");
+        }
     }
 
     public async ValueTask<IReadOnlyList<TinyOutboxMessage>> ClaimPendingAsync(
