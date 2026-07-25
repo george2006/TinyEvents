@@ -65,7 +65,10 @@ public sealed class TinyEventsBackgroundService : BackgroundService
             }
             catch (Exception exception)
             {
-                logger.LogError(exception, "TinyEvents worker processing iteration failed.");
+                logger.LogWarning(
+                    TinyEventsWorkerLogEvents.WorkerIterationFailed,
+                    exception,
+                    "TinyEvents worker processing iteration failed.");
             }
 
             try

@@ -233,12 +233,14 @@ public sealed class TinyEventsWorkerTests
     public async Task Background_service_continues_after_processing_iteration_fails()
     {
         FailingThenRecordingProcessor.Reset();
+        var logger = new RecordingLogger<TinyEventsBackgroundService>();
         var services = new ServiceCollection();
         services.AddSingleton<ITinyOutboxProcessor, FailingThenRecordingProcessor>();
         services.AddSingleton(new TinyEventsWorkerOptions
         {
             PollingInterval = TimeSpan.FromMilliseconds(1)
         });
+        services.AddSingleton<ILogger<TinyEventsBackgroundService>>(logger);
         services.AddSingleton<TinyEventsBackgroundService>();
         using var provider = services.BuildServiceProvider();
         var worker = provider.GetRequiredService<TinyEventsBackgroundService>();
@@ -249,6 +251,11 @@ public sealed class TinyEventsWorkerTests
         await worker.StopAsync(CancellationToken.None).WaitAsync(cancellation.Token);
 
         Assert.True(FailingThenRecordingProcessor.CallCount >= 2);
+        var entry = Assert.Single(logger.Entries);
+        Assert.Equal(LogLevel.Warning, entry.LogLevel);
+        Assert.Equal(1100, entry.EventId.Id);
+        Assert.Equal("WorkerIterationFailed", entry.EventId.Name);
+        Assert.IsType<InvalidOperationException>(entry.Exception);
     }
 
     [Fact]
@@ -373,11 +380,12 @@ public sealed class TinyEventsWorkerTests
             Exception? exception,
             Func<TState, Exception?, string> formatter)
         {
-            Entries.Add(new LogEntry(logLevel, formatter(state, exception), exception));
+            Entries.Add(new LogEntry(eventId, logLevel, formatter(state, exception), exception));
         }
     }
 
     private sealed record LogEntry(
+        EventId EventId,
         LogLevel LogLevel,
         string Message,
         Exception? Exception);
