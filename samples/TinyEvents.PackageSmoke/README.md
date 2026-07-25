@@ -1,6 +1,32 @@
 # TinyEvents Package Smoke
 
-Run this sample after publishing packages to NuGet:
+## Local Package Build Smoke
+
+Run this sample against locally packed packages without touching a database:
+
+```powershell
+.\scripts\Test-PackageSmoke.ps1
+```
+
+That command builds the solution, packs the complete TinyEvents release train with a unique local version, restores this sample from those local packages, and builds the sample.
+
+## Local Package Runtime Smoke
+
+To start the sample SQL Server and PostgreSQL containers and run the database smoke paths:
+
+```powershell
+.\scripts\Test-PackageSmoke.ps1 -StartDatabases -Run
+```
+
+To run against already-started databases, omit `-StartDatabases`:
+
+```powershell
+.\scripts\Test-PackageSmoke.ps1 -Run
+```
+
+`-Run` uses the default SQL Server port `14334` and PostgreSQL port `54324` unless the environment variables below override them.
+
+To run this sample after publishing packages to NuGet:
 
 ```bash
 docker compose -f samples/TinyEvents.PackageSmoke/docker-compose.yml up -d
@@ -22,4 +48,6 @@ To use a different PostgreSQL instance:
 set TINYEVENTS_PACKAGE_SMOKE_POSTGRESQL=Host=localhost;Port=5432;Database=TinyEventsPackageSmoke;Username=postgres;Password=your-password;
 ```
 
-The sample references the public `0.1.0-alpha.2` packages instead of local project references. It verifies that the core package, SQL Server providers, PostgreSQL providers, worker package, dependency injection extensions, source-generator consumer registration, publishing, claiming, and processing can be consumed from NuGet.
+The sample references package versions through `TinyEventsPackageVersion`, which defaults to the shared version from `Directory.Build.props`. The local smoke script overrides that property with the temporary locally packed package version.
+
+It verifies that the core package, SQL Server providers, PostgreSQL providers, worker package, dependency injection extensions, source-generator consumer registration, publishing, claiming, and processing can be consumed from NuGet packages instead of project references.
