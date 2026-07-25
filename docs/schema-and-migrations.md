@@ -33,6 +33,11 @@ The v1 statuses are:
 - `Processed`
 - `Failed`
 
+Provider schemas keep the same logical columns and indexes, but database types follow each provider:
+
+- SQL Server maps `EventType` to `NVARCHAR(512)`, `Payload` to `NVARCHAR(MAX)`, `ClaimedBy` to `NVARCHAR(256)`, and `LastError` to `NVARCHAR(MAX)`.
+- PostgreSQL maps `EventType`, `Payload`, `ClaimedBy`, and `LastError` to `text`.
+
 ## EF Core
 
 EF Core applications create the schema through normal EF Core migrations.

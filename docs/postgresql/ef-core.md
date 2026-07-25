@@ -55,6 +55,8 @@ protected override void OnModelCreating(ModelBuilder modelBuilder)
 
 The provider option controls SQL claiming and marking. The model builder extension controls EF mapping and migrations.
 
+The PostgreSQL mapping uses `text` for `EventType`, `Payload`, `ClaimedBy`, and `LastError`.
+
 ## Worker Claiming
 
 The PostgreSQL EF Core store opens the underlying relational connection when needed and executes PostgreSQL claim/mark statements.
