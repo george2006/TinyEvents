@@ -2,7 +2,7 @@ using System.Data.Common;
 
 namespace TinyEvents.PostgreSql.AdoNet;
 
-public sealed class TinyPostgreSqlAdoNetOutboxStore : ITinyOutboxStore
+internal sealed class TinyPostgreSqlAdoNetOutboxStore : ITinyOutboxStore
 {
     private readonly ITinyPostgreSqlAdoNetWorkerConnectionFactory connectionFactory;
     private readonly TinyPostgreSqlAdoNetTableName tableName;

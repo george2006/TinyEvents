@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore.Storage;
 
 namespace TinyEvents.PostgreSql.EntityFrameworkCore;
 
-public sealed class TinyPostgreSqlEfCoreOutboxStore<TDbContext> : ITinyOutboxStore
+internal sealed class TinyPostgreSqlEfCoreOutboxStore<TDbContext> : ITinyOutboxStore
     where TDbContext : DbContext
 {
     private readonly TDbContext dbContext;

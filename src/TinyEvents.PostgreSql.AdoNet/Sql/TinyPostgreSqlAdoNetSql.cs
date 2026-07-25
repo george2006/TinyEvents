@@ -1,6 +1,6 @@
 namespace TinyEvents.PostgreSql.AdoNet;
 
-public static class TinyPostgreSqlAdoNetSql
+internal static class TinyPostgreSqlAdoNetSql
 {
     public static string Insert(TinyPostgreSqlAdoNetTableName tableName)
     {

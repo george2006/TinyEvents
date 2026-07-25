@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore.Storage;
 
 namespace TinyEvents.SqlServer.EntityFrameworkCore;
 
-public sealed class TinySqlServerEfCoreOutboxStore<TDbContext> : ITinyOutboxStore
+internal sealed class TinySqlServerEfCoreOutboxStore<TDbContext> : ITinyOutboxStore
     where TDbContext : DbContext
 {
     private readonly TDbContext dbContext;

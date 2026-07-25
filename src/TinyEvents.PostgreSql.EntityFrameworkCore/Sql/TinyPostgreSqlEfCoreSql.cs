@@ -1,6 +1,6 @@
 namespace TinyEvents.PostgreSql.EntityFrameworkCore;
 
-public static class TinyPostgreSqlEfCoreSql
+internal static class TinyPostgreSqlEfCoreSql
 {
     public static string ClaimPending(TinyPostgreSqlEfCoreTableName tableName)
     {

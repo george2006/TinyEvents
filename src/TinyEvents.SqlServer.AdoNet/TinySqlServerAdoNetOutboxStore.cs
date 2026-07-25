@@ -3,7 +3,7 @@ using System.Data.Common;
 
 namespace TinyEvents.SqlServer.AdoNet;
 
-public sealed class TinySqlServerAdoNetOutboxStore : ITinyOutboxStore
+internal sealed class TinySqlServerAdoNetOutboxStore : ITinyOutboxStore
 {
     private readonly TinyEventsSqlServerAdoNetOptions options;
     private readonly ITinySqlServerAdoNetWorkerConnectionFactory connectionFactory;

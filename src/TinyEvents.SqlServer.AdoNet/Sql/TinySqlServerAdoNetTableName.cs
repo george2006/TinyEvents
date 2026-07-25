@@ -1,6 +1,6 @@
 namespace TinyEvents.SqlServer.AdoNet;
 
-public sealed class TinySqlServerAdoNetTableName
+internal sealed class TinySqlServerAdoNetTableName
 {
     private readonly string[] parts;
 

@@ -3,7 +3,7 @@ using System.Data.Common;
 
 namespace TinyEvents.SqlServer.AdoNet;
 
-public sealed class TinySqlServerAdoNetWorkerConnectionFactory : ITinySqlServerAdoNetWorkerConnectionFactory
+internal sealed class TinySqlServerAdoNetWorkerConnectionFactory : ITinySqlServerAdoNetWorkerConnectionFactory
 {
     private readonly TinyEventsSqlServerAdoNetOptions options;
     private readonly IServiceProvider serviceProvider;

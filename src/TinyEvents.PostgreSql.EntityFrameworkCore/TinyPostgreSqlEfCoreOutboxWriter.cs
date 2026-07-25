@@ -2,7 +2,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace TinyEvents.PostgreSql.EntityFrameworkCore;
 
-public sealed class TinyPostgreSqlEfCoreOutboxWriter<TDbContext> : ITinyOutboxWriter
+internal sealed class TinyPostgreSqlEfCoreOutboxWriter<TDbContext> : ITinyOutboxWriter
     where TDbContext : DbContext
 {
     private readonly TDbContext dbContext;

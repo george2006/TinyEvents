@@ -1,6 +1,6 @@
 namespace TinyEvents.PostgreSql.AdoNet;
 
-public sealed class TinyPostgreSqlAdoNetTableName
+internal sealed class TinyPostgreSqlAdoNetTableName
 {
     private readonly string[] parts;
 

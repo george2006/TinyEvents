@@ -1,6 +1,6 @@
 namespace TinyEvents.SqlServer.EntityFrameworkCore;
 
-public static class TinySqlServerEfCoreSql
+internal static class TinySqlServerEfCoreSql
 {
     public static string ClaimPending(TinySqlServerEfCoreTableName tableName)
     {
@@ -88,4 +88,3 @@ public static class TinySqlServerEfCoreSql
             """;
     }
 }
-

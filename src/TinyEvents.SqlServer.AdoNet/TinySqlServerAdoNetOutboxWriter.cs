@@ -1,6 +1,6 @@
 namespace TinyEvents.SqlServer.AdoNet;
 
-public sealed class TinySqlServerAdoNetOutboxWriter : ITinyOutboxWriter
+internal sealed class TinySqlServerAdoNetOutboxWriter : ITinyOutboxWriter
 {
     private readonly TinyEventsSqlServerAdoNetOptions options;
     private readonly IServiceProvider serviceProvider;
