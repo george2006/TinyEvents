@@ -72,10 +72,10 @@ public sealed class TinyEventsBackgroundService : BackgroundService
             }
             catch (Exception exception)
             {
-                var consecutiveFailureCount = failures.RecordFailure();
+                var failure = failures.RecordFailure();
                 TinyEventsWorkerLog.IterationFailed(
                     logger,
-                    consecutiveFailureCount,
+                    failure,
                     exception);
             }
 

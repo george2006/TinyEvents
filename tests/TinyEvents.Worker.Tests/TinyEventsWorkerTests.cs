@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -293,6 +294,57 @@ public sealed class TinyEventsWorkerTests
         Assert.DoesNotContain(logger.Entries, entry => entry.LogLevel == LogLevel.Error);
     }
 
+    [Fact]
+    public async Task Background_service_throttles_repeated_failures_and_reports_recovery()
+    {
+        FailingThenRecordingProcessor.Reset(failuresBeforeSuccess: 10);
+        var logger = new RecordingLogger<TinyEventsBackgroundService>();
+        var services = new ServiceCollection();
+        services.AddSingleton<ITinyOutboxProcessor, FailingThenRecordingProcessor>();
+        services.AddSingleton(new TinyEventsWorkerOptions
+        {
+            PollingInterval = TimeSpan.FromMilliseconds(1)
+        });
+        services.AddSingleton<ILogger<TinyEventsBackgroundService>>(logger);
+        services.AddSingleton<TinyEventsBackgroundService>();
+        using var provider = services.BuildServiceProvider();
+        var worker = provider.GetRequiredService<TinyEventsBackgroundService>();
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+
+        await worker.StartAsync(CancellationToken.None);
+        await WaitForLogAsync(logger, eventId: 1101, timeout.Token);
+        await worker.StopAsync(timeout.Token);
+
+        Assert.Equal(4, logger.Entries.Count(entry => entry.EventId.Id == 1100));
+        Assert.Equal(2, logger.Entries.Count(entry => entry.EventId.Id == 1104));
+        Assert.Single(logger.Entries, entry => entry.EventId.Id == 1101);
+        Assert.All(
+            logger.Entries.Where(entry => entry.EventId.Id == 1100),
+            entry => Assert.Equal(LogLevel.Warning, entry.LogLevel));
+        Assert.All(
+            logger.Entries.Where(entry => entry.EventId.Id == 1104),
+            entry => Assert.Equal(LogLevel.Error, entry.LogLevel));
+        Assert.Contains(
+            logger.Entries,
+            entry => entry.EventId.Id == 1104
+                && entry.Message.Contains("failed 5 consecutive", StringComparison.Ordinal));
+        Assert.Contains(
+            logger.Entries,
+            entry => entry.EventId.Id == 1104
+                && entry.Message.Contains("failed 10 consecutive", StringComparison.Ordinal));
+    }
+
+    private static async Task WaitForLogAsync<T>(
+        RecordingLogger<T> logger,
+        int eventId,
+        CancellationToken cancellationToken)
+    {
+        while (!logger.Entries.Any(entry => entry.EventId.Id == eventId))
+        {
+            await Task.Delay(TimeSpan.FromMilliseconds(1), cancellationToken);
+        }
+    }
+
     private sealed class RecordingProcessor : ITinyOutboxProcessor
     {
         public static int CallCount { get; set; }
@@ -319,13 +371,16 @@ public sealed class TinyEventsWorkerTests
 
     private sealed class FailingThenRecordingProcessor : ITinyOutboxProcessor
     {
+        private static int failuresBeforeSuccess = 1;
+
         public static int CallCount { get; private set; }
 
         public static TaskCompletionSource SecondCall { get; private set; } = NewTaskCompletionSource();
 
-        public static void Reset()
+        public static void Reset(int failuresBeforeSuccess = 1)
         {
             CallCount = 0;
+            FailingThenRecordingProcessor.failuresBeforeSuccess = failuresBeforeSuccess;
             SecondCall = NewTaskCompletionSource();
         }
 
@@ -333,7 +388,7 @@ public sealed class TinyEventsWorkerTests
         {
             CallCount++;
 
-            if (CallCount == 1)
+            if (CallCount <= failuresBeforeSuccess)
             {
                 throw new InvalidOperationException("database failed");
             }
@@ -373,7 +428,7 @@ public sealed class TinyEventsWorkerTests
 
     private sealed class RecordingLogger<T> : ILogger<T>
     {
-        public List<LogEntry> Entries { get; } = new List<LogEntry>();
+        public ConcurrentQueue<LogEntry> Entries { get; } = new ConcurrentQueue<LogEntry>();
 
         public IDisposable? BeginScope<TState>(TState state)
             where TState : notnull
@@ -393,7 +448,7 @@ public sealed class TinyEventsWorkerTests
             Exception? exception,
             Func<TState, Exception?, string> formatter)
         {
-            Entries.Add(new LogEntry(eventId, logLevel, formatter(state, exception), exception));
+            Entries.Enqueue(new LogEntry(eventId, logLevel, formatter(state, exception), exception));
         }
     }
 
