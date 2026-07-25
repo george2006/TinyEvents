@@ -6,7 +6,8 @@ using Xunit;
 
 namespace TinyEvents.PostgreSql.Tests;
 
-public sealed class AdoNetPostgreSqlEndToEndRuntimeTests : IClassFixture<PostgreSqlFixture>
+[Collection(PostgreSqlIntegrationCollection.Name)]
+public sealed class AdoNetPostgreSqlEndToEndRuntimeTests
 {
     private readonly PostgreSqlFixture fixture;
 

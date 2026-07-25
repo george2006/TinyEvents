@@ -4,7 +4,8 @@ using Xunit;
 
 namespace TinyEvents.PostgreSql.Tests;
 
-public sealed class AdoNetPostgreSqlSchemaRuntimeTests : IClassFixture<PostgreSqlFixture>
+[Collection(PostgreSqlIntegrationCollection.Name)]
+public sealed class AdoNetPostgreSqlSchemaRuntimeTests
 {
     private readonly PostgreSqlFixture fixture;
 
