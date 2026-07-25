@@ -111,6 +111,19 @@ public sealed class TinyOutboxProcessor : ITinyOutboxProcessor
         try
         {
             await InvokeConsumersAsync(message, cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            await RecordProcessingFailureAsync(message, workerId, exception, cancellationToken);
+            return;
+        }
+
+        try
+        {
             await MarkProcessedAsync(message, workerId, cancellationToken);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -119,19 +132,41 @@ public sealed class TinyOutboxProcessor : ITinyOutboxProcessor
         }
         catch (TinyOutboxLeaseLostException exception)
         {
-            LogLeaseLost(message, workerId, exception, "marked as processed");
+            TinyOutboxProcessorLog.LeaseLost(
+                logger,
+                message,
+                workerId,
+                "marked as processed",
+                exception);
         }
-        catch (Exception exception)
+    }
+
+    private async ValueTask RecordProcessingFailureAsync(
+        TinyOutboxMessage message,
+        string workerId,
+        Exception exception,
+        CancellationToken cancellationToken)
+    {
+        try
         {
-            try
-            {
-                var failure = await MarkFailedAsync(message, workerId, exception, cancellationToken);
-                LogProcessingFailure(message, workerId, exception, failure);
-            }
-            catch (TinyOutboxLeaseLostException leaseLostException)
-            {
-                LogLeaseLost(message, workerId, leaseLostException, "recording a processing failure");
-            }
+            var failure = await MarkFailedAsync(message, workerId, exception, cancellationToken);
+            TinyOutboxProcessorLog.ProcessingFailure(
+                logger,
+                message,
+                workerId,
+                failure.AttemptCount,
+                options.MaxAttempts,
+                failure.NextAttemptAtUtc,
+                exception);
+        }
+        catch (TinyOutboxLeaseLostException leaseLostException)
+        {
+            TinyOutboxProcessorLog.LeaseLost(
+                logger,
+                message,
+                workerId,
+                "recording a processing failure",
+                leaseLostException);
         }
     }
 
@@ -224,37 +259,6 @@ public sealed class TinyOutboxProcessor : ITinyOutboxProcessor
         }
 
         dispatchers.Add(dispatcher.EventTypeName, dispatcher);
-    }
-
-    private void LogProcessingFailure(
-        TinyOutboxMessage message,
-        string workerId,
-        Exception exception,
-        RecordedFailure failure)
-    {
-        logger.LogWarning(
-            exception,
-            "TinyEvents outbox message {MessageId} for event type {EventType} failed processing on worker {WorkerId} at attempt {AttemptCount}. Next attempt at {NextAttemptAtUtc}.",
-            message.Id,
-            message.EventType,
-            workerId,
-            failure.AttemptCount,
-            failure.NextAttemptAtUtc);
-    }
-
-    private void LogLeaseLost(
-        TinyOutboxMessage message,
-        string workerId,
-        TinyOutboxLeaseLostException exception,
-        string operation)
-    {
-        logger.LogWarning(
-            exception,
-            "TinyEvents outbox message {MessageId} for event type {EventType} lost its processing lease while {Operation} on worker {WorkerId}.",
-            message.Id,
-            message.EventType,
-            operation,
-            workerId);
     }
 
     private readonly record struct RecordedFailure(

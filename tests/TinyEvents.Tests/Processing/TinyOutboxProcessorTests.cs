@@ -190,8 +190,22 @@ public sealed class TinyOutboxProcessorTests
         await processor.ProcessPendingAsync();
 
         var entry = Assert.Single(logger.Entries);
+        Assert.Equal(1202, entry.EventId.Id);
+        Assert.Equal("EventProcessingFailed", entry.EventId.Name);
         Assert.Equal(LogLevel.Warning, entry.LogLevel);
         Assert.Contains("failed processing", entry.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain("user@example.com", entry.Message, StringComparison.Ordinal);
+        Assert.Equal("worker-1", entry.Properties["WorkerId"]);
+        Assert.Equal(1, entry.Properties["Attempt"]);
+        Assert.Equal(typeof(UserCreated).FullName, entry.Properties["EventType"]);
+        Assert.IsType<Guid>(entry.Properties["MessageId"]);
+        Assert.IsType<DateTimeOffset>(entry.Properties["NextAttemptAtUtc"]);
+        Assert.DoesNotContain(
+            entry.Properties.Values,
+            value => string.Equals(
+                value?.ToString(),
+                "user@example.com",
+                StringComparison.Ordinal));
         Assert.IsType<InvalidOperationException>(entry.Exception);
         ThrowingConsumer.Throw = false;
     }
@@ -209,6 +223,22 @@ public sealed class TinyOutboxProcessorTests
     }
 
     [Fact]
+    public async Task Process_pending_async_does_not_mark_failed_when_mark_processed_fails()
+    {
+        RecordingConsumer.Consumed.Clear();
+        var message = NewProcessingMessage(new UserCreated(Guid.NewGuid(), "user@example.com"));
+        var store = new FailingMarkProcessedStore(message);
+        var processor = BuildProcessor(store);
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(
+            async () => await processor.ProcessPendingAsync());
+
+        Assert.Equal("database failed while marking processed", exception.Message);
+        Assert.Single(RecordingConsumer.Consumed);
+        Assert.Equal(0, store.MarkFailedCount);
+    }
+
+    [Fact]
     public async Task Process_pending_async_marks_failed_with_current_worker_id()
     {
         ThrowingConsumer.Throw = true;
@@ -222,6 +252,22 @@ public sealed class TinyOutboxProcessorTests
         await processor.ProcessPendingAsync();
 
         Assert.Equal("worker-42", Assert.Single(store.FailedWorkerIds));
+        ThrowingConsumer.Throw = false;
+    }
+
+    [Fact]
+    public async Task Process_pending_async_propagates_failure_persistence_errors()
+    {
+        ThrowingConsumer.Throw = true;
+        var message = NewProcessingMessage(new UserCreated(Guid.NewGuid(), "user@example.com"));
+        var store = new FailingMarkFailedStore(message);
+        var processor = BuildProcessor(store, includeThrowingConsumer: true);
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(
+            async () => await processor.ProcessPendingAsync());
+
+        Assert.Equal("database failed while marking failed", exception.Message);
+        Assert.Equal(1, store.MarkFailedCount);
         ThrowingConsumer.Throw = false;
     }
 
@@ -254,11 +300,15 @@ public sealed class TinyOutboxProcessorTests
     public async Task Process_pending_async_marks_failed_without_retry_after_max_attempts()
     {
         ThrowingConsumer.Throw = true;
+        var logger = new RecordingLogger<TinyOutboxProcessor>();
         var store = new InMemoryTinyOutboxStore();
         await store.AddAsync(
             NewPendingMessage(new UserCreated(Guid.NewGuid(), "user@example.com"), attemptCount: 4),
             CancellationToken.None);
-        var processor = BuildProcessor(store, includeThrowingConsumer: true);
+        var processor = BuildProcessor(
+            store,
+            includeThrowingConsumer: true,
+            logger: logger);
 
         await processor.ProcessPendingAsync();
 
@@ -266,6 +316,12 @@ public sealed class TinyOutboxProcessorTests
         Assert.Equal(TinyOutboxMessageStatus.Failed, message.Status);
         Assert.Equal(5, message.AttemptCount);
         Assert.Null(message.NextAttemptAtUtc);
+        var entry = Assert.Single(logger.Entries);
+        Assert.Equal(1204, entry.EventId.Id);
+        Assert.Equal("EventRetriesExhausted", entry.EventId.Name);
+        Assert.Equal(LogLevel.Error, entry.LogLevel);
+        Assert.Contains("at attempt 5 of 5", entry.Message, StringComparison.Ordinal);
+        Assert.IsType<InvalidOperationException>(entry.Exception);
         ThrowingConsumer.Throw = false;
     }
 
@@ -319,6 +375,35 @@ public sealed class TinyOutboxProcessorTests
     }
 
     [Fact]
+    public async Task Process_pending_async_propagates_cancellation_during_claim()
+    {
+        using var cancellation = new CancellationTokenSource();
+        var store = new CancelDuringClaimStore(cancellation);
+        var processor = BuildProcessor(store);
+
+        await Assert.ThrowsAsync<OperationCanceledException>(
+            async () => await processor.ProcessPendingAsync(cancellation.Token));
+
+        Assert.Equal(0, store.MarkFailedCount);
+    }
+
+    [Fact]
+    public async Task Process_pending_async_propagates_cancellation_during_failure_persistence()
+    {
+        ThrowingConsumer.Throw = true;
+        using var cancellation = new CancellationTokenSource();
+        var message = NewProcessingMessage(new UserCreated(Guid.NewGuid(), "user@example.com"));
+        var store = new CancelDuringMarkFailedStore(cancellation, message);
+        var processor = BuildProcessor(store, includeThrowingConsumer: true);
+
+        await Assert.ThrowsAsync<OperationCanceledException>(
+            async () => await processor.ProcessPendingAsync(cancellation.Token));
+
+        Assert.Equal(1, store.MarkFailedCount);
+        ThrowingConsumer.Throw = false;
+    }
+
+    [Fact]
     public async Task Process_pending_async_continues_when_mark_processed_loses_lease()
     {
         RecordingConsumer.Consumed.Clear();
@@ -334,7 +419,9 @@ public sealed class TinyOutboxProcessorTests
         Assert.Equal(secondMessage.Id, Assert.Single(store.ProcessedMessageIds));
         Assert.Equal(0, store.MarkFailedCount);
         Assert.Contains(logger.Entries, entry =>
-            entry.LogLevel == LogLevel.Warning
+            entry.EventId.Id == 1300
+            && entry.EventId.Name == "LeaseLost"
+            && entry.LogLevel == LogLevel.Warning
             && entry.Message.Contains("lost its processing lease", StringComparison.Ordinal)
             && entry.Exception is TinyOutboxLeaseLostException);
     }
@@ -352,7 +439,9 @@ public sealed class TinyOutboxProcessorTests
 
         Assert.Equal(1, store.MarkFailedCount);
         Assert.Contains(logger.Entries, entry =>
-            entry.LogLevel == LogLevel.Warning
+            entry.EventId.Id == 1300
+            && entry.EventId.Name == "LeaseLost"
+            && entry.LogLevel == LogLevel.Warning
             && entry.Message.Contains("lost its processing lease", StringComparison.Ordinal)
             && entry.Exception is TinyOutboxLeaseLostException);
         ThrowingConsumer.Throw = false;
@@ -644,6 +733,186 @@ public sealed class TinyOutboxProcessorTests
         }
     }
 
+    private sealed class CancelDuringClaimStore : ITinyOutboxStore
+    {
+        private readonly CancellationTokenSource cancellation;
+
+        public CancelDuringClaimStore(CancellationTokenSource cancellation)
+        {
+            this.cancellation = cancellation;
+        }
+
+        public int MarkFailedCount { get; private set; }
+
+        public ValueTask<IReadOnlyList<TinyOutboxMessage>> ClaimPendingAsync(
+            int maxCount,
+            string workerId,
+            DateTimeOffset now,
+            TimeSpan claimTimeout,
+            CancellationToken cancellationToken)
+        {
+            this.cancellation.Cancel();
+            cancellationToken.ThrowIfCancellationRequested();
+            throw new InvalidOperationException("Cancellation should have been observed.");
+        }
+
+        public ValueTask MarkProcessedAsync(
+            Guid messageId,
+            string workerId,
+            DateTimeOffset processedAtUtc,
+            CancellationToken cancellationToken)
+        {
+            throw new InvalidOperationException("Canceled claiming should not process messages.");
+        }
+
+        public ValueTask MarkFailedAsync(
+            Guid messageId,
+            string workerId,
+            string error,
+            int attemptCount,
+            DateTimeOffset? nextAttemptAtUtc,
+            CancellationToken cancellationToken)
+        {
+            MarkFailedCount++;
+            return ValueTask.CompletedTask;
+        }
+    }
+
+    private sealed class CancelDuringMarkFailedStore : ITinyOutboxStore
+    {
+        private readonly CancellationTokenSource cancellation;
+        private readonly IReadOnlyList<TinyOutboxMessage> claimedMessages;
+
+        public CancelDuringMarkFailedStore(
+            CancellationTokenSource cancellation,
+            params TinyOutboxMessage[] claimedMessages)
+        {
+            this.cancellation = cancellation;
+            this.claimedMessages = claimedMessages;
+        }
+
+        public int MarkFailedCount { get; private set; }
+
+        public ValueTask<IReadOnlyList<TinyOutboxMessage>> ClaimPendingAsync(
+            int maxCount,
+            string workerId,
+            DateTimeOffset now,
+            TimeSpan claimTimeout,
+            CancellationToken cancellationToken)
+        {
+            return ValueTask.FromResult(claimedMessages);
+        }
+
+        public ValueTask MarkProcessedAsync(
+            Guid messageId,
+            string workerId,
+            DateTimeOffset processedAtUtc,
+            CancellationToken cancellationToken)
+        {
+            throw new InvalidOperationException("A failed consumer must not be marked as processed.");
+        }
+
+        public ValueTask MarkFailedAsync(
+            Guid messageId,
+            string workerId,
+            string error,
+            int attemptCount,
+            DateTimeOffset? nextAttemptAtUtc,
+            CancellationToken cancellationToken)
+        {
+            MarkFailedCount++;
+            cancellation.Cancel();
+            cancellationToken.ThrowIfCancellationRequested();
+            throw new InvalidOperationException("Cancellation should have been observed.");
+        }
+    }
+
+    private sealed class FailingMarkProcessedStore : ITinyOutboxStore
+    {
+        private readonly IReadOnlyList<TinyOutboxMessage> claimedMessages;
+
+        public FailingMarkProcessedStore(params TinyOutboxMessage[] claimedMessages)
+        {
+            this.claimedMessages = claimedMessages;
+        }
+
+        public int MarkFailedCount { get; private set; }
+
+        public ValueTask<IReadOnlyList<TinyOutboxMessage>> ClaimPendingAsync(
+            int maxCount,
+            string workerId,
+            DateTimeOffset now,
+            TimeSpan claimTimeout,
+            CancellationToken cancellationToken)
+        {
+            return ValueTask.FromResult(claimedMessages);
+        }
+
+        public ValueTask MarkProcessedAsync(
+            Guid messageId,
+            string workerId,
+            DateTimeOffset processedAtUtc,
+            CancellationToken cancellationToken)
+        {
+            throw new InvalidOperationException("database failed while marking processed");
+        }
+
+        public ValueTask MarkFailedAsync(
+            Guid messageId,
+            string workerId,
+            string error,
+            int attemptCount,
+            DateTimeOffset? nextAttemptAtUtc,
+            CancellationToken cancellationToken)
+        {
+            MarkFailedCount++;
+            return ValueTask.CompletedTask;
+        }
+    }
+
+    private sealed class FailingMarkFailedStore : ITinyOutboxStore
+    {
+        private readonly IReadOnlyList<TinyOutboxMessage> claimedMessages;
+
+        public FailingMarkFailedStore(params TinyOutboxMessage[] claimedMessages)
+        {
+            this.claimedMessages = claimedMessages;
+        }
+
+        public int MarkFailedCount { get; private set; }
+
+        public ValueTask<IReadOnlyList<TinyOutboxMessage>> ClaimPendingAsync(
+            int maxCount,
+            string workerId,
+            DateTimeOffset now,
+            TimeSpan claimTimeout,
+            CancellationToken cancellationToken)
+        {
+            return ValueTask.FromResult(claimedMessages);
+        }
+
+        public ValueTask MarkProcessedAsync(
+            Guid messageId,
+            string workerId,
+            DateTimeOffset processedAtUtc,
+            CancellationToken cancellationToken)
+        {
+            throw new InvalidOperationException("A failed consumer must not be marked as processed.");
+        }
+
+        public ValueTask MarkFailedAsync(
+            Guid messageId,
+            string workerId,
+            string error,
+            int attemptCount,
+            DateTimeOffset? nextAttemptAtUtc,
+            CancellationToken cancellationToken)
+        {
+            MarkFailedCount++;
+            throw new InvalidOperationException("database failed while marking failed");
+        }
+    }
+
     private sealed class LeaseLostOnFirstProcessedStore : ITinyOutboxStore
     {
         private readonly IReadOnlyList<TinyOutboxMessage> claimedMessages;
@@ -762,12 +1031,32 @@ public sealed class TinyOutboxProcessorTests
             Exception? exception,
             Func<TState, Exception?, string> formatter)
         {
-            Entries.Add(new LogEntry(logLevel, formatter(state, exception), exception));
+            Entries.Add(new LogEntry(
+                eventId,
+                logLevel,
+                formatter(state, exception),
+                exception,
+                GetProperties(state)));
+        }
+
+        private static IReadOnlyDictionary<string, object?> GetProperties<TState>(TState state)
+        {
+            if (state is not IEnumerable<KeyValuePair<string, object?>> properties)
+            {
+                return new Dictionary<string, object?>(StringComparer.Ordinal);
+            }
+
+            return properties.ToDictionary(
+                property => property.Key,
+                property => property.Value,
+                StringComparer.Ordinal);
         }
     }
 
     private sealed record LogEntry(
+        EventId EventId,
         LogLevel LogLevel,
         string Message,
-        Exception? Exception);
+        Exception? Exception,
+        IReadOnlyDictionary<string, object?> Properties);
 }

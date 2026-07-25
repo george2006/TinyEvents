@@ -88,6 +88,48 @@ On shutdown, TinyEvents does not scan and release claims. If processing does not
 
 A hosted worker can remain running while processing iterations repeatedly fail, for example during a database outage. Treat worker logs and host-level health checks as part of production operations.
 
+## Runtime Logging
+
+TinyEvents uses `Microsoft.Extensions.Logging`. The application owns log
+providers, storage, formatting, alerting, and retention.
+
+Runtime events have stable identifiers:
+
+| Event ID | Name | Level | Meaning |
+|---:|---|---|---|
+| 1100 | `WorkerIterationFailed` | Warning | An iteration failed and the worker will retry. |
+| 1101 | `WorkerRecovered` | Information | An iteration succeeded after one or more consecutive failures. |
+| 1104 | `RepeatedWorkerFailures` | Error | A repeated-failure threshold was reached and operator attention is required. |
+| 1202 | `EventProcessingFailed` | Warning | A message failed and another attempt is scheduled. |
+| 1204 | `EventRetriesExhausted` | Error | A message reached `MaxAttempts` and no retry remains. |
+| 1300 | `LeaseLost` | Warning | The worker no longer owns the message lease. |
+
+Worker iteration failures are reported without stopping the worker:
+
+- failures 1 through 4 emit `WorkerIterationFailed`
+- failures 5, 10, 20, and 50 emit `RepeatedWorkerFailures`
+- later multiples of 100 emit `RepeatedWorkerFailures`
+- failures between those thresholds are not logged
+- the first later success emits one `WorkerRecovered` event and resets the
+  consecutive-failure count
+
+Requested cancellation is not counted as a failure and does not emit a
+failure event.
+
+Runtime logs use structured properties where applicable:
+
+- `MessageId`
+- `EventType`
+- `WorkerId`
+- `Attempt`
+- `MaximumAttempts`
+- `NextAttemptAtUtc`
+- `ConsecutiveFailures`
+- `Operation`
+
+TinyEvents does not log event payloads, serialized event bodies, connection
+strings, credentials, secrets, tokens, or arbitrary event property values.
+
 ## Marking Processed Or Failed
 
 Providers mark messages only when:

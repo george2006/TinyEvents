@@ -53,11 +53,18 @@ public sealed class TinyEventsBackgroundService : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        var failures = new TinyEventsWorkerFailureTracker();
+
         while (!stoppingToken.IsCancellationRequested)
         {
             try
             {
                 await ProcessOnceAsync(stoppingToken);
+
+                if (failures.TryReset(out var previousFailureCount))
+                {
+                    TinyEventsWorkerLog.Recovered(logger, previousFailureCount);
+                }
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
@@ -65,7 +72,11 @@ public sealed class TinyEventsBackgroundService : BackgroundService
             }
             catch (Exception exception)
             {
-                logger.LogError(exception, "TinyEvents worker processing iteration failed.");
+                var failure = failures.RecordFailure();
+                TinyEventsWorkerLog.IterationFailed(
+                    logger,
+                    failure,
+                    exception);
             }
 
             try
