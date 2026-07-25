@@ -131,6 +131,34 @@ public sealed class TinyEventsWorkerTests
     }
 
     [Fact]
+    public void Repeated_worker_registration_keeps_worker_and_core_options_consistent()
+    {
+        var services = new ServiceCollection();
+        services.AddTinyEventsWorker(options =>
+        {
+            options.WorkerId = "first-worker";
+            options.BatchSize = 3;
+            options.PollingInterval = TimeSpan.FromSeconds(1);
+        });
+        services.AddTinyEventsWorker(options =>
+        {
+            options.WorkerId = "second-worker";
+            options.BatchSize = 7;
+            options.PollingInterval = TimeSpan.FromSeconds(2);
+        });
+
+        using var provider = services.BuildServiceProvider();
+        var workerOptions = provider.GetRequiredService<TinyEventsWorkerOptions>();
+        var coreOptions = provider.GetRequiredService<TinyEventsOptions>();
+
+        Assert.Equal("second-worker", workerOptions.WorkerId);
+        Assert.Equal(workerOptions.WorkerId, coreOptions.WorkerId);
+        Assert.Equal(7, workerOptions.BatchSize);
+        Assert.Equal(workerOptions.BatchSize, coreOptions.BatchSize);
+        Assert.Equal(TimeSpan.FromSeconds(2), workerOptions.PollingInterval);
+    }
+
+    [Fact]
     public void Add_tiny_events_worker_rejects_empty_configured_worker_id()
     {
         var services = new ServiceCollection();

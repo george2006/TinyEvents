@@ -15,12 +15,30 @@ public static class TinyEventsWorkerServiceCollectionExtensions
             throw new ArgumentNullException(nameof(services));
         }
 
-        var workerOptions = CreateOptions(configure);
-        services.TryAddSingleton(workerOptions);
+        var workerOptions = ConfigureOptions(services, configure);
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, TinyEventsBackgroundService>());
         services.ConfigureTinyEventsForWorker(workerOptions);
 
         return services;
+    }
+
+    private static TinyEventsWorkerOptions ConfigureOptions(
+        IServiceCollection services,
+        Action<TinyEventsWorkerOptions>? configure)
+    {
+        var existingOptions = services
+            .LastOrDefault(descriptor => descriptor.ServiceType == typeof(TinyEventsWorkerOptions))
+            ?.ImplementationInstance as TinyEventsWorkerOptions;
+
+        if (existingOptions is not null)
+        {
+            configure?.Invoke(existingOptions);
+            return existingOptions;
+        }
+
+        var options = CreateOptions(configure);
+        services.TryAddSingleton(options);
+        return options;
     }
 
     private static TinyEventsWorkerOptions CreateOptions(Action<TinyEventsWorkerOptions>? configure)
