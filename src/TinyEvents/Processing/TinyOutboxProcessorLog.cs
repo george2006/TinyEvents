@@ -31,4 +31,17 @@ internal static partial class TinyOutboxProcessorLog
         int attempt,
         int maximumAttempts,
         Exception exception);
+
+    [LoggerMessage(
+        EventId = 1300,
+        EventName = "LeaseLost",
+        Level = LogLevel.Warning,
+        Message = "TinyEvents outbox message {MessageId} for event type {EventType} lost its processing lease while {Operation} on worker {WorkerId}.")]
+    public static partial void LeaseLost(
+        ILogger logger,
+        Guid messageId,
+        string eventType,
+        string operation,
+        string workerId,
+        Exception exception);
 }

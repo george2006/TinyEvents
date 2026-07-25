@@ -407,7 +407,9 @@ public sealed class TinyOutboxProcessorTests
         Assert.Equal(secondMessage.Id, Assert.Single(store.ProcessedMessageIds));
         Assert.Equal(0, store.MarkFailedCount);
         Assert.Contains(logger.Entries, entry =>
-            entry.LogLevel == LogLevel.Warning
+            entry.EventId.Id == 1300
+            && entry.EventId.Name == "LeaseLost"
+            && entry.LogLevel == LogLevel.Warning
             && entry.Message.Contains("lost its processing lease", StringComparison.Ordinal)
             && entry.Exception is TinyOutboxLeaseLostException);
     }
@@ -425,7 +427,9 @@ public sealed class TinyOutboxProcessorTests
 
         Assert.Equal(1, store.MarkFailedCount);
         Assert.Contains(logger.Entries, entry =>
-            entry.LogLevel == LogLevel.Warning
+            entry.EventId.Id == 1300
+            && entry.EventId.Name == "LeaseLost"
+            && entry.LogLevel == LogLevel.Warning
             && entry.Message.Contains("lost its processing lease", StringComparison.Ordinal)
             && entry.Exception is TinyOutboxLeaseLostException);
         ThrowingConsumer.Throw = false;

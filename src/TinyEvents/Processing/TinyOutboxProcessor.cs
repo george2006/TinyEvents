@@ -279,13 +279,13 @@ public sealed class TinyOutboxProcessor : ITinyOutboxProcessor
         TinyOutboxLeaseLostException exception,
         string operation)
     {
-        logger.LogWarning(
-            exception,
-            "TinyEvents outbox message {MessageId} for event type {EventType} lost its processing lease while {Operation} on worker {WorkerId}.",
+        TinyOutboxProcessorLog.LeaseLost(
+            logger,
             message.Id,
             message.EventType,
             operation,
-            workerId);
+            workerId,
+            exception);
     }
 
     private readonly record struct RecordedFailure(
