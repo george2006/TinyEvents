@@ -61,6 +61,10 @@ The PostgreSQL EF Core store opens the underlying relational connection when nee
 
 Claiming is atomic and lease-based. PostgreSQL uses `FOR UPDATE SKIP LOCKED` inside an update/returning statement.
 
+If the scoped `DbContext` has a current EF Core transaction, TinyEvents attaches claim and mark commands to that transaction. TinyEvents does not start, commit, or roll back that transaction.
+
+The hosted worker creates a fresh scope for each processing iteration, so claim and mark commands normally run outside an application-owned transaction.
+
 ## Migrations
 
 Use normal EF Core migrations:

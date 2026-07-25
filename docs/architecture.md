@@ -115,6 +115,8 @@ EF Core publishing adds the message to the current `DbContext`.
 
 ADO.NET publishing inserts the message through the current application transaction.
 
+EF Core worker claim and mark commands use the scoped `DbContext` relational connection and attach to `DbContext.Database.CurrentTransaction` when one exists. TinyEvents does not create or complete EF Core transactions for worker operations.
+
 ## Processing Flow
 
 1. Resolve the current worker id.

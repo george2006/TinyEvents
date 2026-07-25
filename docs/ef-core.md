@@ -21,3 +21,9 @@ Worker claiming is database-specific:
 
 - SQL Server uses SQL Server locking hints and atomic update/output SQL.
 - PostgreSQL uses `FOR UPDATE SKIP LOCKED` inside an atomic update/returning SQL statement.
+
+Worker claim and mark operations use the relational connection from the scoped `DbContext`.
+
+If `DbContext.Database.CurrentTransaction` exists, TinyEvents attaches the claim or mark command to that transaction. TinyEvents does not begin, commit, or roll back an EF Core transaction for worker operations.
+
+The hosted worker creates a fresh dependency-injection scope for each processing iteration. In normal hosted-worker usage, claim and mark commands run without an application transaction unless your application explicitly creates one in that worker scope.
