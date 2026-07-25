@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Xunit;
 
 namespace TinyEvents.Tests;
@@ -80,6 +81,47 @@ public sealed class TinyOutboxProcessorTests
         Assert.Throws<ArgumentException>(() => new TinyEventsOptions { WorkerId = " " });
     }
 
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void Options_reject_non_positive_batch_size(int batchSize)
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => new TinyEventsOptions { BatchSize = batchSize });
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void Options_reject_non_positive_max_attempts(int maxAttempts)
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => new TinyEventsOptions { MaxAttempts = maxAttempts });
+    }
+
+    [Fact]
+    public void Options_reject_negative_retry_delay()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => new TinyEventsOptions { RetryDelay = TimeSpan.FromMilliseconds(-1) });
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void Options_reject_non_positive_claim_timeout(int milliseconds)
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() => new TinyEventsOptions { ClaimTimeout = TimeSpan.FromMilliseconds(milliseconds) });
+    }
+
+    [Fact]
+    public void Options_allow_zero_retry_delay()
+    {
+        var options = new TinyEventsOptions
+        {
+            RetryDelay = TimeSpan.Zero
+        };
+
+        Assert.Equal(TimeSpan.Zero, options.RetryDelay);
+    }
+
     [Fact]
     public async Task Process_pending_async_invokes_matching_consumer()
     {
@@ -130,6 +172,27 @@ public sealed class TinyOutboxProcessorTests
         Assert.Equal(1, message.AttemptCount);
         Assert.Equal("consumer failed", message.LastError);
         Assert.Equal(now.AddSeconds(30), message.NextAttemptAtUtc);
+        ThrowingConsumer.Throw = false;
+    }
+
+    [Fact]
+    public async Task Process_pending_async_logs_recorded_processing_failure()
+    {
+        ThrowingConsumer.Throw = true;
+        var logger = new RecordingLogger<TinyOutboxProcessor>();
+        var store = new InMemoryTinyOutboxStore();
+        await store.AddAsync(NewPendingMessage(new UserCreated(Guid.NewGuid(), "user@example.com")), CancellationToken.None);
+        var processor = BuildProcessor(
+            store,
+            includeThrowingConsumer: true,
+            logger: logger);
+
+        await processor.ProcessPendingAsync();
+
+        var entry = Assert.Single(logger.Entries);
+        Assert.Equal(LogLevel.Warning, entry.LogLevel);
+        Assert.Contains("failed processing", entry.Message, StringComparison.Ordinal);
+        Assert.IsType<InvalidOperationException>(entry.Exception);
         ThrowingConsumer.Throw = false;
     }
 
@@ -238,6 +301,63 @@ public sealed class TinyOutboxProcessorTests
         Assert.Equal(cancellation.Token, CancellationRecordingConsumer.CancellationToken);
     }
 
+    [Fact]
+    public async Task Process_pending_async_stops_before_processing_when_canceled_after_claim()
+    {
+        RecordingConsumer.Consumed.Clear();
+        using var cancellation = new CancellationTokenSource();
+        var store = new CancelAfterClaimStore(
+            cancellation,
+            NewProcessingMessage(new UserCreated(Guid.NewGuid(), "user@example.com")));
+        var processor = BuildProcessor(store);
+
+        await Assert.ThrowsAsync<OperationCanceledException>(
+            async () => await processor.ProcessPendingAsync(cancellation.Token));
+
+        Assert.Empty(RecordingConsumer.Consumed);
+        Assert.Equal(0, store.MarkFailedCount);
+    }
+
+    [Fact]
+    public async Task Process_pending_async_continues_when_mark_processed_loses_lease()
+    {
+        RecordingConsumer.Consumed.Clear();
+        var logger = new RecordingLogger<TinyOutboxProcessor>();
+        var firstMessage = NewProcessingMessage(new UserCreated(Guid.NewGuid(), "first@example.com"));
+        var secondMessage = NewProcessingMessage(new UserCreated(Guid.NewGuid(), "second@example.com"));
+        var store = new LeaseLostOnFirstProcessedStore(firstMessage, secondMessage);
+        var processor = BuildProcessor(store, logger: logger);
+
+        await processor.ProcessPendingAsync();
+
+        Assert.Equal(2, RecordingConsumer.Consumed.Count);
+        Assert.Equal(secondMessage.Id, Assert.Single(store.ProcessedMessageIds));
+        Assert.Equal(0, store.MarkFailedCount);
+        Assert.Contains(logger.Entries, entry =>
+            entry.LogLevel == LogLevel.Warning
+            && entry.Message.Contains("lost its processing lease", StringComparison.Ordinal)
+            && entry.Exception is TinyOutboxLeaseLostException);
+    }
+
+    [Fact]
+    public async Task Process_pending_async_continues_when_mark_failed_loses_lease()
+    {
+        ThrowingConsumer.Throw = true;
+        var logger = new RecordingLogger<TinyOutboxProcessor>();
+        var message = NewProcessingMessage(new UserCreated(Guid.NewGuid(), "user@example.com"));
+        var store = new LeaseLostOnFailedStore(message);
+        var processor = BuildProcessor(store, includeThrowingConsumer: true, logger: logger);
+
+        await processor.ProcessPendingAsync();
+
+        Assert.Equal(1, store.MarkFailedCount);
+        Assert.Contains(logger.Entries, entry =>
+            entry.LogLevel == LogLevel.Warning
+            && entry.Message.Contains("lost its processing lease", StringComparison.Ordinal)
+            && entry.Exception is TinyOutboxLeaseLostException);
+        ThrowingConsumer.Throw = false;
+    }
+
     private static ITinyOutboxProcessor BuildProcessor(
         ITinyOutboxStore store,
         bool includeSecondConsumer = false,
@@ -246,7 +366,8 @@ public sealed class TinyOutboxProcessorTests
         TimeProvider? timeProvider = null,
         string? workerId = "worker-1",
         int batchSize = 10,
-        TimeSpan? claimTimeout = null)
+        TimeSpan? claimTimeout = null,
+        ILogger<TinyOutboxProcessor>? logger = null)
     {
         var services = new ServiceCollection();
 
@@ -261,10 +382,15 @@ public sealed class TinyOutboxProcessorTests
             ClaimTimeout = claimTimeout ?? TimeSpan.FromMinutes(5)
         });
         services.AddSingleton<ITinyEventSerializer, SystemTextJsonTinyEventSerializer>();
-        services.AddSingleton<TinyEventTypeDescriptor>(
-            new TinyEventTypeDescriptor(typeof(UserCreated).FullName!, typeof(UserCreated)));
+        services.AddSingleton<ITinyEventDispatcher>(
+            new TinyEventDispatcher<UserCreated>(typeof(UserCreated).FullName!));
         services.AddSingleton<ITinyOutboxProcessor, TinyOutboxProcessor>();
         services.AddSingleton<IEventConsumer<UserCreated>, RecordingConsumer>();
+
+        if (logger is not null)
+        {
+            services.AddSingleton(logger);
+        }
 
         if (includeSecondConsumer)
         {
@@ -462,4 +588,186 @@ public sealed class TinyOutboxProcessorTests
             return ValueTask.CompletedTask;
         }
     }
+
+    private sealed class CancelAfterClaimStore : ITinyOutboxStore
+    {
+        private readonly CancellationTokenSource cancellation;
+        private readonly IReadOnlyList<TinyOutboxMessage> claimedMessages;
+
+        public CancelAfterClaimStore(
+            CancellationTokenSource cancellation,
+            params TinyOutboxMessage[] claimedMessages)
+        {
+            this.cancellation = cancellation;
+            this.claimedMessages = claimedMessages;
+        }
+
+        public int MarkFailedCount { get; private set; }
+
+        public ValueTask AddAsync(
+            TinyOutboxMessage message,
+            CancellationToken cancellationToken)
+        {
+            throw new NotSupportedException();
+        }
+
+        public ValueTask<IReadOnlyList<TinyOutboxMessage>> ClaimPendingAsync(
+            int maxCount,
+            string workerId,
+            DateTimeOffset now,
+            TimeSpan claimTimeout,
+            CancellationToken cancellationToken)
+        {
+            cancellation.Cancel();
+            return ValueTask.FromResult(claimedMessages);
+        }
+
+        public ValueTask MarkProcessedAsync(
+            Guid messageId,
+            string workerId,
+            DateTimeOffset processedAtUtc,
+            CancellationToken cancellationToken)
+        {
+            throw new InvalidOperationException("Canceled processing should not mark messages as processed.");
+        }
+
+        public ValueTask MarkFailedAsync(
+            Guid messageId,
+            string workerId,
+            string error,
+            int attemptCount,
+            DateTimeOffset? nextAttemptAtUtc,
+            CancellationToken cancellationToken)
+        {
+            MarkFailedCount++;
+            return ValueTask.CompletedTask;
+        }
+    }
+
+    private sealed class LeaseLostOnFirstProcessedStore : ITinyOutboxStore
+    {
+        private readonly IReadOnlyList<TinyOutboxMessage> claimedMessages;
+        private bool hasLostLease;
+
+        public LeaseLostOnFirstProcessedStore(params TinyOutboxMessage[] claimedMessages)
+        {
+            this.claimedMessages = claimedMessages;
+        }
+
+        public List<Guid> ProcessedMessageIds { get; } = new List<Guid>();
+
+        public int MarkFailedCount { get; private set; }
+
+        public ValueTask<IReadOnlyList<TinyOutboxMessage>> ClaimPendingAsync(
+            int maxCount,
+            string workerId,
+            DateTimeOffset now,
+            TimeSpan claimTimeout,
+            CancellationToken cancellationToken)
+        {
+            return ValueTask.FromResult(claimedMessages);
+        }
+
+        public ValueTask MarkProcessedAsync(
+            Guid messageId,
+            string workerId,
+            DateTimeOffset processedAtUtc,
+            CancellationToken cancellationToken)
+        {
+            if (!hasLostLease)
+            {
+                hasLostLease = true;
+                throw new TinyOutboxLeaseLostException(messageId, workerId, "processed");
+            }
+
+            ProcessedMessageIds.Add(messageId);
+            return ValueTask.CompletedTask;
+        }
+
+        public ValueTask MarkFailedAsync(
+            Guid messageId,
+            string workerId,
+            string error,
+            int attemptCount,
+            DateTimeOffset? nextAttemptAtUtc,
+            CancellationToken cancellationToken)
+        {
+            MarkFailedCount++;
+            return ValueTask.CompletedTask;
+        }
+    }
+
+    private sealed class LeaseLostOnFailedStore : ITinyOutboxStore
+    {
+        private readonly IReadOnlyList<TinyOutboxMessage> claimedMessages;
+
+        public LeaseLostOnFailedStore(params TinyOutboxMessage[] claimedMessages)
+        {
+            this.claimedMessages = claimedMessages;
+        }
+
+        public int MarkFailedCount { get; private set; }
+
+        public ValueTask<IReadOnlyList<TinyOutboxMessage>> ClaimPendingAsync(
+            int maxCount,
+            string workerId,
+            DateTimeOffset now,
+            TimeSpan claimTimeout,
+            CancellationToken cancellationToken)
+        {
+            return ValueTask.FromResult(claimedMessages);
+        }
+
+        public ValueTask MarkProcessedAsync(
+            Guid messageId,
+            string workerId,
+            DateTimeOffset processedAtUtc,
+            CancellationToken cancellationToken)
+        {
+            return ValueTask.CompletedTask;
+        }
+
+        public ValueTask MarkFailedAsync(
+            Guid messageId,
+            string workerId,
+            string error,
+            int attemptCount,
+            DateTimeOffset? nextAttemptAtUtc,
+            CancellationToken cancellationToken)
+        {
+            MarkFailedCount++;
+            throw new TinyOutboxLeaseLostException(messageId, workerId, "failed");
+        }
+    }
+
+    private sealed class RecordingLogger<T> : ILogger<T>
+    {
+        public List<LogEntry> Entries { get; } = new List<LogEntry>();
+
+        public IDisposable? BeginScope<TState>(TState state)
+            where TState : notnull
+        {
+            return null;
+        }
+
+        public bool IsEnabled(LogLevel logLevel)
+        {
+            return true;
+        }
+
+        public void Log<TState>(
+            LogLevel logLevel,
+            EventId eventId,
+            TState state,
+            Exception? exception,
+            Func<TState, Exception?, string> formatter)
+        {
+            Entries.Add(new LogEntry(logLevel, formatter(state, exception), exception));
+        }
+    }
+
+    private sealed record LogEntry(
+        LogLevel LogLevel,
+        string Message,
+        Exception? Exception);
 }

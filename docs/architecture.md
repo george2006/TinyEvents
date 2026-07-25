@@ -24,7 +24,7 @@ TinyEvents is designed to stay small enough to reason about.
 - Providers are isolated in separate class libraries.
 - No runtime assembly scanning.
 - Source generation removes registration and event-map boilerplate.
-- Generated contributions register consumers with dependency injection.
+- Generated contributions register consumers and event dispatchers with dependency injection.
 - Delivery is at-least-once, not exactly-once.
 - Database-backed claim leases support multiple workers.
 - Consumers should be idempotent.
@@ -115,18 +115,26 @@ EF Core publishing adds the message to the current `DbContext`.
 
 ADO.NET publishing inserts the message through the current application transaction.
 
+EF Core worker claim and mark commands use the scoped `DbContext` relational connection and attach to `DbContext.Database.CurrentTransaction` when one exists. TinyEvents does not create or complete EF Core transactions for worker operations.
+
 ## Processing Flow
 
 1. Resolve the current worker id.
 2. Claim pending or expired processing messages.
-3. Resolve event type through generated event descriptors.
+3. Resolve the event dispatcher for the stored event type.
 4. Deserialize the payload.
 5. Resolve all `IEventConsumer<TEvent>` instances from DI.
-6. Invoke consumers.
+6. Invoke consumers through the generated dispatcher.
 7. Mark processed if all consumers succeed.
 8. Mark failed or scheduled for retry when a consumer fails.
 
 One outbox message represents one event, not one message per consumer. If one consumer fails, the event message is retried.
+
+If marking a message as processed or failed no longer updates a row because the worker lost ownership of the processing lease, the processor leaves the message alone and continues. Lease loss is not recorded as a consumer failure.
+
+Failures that are recorded through `MarkFailedAsync` advance the message attempt count. Before `MaxAttempts` is reached, the message is made pending again and delayed until `NextAttemptAtUtc`. When `MaxAttempts` is reached, the message is marked failed and no next attempt is scheduled.
+
+Unknown event types are processing failures because the processor cannot resolve a generated dispatcher for the stored event type.
 
 ## Claiming Contract
 
@@ -165,6 +173,8 @@ public interface ITinyOutboxStore
 
 Provider claiming must be atomic. Query-then-update claiming is not acceptable for DB providers.
 
+Provider completion and failure updates must validate affected row counts. A mark operation that updates no rows means the worker no longer owns a processing lease for that message.
+
 New database providers must implement atomic claiming safely for their database engine. Query-then-update is not acceptable for multi-worker processing.
 
 ## Bootstrap
@@ -178,6 +188,8 @@ The contribution system is the bridge between compile-time discovery and runtime
 1. The generator emits an `ITinyEventsContribution`.
 2. A module initializer adds it to `TinyEventsBootstrap`.
 3. `UseTinyEvents` or a provider registration method applies contributions.
-4. Consumers and event type descriptors become normal DI services.
+4. Consumers and event dispatchers become normal DI services.
 
-Runtime processing does not use a custom consumer registry. It resolves consumers directly from `IServiceProvider`.
+TinyEvents does not scan assemblies or load consumer assemblies at runtime. Contributions are available only after the assembly that contains them has been loaded and its module initializer has run. Call TinyEvents registration after consumer assemblies are loaded.
+
+Runtime processing does not use a custom consumer registry. It resolves consumers directly from `IServiceProvider` through generated dispatchers.

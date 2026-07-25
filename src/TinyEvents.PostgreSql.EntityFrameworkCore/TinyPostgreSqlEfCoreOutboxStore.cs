@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore.Storage;
 
 namespace TinyEvents.PostgreSql.EntityFrameworkCore;
 
-public sealed class TinyPostgreSqlEfCoreOutboxStore<TDbContext> : ITinyOutboxStore
+internal sealed class TinyPostgreSqlEfCoreOutboxStore<TDbContext> : ITinyOutboxStore
     where TDbContext : DbContext
 {
     private readonly TDbContext dbContext;
@@ -75,7 +75,8 @@ public sealed class TinyPostgreSqlEfCoreOutboxStore<TDbContext> : ITinyOutboxSto
         AddParameter(command, "@ProcessedStatus", (int)TinyOutboxMessageStatus.Processed);
         AddParameter(command, "@ProcessingStatus", (int)TinyOutboxMessageStatus.Processing);
 
-        await command.ExecuteNonQueryAsync(cancellationToken);
+        var affectedRows = await command.ExecuteNonQueryAsync(cancellationToken);
+        ThrowIfLeaseWasLost(affectedRows, messageId, workerId, "processed");
     }
 
     public async ValueTask MarkFailedAsync(
@@ -107,7 +108,8 @@ public sealed class TinyPostgreSqlEfCoreOutboxStore<TDbContext> : ITinyOutboxSto
         AddParameter(command, "@LastError", error);
         AddParameter(command, "@ProcessingStatus", (int)TinyOutboxMessageStatus.Processing);
 
-        await command.ExecuteNonQueryAsync(cancellationToken);
+        var affectedRows = await command.ExecuteNonQueryAsync(cancellationToken);
+        ThrowIfLeaseWasLost(affectedRows, messageId, workerId, "failed");
     }
 
     private async ValueTask<DbCommand> CreateCommandAsync(CancellationToken cancellationToken)
@@ -199,5 +201,17 @@ public sealed class TinyPostgreSqlEfCoreOutboxStore<TDbContext> : ITinyOutboxSto
         }
 
         return TinyOutboxMessageStatus.Pending;
+    }
+
+    private static void ThrowIfLeaseWasLost(
+        int affectedRows,
+        Guid messageId,
+        string workerId,
+        string operation)
+    {
+        if (affectedRows == 0)
+        {
+            throw new TinyOutboxLeaseLostException(messageId, workerId, operation);
+        }
     }
 }

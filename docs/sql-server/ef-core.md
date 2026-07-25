@@ -55,11 +55,17 @@ protected override void OnModelCreating(ModelBuilder modelBuilder)
 
 The provider option controls SQL claiming and marking. The model builder extension controls EF mapping and migrations.
 
+The SQL Server mapping uses `NVARCHAR(512)` for `EventType`, `NVARCHAR(MAX)` for `Payload`, `NVARCHAR(256)` for `ClaimedBy`, and `NVARCHAR(MAX)` for `LastError`.
+
 ## Worker Claiming
 
 The SQL Server EF Core store opens the underlying relational connection when needed and executes SQL Server claim/mark statements.
 
 Claiming is atomic and lease-based. SQL Server uses locking hints and update/output SQL.
+
+If the scoped `DbContext` has a current EF Core transaction, TinyEvents attaches claim and mark commands to that transaction. TinyEvents does not start, commit, or roll back that transaction.
+
+The hosted worker creates a fresh scope for each processing iteration, so claim and mark commands normally run outside an application-owned transaction.
 
 ## Migrations
 

@@ -1,6 +1,6 @@
 namespace TinyEvents.SqlServer.EntityFrameworkCore;
 
-public sealed class TinySqlServerEfCoreTableName
+internal sealed class TinySqlServerEfCoreTableName
 {
     private readonly string[] parts;
 

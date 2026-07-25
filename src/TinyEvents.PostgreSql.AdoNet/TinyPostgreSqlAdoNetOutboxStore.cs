@@ -2,7 +2,7 @@ using System.Data.Common;
 
 namespace TinyEvents.PostgreSql.AdoNet;
 
-public sealed class TinyPostgreSqlAdoNetOutboxStore : ITinyOutboxStore
+internal sealed class TinyPostgreSqlAdoNetOutboxStore : ITinyOutboxStore
 {
     private readonly ITinyPostgreSqlAdoNetWorkerConnectionFactory connectionFactory;
     private readonly TinyPostgreSqlAdoNetTableName tableName;
@@ -73,7 +73,8 @@ public sealed class TinyPostgreSqlAdoNetOutboxStore : ITinyOutboxStore
         TinyPostgreSqlAdoNetCommandParameters.Add(command, "@ProcessedStatus", (int)TinyOutboxMessageStatus.Processed);
         TinyPostgreSqlAdoNetCommandParameters.Add(command, "@ProcessingStatus", (int)TinyOutboxMessageStatus.Processing);
 
-        await command.ExecuteNonQueryAsync(cancellationToken);
+        var affectedRows = await command.ExecuteNonQueryAsync(cancellationToken);
+        ThrowIfLeaseWasLost(affectedRows, messageId, workerId, "processed");
     }
 
     public async ValueTask MarkFailedAsync(
@@ -106,7 +107,8 @@ public sealed class TinyPostgreSqlAdoNetOutboxStore : ITinyOutboxStore
         TinyPostgreSqlAdoNetCommandParameters.Add(command, "@LastError", error);
         TinyPostgreSqlAdoNetCommandParameters.Add(command, "@ProcessingStatus", (int)TinyOutboxMessageStatus.Processing);
 
-        await command.ExecuteNonQueryAsync(cancellationToken);
+        var affectedRows = await command.ExecuteNonQueryAsync(cancellationToken);
+        ThrowIfLeaseWasLost(affectedRows, messageId, workerId, "failed");
     }
 
     private async ValueTask<DbConnection> CreateOpenConnectionAsync(CancellationToken cancellationToken)
@@ -175,5 +177,17 @@ public sealed class TinyPostgreSqlAdoNetOutboxStore : ITinyOutboxStore
         }
 
         return TinyOutboxMessageStatus.Pending;
+    }
+
+    private static void ThrowIfLeaseWasLost(
+        int affectedRows,
+        Guid messageId,
+        string workerId,
+        string operation)
+    {
+        if (affectedRows == 0)
+        {
+            throw new TinyOutboxLeaseLostException(messageId, workerId, operation);
+        }
     }
 }

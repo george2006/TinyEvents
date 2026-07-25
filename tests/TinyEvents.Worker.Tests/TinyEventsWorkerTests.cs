@@ -61,7 +61,11 @@ public sealed class TinyEventsWorkerTests
             options.BatchSize = 3;
             options.ClaimTimeout = TimeSpan.FromSeconds(11);
         });
-        services.UseTinyEvents();
+        services.UseTinyEvents(options =>
+        {
+            options.MaxAttempts = 9;
+            options.RetryDelay = TimeSpan.FromSeconds(13);
+        });
 
         using var provider = services.BuildServiceProvider();
         var coreOptions = provider.GetRequiredService<TinyEventsOptions>();
@@ -69,6 +73,8 @@ public sealed class TinyEventsWorkerTests
         Assert.Equal("worker-before", coreOptions.WorkerId);
         Assert.Equal(3, coreOptions.BatchSize);
         Assert.Equal(TimeSpan.FromSeconds(11), coreOptions.ClaimTimeout);
+        Assert.Equal(9, coreOptions.MaxAttempts);
+        Assert.Equal(TimeSpan.FromSeconds(13), coreOptions.RetryDelay);
     }
 
     [Fact]
@@ -76,7 +82,11 @@ public sealed class TinyEventsWorkerTests
     {
         var services = new ServiceCollection();
 
-        services.UseTinyEvents();
+        services.UseTinyEvents(options =>
+        {
+            options.MaxAttempts = 9;
+            options.RetryDelay = TimeSpan.FromSeconds(13);
+        });
         services.AddTinyEventsWorker(options =>
         {
             options.WorkerId = "worker-after";
@@ -90,6 +100,32 @@ public sealed class TinyEventsWorkerTests
         Assert.Equal("worker-after", coreOptions.WorkerId);
         Assert.Equal(4, coreOptions.BatchSize);
         Assert.Equal(TimeSpan.FromSeconds(12), coreOptions.ClaimTimeout);
+        Assert.Equal(9, coreOptions.MaxAttempts);
+        Assert.Equal(TimeSpan.FromSeconds(13), coreOptions.RetryDelay);
+    }
+
+    [Fact]
+    public void Add_tiny_events_worker_preserves_core_retry_configuration()
+    {
+        var services = new ServiceCollection();
+
+        services.UseTinyEvents(options =>
+        {
+            options.MaxAttempts = 11;
+            options.RetryDelay = TimeSpan.FromSeconds(17);
+        });
+        services.AddTinyEventsWorker(options =>
+        {
+            options.WorkerId = "worker-1";
+            options.BatchSize = 12;
+            options.ClaimTimeout = TimeSpan.FromSeconds(45);
+        });
+
+        using var provider = services.BuildServiceProvider();
+        var coreOptions = provider.GetRequiredService<TinyEventsOptions>();
+
+        Assert.Equal(11, coreOptions.MaxAttempts);
+        Assert.Equal(TimeSpan.FromSeconds(17), coreOptions.RetryDelay);
     }
 
     [Fact]
@@ -99,6 +135,50 @@ public sealed class TinyEventsWorkerTests
 
         Assert.Throws<ArgumentException>(
             () => services.AddTinyEventsWorker(options => options.WorkerId = " "));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void Add_tiny_events_worker_rejects_non_positive_batch_size(int batchSize)
+    {
+        var services = new ServiceCollection();
+
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () => services.AddTinyEventsWorker(options => options.BatchSize = batchSize));
+    }
+
+    [Fact]
+    public void Add_tiny_events_worker_rejects_negative_polling_interval()
+    {
+        var services = new ServiceCollection();
+
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () => services.AddTinyEventsWorker(options => options.PollingInterval = TimeSpan.FromMilliseconds(-1)));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void Add_tiny_events_worker_rejects_non_positive_claim_timeout(int milliseconds)
+    {
+        var services = new ServiceCollection();
+
+        Assert.Throws<ArgumentOutOfRangeException>(
+            () => services.AddTinyEventsWorker(options => options.ClaimTimeout = TimeSpan.FromMilliseconds(milliseconds)));
+    }
+
+    [Fact]
+    public void Add_tiny_events_worker_allows_zero_polling_interval()
+    {
+        var services = new ServiceCollection();
+
+        services.AddTinyEventsWorker(options => options.PollingInterval = TimeSpan.Zero);
+
+        using var provider = services.BuildServiceProvider();
+        var workerOptions = provider.GetRequiredService<TinyEventsWorkerOptions>();
+
+        Assert.Equal(TimeSpan.Zero, workerOptions.PollingInterval);
     }
 
     [Fact]
@@ -148,6 +228,28 @@ public sealed class TinyEventsWorkerTests
         Assert.NotEqual(ScopedProcessor.InstanceIds[0], ScopedProcessor.InstanceIds[1]);
     }
 
+    [Fact]
+    public async Task Background_service_continues_after_processing_iteration_fails()
+    {
+        FailingThenRecordingProcessor.Reset();
+        var services = new ServiceCollection();
+        services.AddSingleton<ITinyOutboxProcessor, FailingThenRecordingProcessor>();
+        services.AddSingleton(new TinyEventsWorkerOptions
+        {
+            PollingInterval = TimeSpan.FromMilliseconds(1)
+        });
+        services.AddSingleton<TinyEventsBackgroundService>();
+        using var provider = services.BuildServiceProvider();
+        var worker = provider.GetRequiredService<TinyEventsBackgroundService>();
+        using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+
+        await worker.StartAsync(cancellation.Token);
+        await FailingThenRecordingProcessor.SecondCall.Task.WaitAsync(cancellation.Token);
+        await worker.StopAsync(CancellationToken.None).WaitAsync(cancellation.Token);
+
+        Assert.True(FailingThenRecordingProcessor.CallCount >= 2);
+    }
+
     private sealed class RecordingProcessor : ITinyOutboxProcessor
     {
         public static int CallCount { get; set; }
@@ -169,6 +271,37 @@ public sealed class TinyEventsWorkerTests
         {
             InstanceIds.Add(instanceId);
             return ValueTask.CompletedTask;
+        }
+    }
+
+    private sealed class FailingThenRecordingProcessor : ITinyOutboxProcessor
+    {
+        public static int CallCount { get; private set; }
+
+        public static TaskCompletionSource SecondCall { get; private set; } = NewTaskCompletionSource();
+
+        public static void Reset()
+        {
+            CallCount = 0;
+            SecondCall = NewTaskCompletionSource();
+        }
+
+        public ValueTask ProcessPendingAsync(CancellationToken cancellationToken = default)
+        {
+            CallCount++;
+
+            if (CallCount == 1)
+            {
+                throw new InvalidOperationException("database failed");
+            }
+
+            SecondCall.TrySetResult();
+            return ValueTask.CompletedTask;
+        }
+
+        private static TaskCompletionSource NewTaskCompletionSource()
+        {
+            return new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         }
     }
 }

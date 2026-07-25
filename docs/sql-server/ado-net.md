@@ -86,3 +86,5 @@ The package also includes the default SQL Server script:
 ```text
 schema/sqlserver/001_CreateTinyOutbox.sql
 ```
+
+The default SQL Server schema uses `NVARCHAR(512)` for `EventType`, `NVARCHAR(MAX)` for `Payload`, `NVARCHAR(256)` for `ClaimedBy`, and `NVARCHAR(MAX)` for `LastError`.

@@ -1,30 +1,44 @@
-using System.Reflection;
-using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace TinyEvents;
 
 public sealed class TinyOutboxProcessor : ITinyOutboxProcessor
 {
-    private static readonly MethodInfo ProcessTypedMessageMethod =
-        typeof(TinyOutboxProcessor).GetMethod(
-            nameof(ProcessTypedMessageAsync),
-            BindingFlags.Instance | BindingFlags.NonPublic)
-        ?? throw new InvalidOperationException("Typed message processor method was not found.");
-
     private readonly IServiceProvider serviceProvider;
     private readonly ITinyOutboxStore store;
     private readonly ITinyEventSerializer serializer;
-    private readonly Dictionary<string, Type> eventTypes;
+    private readonly Dictionary<string, ITinyEventDispatcher> dispatchers;
     private readonly TinyEventsOptions options;
     private readonly TimeProvider timeProvider;
+    private readonly ILogger<TinyOutboxProcessor> logger;
 
     public TinyOutboxProcessor(
         IServiceProvider serviceProvider,
         ITinyOutboxStore store,
         ITinyEventSerializer serializer,
-        IEnumerable<TinyEventTypeDescriptor> eventTypes,
+        IEnumerable<ITinyEventDispatcher> dispatchers,
         TinyEventsOptions options,
         TimeProvider timeProvider)
+        : this(
+            serviceProvider,
+            store,
+            serializer,
+            dispatchers,
+            options,
+            timeProvider,
+            NullLogger<TinyOutboxProcessor>.Instance)
+    {
+    }
+
+    public TinyOutboxProcessor(
+        IServiceProvider serviceProvider,
+        ITinyOutboxStore store,
+        ITinyEventSerializer serializer,
+        IEnumerable<ITinyEventDispatcher> dispatchers,
+        TinyEventsOptions options,
+        TimeProvider timeProvider,
+        ILogger<TinyOutboxProcessor> logger)
     {
         if (serviceProvider is null)
         {
@@ -41,9 +55,9 @@ public sealed class TinyOutboxProcessor : ITinyOutboxProcessor
             throw new ArgumentNullException(nameof(serializer));
         }
 
-        if (eventTypes is null)
+        if (dispatchers is null)
         {
-            throw new ArgumentNullException(nameof(eventTypes));
+            throw new ArgumentNullException(nameof(dispatchers));
         }
 
         if (options is null)
@@ -56,12 +70,18 @@ public sealed class TinyOutboxProcessor : ITinyOutboxProcessor
             throw new ArgumentNullException(nameof(timeProvider));
         }
 
+        if (logger is null)
+        {
+            throw new ArgumentNullException(nameof(logger));
+        }
+
         this.serviceProvider = serviceProvider;
         this.store = store;
         this.serializer = serializer;
-        this.eventTypes = BuildEventTypeMap(eventTypes);
+        this.dispatchers = BuildDispatcherMap(dispatchers);
         this.options = options;
         this.timeProvider = timeProvider;
+        this.logger = logger;
     }
 
     public async ValueTask ProcessPendingAsync(CancellationToken cancellationToken = default)
@@ -78,6 +98,7 @@ public sealed class TinyOutboxProcessor : ITinyOutboxProcessor
 
         foreach (var message in messages)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             await ProcessMessageAsync(message, workerId, cancellationToken);
         }
     }
@@ -96,9 +117,21 @@ public sealed class TinyOutboxProcessor : ITinyOutboxProcessor
         {
             throw;
         }
+        catch (TinyOutboxLeaseLostException exception)
+        {
+            LogLeaseLost(message, workerId, exception, "marked as processed");
+        }
         catch (Exception exception)
         {
-            await MarkFailedAsync(message, workerId, exception, cancellationToken);
+            try
+            {
+                var failure = await MarkFailedAsync(message, workerId, exception, cancellationToken);
+                LogProcessingFailure(message, workerId, exception, failure);
+            }
+            catch (TinyOutboxLeaseLostException leaseLostException)
+            {
+                LogLeaseLost(message, workerId, leaseLostException, "recording a processing failure");
+            }
         }
     }
 
@@ -106,40 +139,19 @@ public sealed class TinyOutboxProcessor : ITinyOutboxProcessor
         TinyOutboxMessage message,
         CancellationToken cancellationToken)
     {
-        var eventType = ResolveEventType(message);
-        var eventInstance = serializer.Deserialize(message.Payload, eventType);
-        var method = ProcessTypedMessageMethod.MakeGenericMethod(eventType);
-
-        var result = method.Invoke(this, new[] { eventInstance, cancellationToken });
-
-        if (result is null)
-        {
-            throw new InvalidOperationException("Typed event processing returned no task.");
-        }
-
-        await (ValueTask)result;
+        var dispatcher = ResolveDispatcher(message);
+        var eventInstance = serializer.Deserialize(message.Payload, dispatcher.EventType);
+        await dispatcher.DispatchAsync(serviceProvider, eventInstance, cancellationToken);
     }
 
-    private Type ResolveEventType(TinyOutboxMessage message)
+    private ITinyEventDispatcher ResolveDispatcher(TinyOutboxMessage message)
     {
-        if (eventTypes.TryGetValue(message.EventType, out var eventType))
+        if (dispatchers.TryGetValue(message.EventType, out var dispatcher))
         {
-            return eventType;
+            return dispatcher;
         }
 
         throw new InvalidOperationException($"Event type '{message.EventType}' is not registered.");
-    }
-
-    private async ValueTask ProcessTypedMessageAsync<TEvent>(
-        TEvent @event,
-        CancellationToken cancellationToken)
-    {
-        var consumers = serviceProvider.GetServices<IEventConsumer<TEvent>>();
-
-        foreach (var consumer in consumers)
-        {
-            await consumer.ConsumeAsync(@event, cancellationToken);
-        }
     }
 
     private async ValueTask MarkProcessedAsync(
@@ -154,7 +166,7 @@ public sealed class TinyOutboxProcessor : ITinyOutboxProcessor
             cancellationToken);
     }
 
-    private async ValueTask MarkFailedAsync(
+    private async ValueTask<RecordedFailure> MarkFailedAsync(
         TinyOutboxMessage message,
         string workerId,
         Exception exception,
@@ -170,6 +182,8 @@ public sealed class TinyOutboxProcessor : ITinyOutboxProcessor
             attemptCount,
             nextAttemptAtUtc,
             cancellationToken);
+
+        return new RecordedFailure(attemptCount, nextAttemptAtUtc);
     }
 
     private DateTimeOffset? GetNextAttemptAtUtc(int attemptCount)
@@ -182,33 +196,68 @@ public sealed class TinyOutboxProcessor : ITinyOutboxProcessor
         return timeProvider.GetUtcNow().Add(options.RetryDelay);
     }
 
-    private static Dictionary<string, Type> BuildEventTypeMap(IEnumerable<TinyEventTypeDescriptor> descriptors)
+    private static Dictionary<string, ITinyEventDispatcher> BuildDispatcherMap(IEnumerable<ITinyEventDispatcher> dispatchers)
     {
-        var eventTypes = new Dictionary<string, Type>(StringComparer.Ordinal);
+        var dispatcherMap = new Dictionary<string, ITinyEventDispatcher>(StringComparer.Ordinal);
 
-        foreach (var descriptor in descriptors)
+        foreach (var dispatcher in dispatchers)
         {
-            AddEventType(eventTypes, descriptor);
+            AddDispatcher(dispatcherMap, dispatcher);
         }
 
-        return eventTypes;
+        return dispatcherMap;
     }
 
-    private static void AddEventType(
-        Dictionary<string, Type> eventTypes,
-        TinyEventTypeDescriptor descriptor)
+    private static void AddDispatcher(
+        Dictionary<string, ITinyEventDispatcher> dispatchers,
+        ITinyEventDispatcher dispatcher)
     {
-        if (eventTypes.TryGetValue(descriptor.EventTypeName, out var existingType))
+        if (dispatchers.TryGetValue(dispatcher.EventTypeName, out var existingDispatcher))
         {
-            if (existingType == descriptor.EventType)
+            if (existingDispatcher.EventType == dispatcher.EventType)
             {
                 return;
             }
 
             throw new InvalidOperationException(
-                $"Event type name '{descriptor.EventTypeName}' is registered for both '{existingType.FullName}' and '{descriptor.EventType.FullName}'.");
+                $"Event type name '{dispatcher.EventTypeName}' is registered for both '{existingDispatcher.EventType.FullName}' and '{dispatcher.EventType.FullName}'.");
         }
 
-        eventTypes.Add(descriptor.EventTypeName, descriptor.EventType);
+        dispatchers.Add(dispatcher.EventTypeName, dispatcher);
     }
+
+    private void LogProcessingFailure(
+        TinyOutboxMessage message,
+        string workerId,
+        Exception exception,
+        RecordedFailure failure)
+    {
+        logger.LogWarning(
+            exception,
+            "TinyEvents outbox message {MessageId} for event type {EventType} failed processing on worker {WorkerId} at attempt {AttemptCount}. Next attempt at {NextAttemptAtUtc}.",
+            message.Id,
+            message.EventType,
+            workerId,
+            failure.AttemptCount,
+            failure.NextAttemptAtUtc);
+    }
+
+    private void LogLeaseLost(
+        TinyOutboxMessage message,
+        string workerId,
+        TinyOutboxLeaseLostException exception,
+        string operation)
+    {
+        logger.LogWarning(
+            exception,
+            "TinyEvents outbox message {MessageId} for event type {EventType} lost its processing lease while {Operation} on worker {WorkerId}.",
+            message.Id,
+            message.EventType,
+            operation,
+            workerId);
+    }
+
+    private readonly record struct RecordedFailure(
+        int AttemptCount,
+        DateTimeOffset? NextAttemptAtUtc);
 }

@@ -91,6 +91,26 @@ public sealed class TinySqlServerEfCoreProviderTests
     }
 
     [Fact]
+    public void EF_model_builder_limits_event_type_length()
+    {
+        using var dbContext = NewTestDbContext();
+
+        var property = GetOutboxProperty(dbContext, nameof(TinyOutboxMessage.EventType));
+
+        Assert.Equal(512, property.GetMaxLength());
+    }
+
+    [Fact]
+    public void EF_model_builder_limits_claimed_by_length()
+    {
+        using var dbContext = NewTestDbContext();
+
+        var property = GetOutboxProperty(dbContext, nameof(TinyOutboxMessage.ClaimedBy));
+
+        Assert.Equal(256, property.GetMaxLength());
+    }
+
+    [Fact]
     public void Use_sql_server_entity_framework_core_outbox_registers_writer_and_store()
     {
         var services = new ServiceCollection();
@@ -261,6 +281,16 @@ public sealed class TinySqlServerEfCoreProviderTests
             .Options;
 
         return new TestDbContext(options);
+    }
+
+    private static Microsoft.EntityFrameworkCore.Metadata.IProperty GetOutboxProperty(
+        DbContext dbContext,
+        string propertyName)
+    {
+        var entity = dbContext.Model.FindEntityType(typeof(TinyOutboxMessage));
+
+        Assert.NotNull(entity);
+        return entity.FindProperty(propertyName)!;
     }
 
     private static bool HasProperties(

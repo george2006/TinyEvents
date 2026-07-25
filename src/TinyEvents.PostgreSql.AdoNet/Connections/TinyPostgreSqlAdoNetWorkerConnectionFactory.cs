@@ -3,7 +3,7 @@ using System.Data.Common;
 
 namespace TinyEvents.PostgreSql.AdoNet;
 
-public sealed class TinyPostgreSqlAdoNetWorkerConnectionFactory : ITinyPostgreSqlAdoNetWorkerConnectionFactory
+internal sealed class TinyPostgreSqlAdoNetWorkerConnectionFactory : ITinyPostgreSqlAdoNetWorkerConnectionFactory
 {
     private readonly TinyEventsPostgreSqlAdoNetOptions options;
     private readonly IServiceProvider serviceProvider;

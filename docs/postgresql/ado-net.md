@@ -86,3 +86,5 @@ The package also includes the default PostgreSQL script:
 ```text
 schema/postgresql/001_CreateTinyOutbox.sql
 ```
+
+The default PostgreSQL schema uses `text` for `EventType`, `Payload`, `ClaimedBy`, and `LastError`.

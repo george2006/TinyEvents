@@ -2,7 +2,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace TinyEvents.SqlServer.EntityFrameworkCore;
 
-public sealed class TinySqlServerEfCoreOutboxWriter<TDbContext> : ITinyOutboxWriter
+internal sealed class TinySqlServerEfCoreOutboxWriter<TDbContext> : ITinyOutboxWriter
     where TDbContext : DbContext
 {
     private readonly TDbContext dbContext;
@@ -31,4 +31,3 @@ public sealed class TinySqlServerEfCoreOutboxWriter<TDbContext> : ITinyOutboxWri
         return ValueTask.CompletedTask;
     }
 }
-

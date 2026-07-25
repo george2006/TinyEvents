@@ -1,5 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace TinyEvents.Worker;
 
@@ -7,10 +9,19 @@ public sealed class TinyEventsBackgroundService : BackgroundService
 {
     private readonly IServiceScopeFactory scopeFactory;
     private readonly TinyEventsWorkerOptions options;
+    private readonly ILogger<TinyEventsBackgroundService> logger;
 
     public TinyEventsBackgroundService(
         IServiceScopeFactory scopeFactory,
         TinyEventsWorkerOptions options)
+        : this(scopeFactory, options, NullLogger<TinyEventsBackgroundService>.Instance)
+    {
+    }
+
+    public TinyEventsBackgroundService(
+        IServiceScopeFactory scopeFactory,
+        TinyEventsWorkerOptions options,
+        ILogger<TinyEventsBackgroundService> logger)
     {
         if (scopeFactory is null)
         {
@@ -22,8 +33,14 @@ public sealed class TinyEventsBackgroundService : BackgroundService
             throw new ArgumentNullException(nameof(options));
         }
 
+        if (logger is null)
+        {
+            throw new ArgumentNullException(nameof(logger));
+        }
+
         this.scopeFactory = scopeFactory;
         this.options = options;
+        this.logger = logger;
     }
 
     public async ValueTask ProcessOnceAsync(CancellationToken cancellationToken = default)
@@ -38,9 +55,27 @@ public sealed class TinyEventsBackgroundService : BackgroundService
     {
         while (!stoppingToken.IsCancellationRequested)
         {
-            await ProcessOnceAsync(stoppingToken);
-            await Task.Delay(options.PollingInterval, stoppingToken);
+            try
+            {
+                await ProcessOnceAsync(stoppingToken);
+            }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+            {
+                return;
+            }
+            catch (Exception exception)
+            {
+                logger.LogError(exception, "TinyEvents worker processing iteration failed.");
+            }
+
+            try
+            {
+                await Task.Delay(options.PollingInterval, stoppingToken);
+            }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+            {
+                return;
+            }
         }
     }
 }
-

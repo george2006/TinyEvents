@@ -1,8 +1,8 @@
 namespace TinyEvents.SourceGen.Planning;
 
-internal sealed class EventTypeDescriptorPlan
+internal sealed class EventDispatcherPlan
 {
-    public EventTypeDescriptorPlan(
+    public EventDispatcherPlan(
         string eventTypeName,
         string eventTypeDisplayName)
     {

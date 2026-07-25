@@ -1,6 +1,6 @@
 namespace TinyEvents.PostgreSql.AdoNet;
 
-public sealed class TinyPostgreSqlAdoNetOutboxWriter : ITinyOutboxWriter
+internal sealed class TinyPostgreSqlAdoNetOutboxWriter : ITinyOutboxWriter
 {
     private readonly TinyEventsPostgreSqlAdoNetOptions options;
     private readonly IServiceProvider serviceProvider;

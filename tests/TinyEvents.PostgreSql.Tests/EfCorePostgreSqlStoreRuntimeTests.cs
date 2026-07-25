@@ -110,7 +110,7 @@ public sealed class EfCorePostgreSqlStoreRuntimeTests : IClassFixture<PostgreSql
     }
 
     [PostgreSqlIntegrationFact]
-    public async Task Mark_processed_updates_only_message_owned_by_worker()
+    public async Task Mark_processed_throws_when_message_is_owned_by_another_worker()
     {
         await fixture.ResetSchemaAsync();
         var ownedId = Guid.NewGuid();
@@ -121,7 +121,8 @@ public sealed class EfCorePostgreSqlStoreRuntimeTests : IClassFixture<PostgreSql
         var store = NewStore(dbContext);
 
         await store.MarkProcessedAsync(ownedId, "worker-1", DateTimeOffset.UtcNow, CancellationToken.None);
-        await store.MarkProcessedAsync(otherId, "worker-1", DateTimeOffset.UtcNow, CancellationToken.None);
+        await Assert.ThrowsAnyAsync<InvalidOperationException>(
+            async () => await store.MarkProcessedAsync(otherId, "worker-1", DateTimeOffset.UtcNow, CancellationToken.None));
 
         Assert.Equal(TinyOutboxMessageStatus.Processed, await ReadStatusAsync(ownedId));
         Assert.Equal(TinyOutboxMessageStatus.Processing, await ReadStatusAsync(otherId));
@@ -158,8 +159,8 @@ public sealed class EfCorePostgreSqlStoreRuntimeTests : IClassFixture<PostgreSql
         {
             options.TableName = "TinyOutbox";
         });
-        services.AddSingleton<TinyEventTypeDescriptor>(
-            new TinyEventTypeDescriptor(typeof(UserCreated).FullName!, typeof(UserCreated)));
+        services.AddSingleton<ITinyEventDispatcher>(
+            new TinyEventDispatcher<UserCreated>(typeof(UserCreated).FullName!));
         services.AddScoped<IEventConsumer<UserCreated>, RecordingConsumer>();
 
         return services.BuildServiceProvider();

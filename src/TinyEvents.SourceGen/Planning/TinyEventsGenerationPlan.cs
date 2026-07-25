@@ -6,15 +6,15 @@ internal sealed class TinyEventsGenerationPlan
 {
     public TinyEventsGenerationPlan(
         IReadOnlyList<ConsumerRegistrationPlan> consumerRegistrations,
-        IReadOnlyList<EventTypeDescriptorPlan> eventTypeDescriptors)
+        IReadOnlyList<EventDispatcherPlan> eventDispatchers)
     {
         ConsumerRegistrations = consumerRegistrations;
-        EventTypeDescriptors = eventTypeDescriptors;
+        EventDispatchers = eventDispatchers;
     }
 
     public IReadOnlyList<ConsumerRegistrationPlan> ConsumerRegistrations { get; }
 
-    public IReadOnlyList<EventTypeDescriptorPlan> EventTypeDescriptors { get; }
+    public IReadOnlyList<EventDispatcherPlan> EventDispatchers { get; }
 
-    public bool HasContent => ConsumerRegistrations.Count > 0 || EventTypeDescriptors.Count > 0;
+    public bool HasContent => ConsumerRegistrations.Count > 0 || EventDispatchers.Count > 0;
 }

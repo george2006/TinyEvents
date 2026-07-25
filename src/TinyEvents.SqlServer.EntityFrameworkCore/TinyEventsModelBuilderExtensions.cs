@@ -19,9 +19,10 @@ public static class TinyEventsModelBuilderExtensions
         {
             entity.ToTable(parsedTableName.Table, parsedTableName.Schema);
             entity.HasKey(message => message.Id);
-            entity.Property(message => message.EventType).IsRequired();
+            entity.Property(message => message.EventType).IsRequired().HasMaxLength(512);
             entity.Property(message => message.Payload).IsRequired();
             entity.Property(message => message.Status).IsRequired();
+            entity.Property(message => message.ClaimedBy).HasMaxLength(256);
             entity.Property(message => message.CreatedAtUtc).IsRequired();
 
             entity.HasIndex(message => new

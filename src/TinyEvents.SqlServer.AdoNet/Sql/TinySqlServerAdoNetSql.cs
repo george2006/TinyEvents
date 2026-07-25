@@ -1,6 +1,6 @@
 namespace TinyEvents.SqlServer.AdoNet;
 
-public static class TinySqlServerAdoNetSql
+internal static class TinySqlServerAdoNetSql
 {
     public static string Insert(TinySqlServerAdoNetTableName tableName)
     {
@@ -129,4 +129,3 @@ public static class TinySqlServerAdoNetSql
             """;
     }
 }
-

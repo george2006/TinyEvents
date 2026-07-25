@@ -1,6 +1,6 @@
 namespace TinyEvents.PostgreSql.EntityFrameworkCore;
 
-public sealed class TinyPostgreSqlEfCoreTableName
+internal sealed class TinyPostgreSqlEfCoreTableName
 {
     private readonly string[] parts;
 

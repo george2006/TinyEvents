@@ -24,10 +24,27 @@ public static class TinyEventsServiceCollectionExtensions
         Action<TinyEventsOptions>? configure)
     {
         services.TryAddSingleton(TimeProvider.System);
-        services.TryAddSingleton(CreateOptions(configure));
+        ConfigureOptions(services, configure);
         services.TryAddSingleton<ITinyEventSerializer, SystemTextJsonTinyEventSerializer>();
         services.TryAddScoped<ITinyEventPublisher, TinyEventPublisher>();
         services.TryAddScoped<ITinyOutboxProcessor, TinyOutboxProcessor>();
+    }
+
+    private static void ConfigureOptions(
+        IServiceCollection services,
+        Action<TinyEventsOptions>? configure)
+    {
+        var existingOptions = services
+            .LastOrDefault(descriptor => descriptor.ServiceType == typeof(TinyEventsOptions))
+            ?.ImplementationInstance as TinyEventsOptions;
+
+        if (existingOptions is not null)
+        {
+            configure?.Invoke(existingOptions);
+            return;
+        }
+
+        services.TryAddSingleton(CreateOptions(configure));
     }
 
     private static TinyEventsOptions CreateOptions(Action<TinyEventsOptions>? configure)

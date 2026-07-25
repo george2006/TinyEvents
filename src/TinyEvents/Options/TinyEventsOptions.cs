@@ -2,15 +2,83 @@ namespace TinyEvents;
 
 public sealed class TinyEventsOptions
 {
+    private int batchSize = 50;
+    private int maxAttempts = 5;
+    private TimeSpan retryDelay = TimeSpan.FromSeconds(30);
+    private TimeSpan claimTimeout = TimeSpan.FromMinutes(5);
     private string? workerId;
 
-    public int BatchSize { get; set; } = 50;
+    public int BatchSize
+    {
+        get
+        {
+            return batchSize;
+        }
 
-    public int MaxAttempts { get; set; } = 5;
+        set
+        {
+            if (value <= 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(value), "Batch size must be greater than zero.");
+            }
 
-    public TimeSpan RetryDelay { get; set; } = TimeSpan.FromSeconds(30);
+            batchSize = value;
+        }
+    }
 
-    public TimeSpan ClaimTimeout { get; set; } = TimeSpan.FromMinutes(5);
+    public int MaxAttempts
+    {
+        get
+        {
+            return maxAttempts;
+        }
+
+        set
+        {
+            if (value <= 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(value), "Maximum attempts must be greater than zero.");
+            }
+
+            maxAttempts = value;
+        }
+    }
+
+    public TimeSpan RetryDelay
+    {
+        get
+        {
+            return retryDelay;
+        }
+
+        set
+        {
+            if (value < TimeSpan.Zero)
+            {
+                throw new ArgumentOutOfRangeException(nameof(value), "Retry delay cannot be negative.");
+            }
+
+            retryDelay = value;
+        }
+    }
+
+    public TimeSpan ClaimTimeout
+    {
+        get
+        {
+            return claimTimeout;
+        }
+
+        set
+        {
+            if (value <= TimeSpan.Zero)
+            {
+                throw new ArgumentOutOfRangeException(nameof(value), "Claim timeout must be greater than zero.");
+            }
+
+            claimTimeout = value;
+        }
+    }
 
     public string? WorkerId
     {
