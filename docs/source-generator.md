@@ -63,6 +63,8 @@ Each assembly that contains consumers generates its own contribution. When that 
 
 TinyEvents does not scan application assemblies or force-load referenced assemblies. If a consumer assembly has not been loaded before TinyEvents registration runs, that assembly's consumers and event dispatchers will not be registered in that service collection.
 
+An outbox message whose stored event type has no registered dispatcher is treated as a processing failure by the worker. It follows the normal retry and max-attempt rules. Load consumer assemblies before TinyEvents registration so their generated contributions are available.
+
 For example:
 
 ```csharp

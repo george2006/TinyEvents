@@ -124,6 +124,21 @@ Lost leases are not recorded as failed attempts. Another worker may already own 
 
 An unknown event type is treated as a processing failure. It follows the same attempt and retry rules as a consumer failure.
 
+## Unknown Event Types
+
+TinyEvents stores the event type name in each outbox row. At processing time, that name must match a generated `ITinyEventDispatcher` registration in the current service provider.
+
+If no dispatcher is registered for the stored event type, TinyEvents records the message as a processing failure. The message follows the normal retry and max-attempt rules.
+
+Common causes are:
+
+- the assembly containing the consumer was not loaded before TinyEvents registration
+- TinyEvents registration ran before generated contributions were available
+- an old outbox row references an event type that the application no longer handles
+- a row was inserted manually with an invalid event type name
+
+If the missing dispatcher is caused by startup or registration order, the message can succeed on a later attempt after the application is corrected. If the application will never handle that event type, the message eventually reaches `Failed`.
+
 ## Claim Timeout
 
 TinyEvents v1 does not implement claim renewal or heartbeat.
