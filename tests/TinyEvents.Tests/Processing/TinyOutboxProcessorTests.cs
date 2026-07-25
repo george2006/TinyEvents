@@ -351,6 +351,35 @@ public sealed class TinyOutboxProcessorTests
     }
 
     [Fact]
+    public async Task Process_pending_async_propagates_cancellation_during_claim()
+    {
+        using var cancellation = new CancellationTokenSource();
+        var store = new CancelDuringClaimStore(cancellation);
+        var processor = BuildProcessor(store);
+
+        await Assert.ThrowsAsync<OperationCanceledException>(
+            async () => await processor.ProcessPendingAsync(cancellation.Token));
+
+        Assert.Equal(0, store.MarkFailedCount);
+    }
+
+    [Fact]
+    public async Task Process_pending_async_propagates_cancellation_during_failure_persistence()
+    {
+        ThrowingConsumer.Throw = true;
+        using var cancellation = new CancellationTokenSource();
+        var message = NewProcessingMessage(new UserCreated(Guid.NewGuid(), "user@example.com"));
+        var store = new CancelDuringMarkFailedStore(cancellation, message);
+        var processor = BuildProcessor(store, includeThrowingConsumer: true);
+
+        await Assert.ThrowsAsync<OperationCanceledException>(
+            async () => await processor.ProcessPendingAsync(cancellation.Token));
+
+        Assert.Equal(1, store.MarkFailedCount);
+        ThrowingConsumer.Throw = false;
+    }
+
+    [Fact]
     public async Task Process_pending_async_continues_when_mark_processed_loses_lease()
     {
         RecordingConsumer.Consumed.Clear();
@@ -673,6 +702,100 @@ public sealed class TinyOutboxProcessorTests
         {
             MarkFailedCount++;
             return ValueTask.CompletedTask;
+        }
+    }
+
+    private sealed class CancelDuringClaimStore : ITinyOutboxStore
+    {
+        private readonly CancellationTokenSource cancellation;
+
+        public CancelDuringClaimStore(CancellationTokenSource cancellation)
+        {
+            this.cancellation = cancellation;
+        }
+
+        public int MarkFailedCount { get; private set; }
+
+        public ValueTask<IReadOnlyList<TinyOutboxMessage>> ClaimPendingAsync(
+            int maxCount,
+            string workerId,
+            DateTimeOffset now,
+            TimeSpan claimTimeout,
+            CancellationToken cancellationToken)
+        {
+            this.cancellation.Cancel();
+            cancellationToken.ThrowIfCancellationRequested();
+            throw new InvalidOperationException("Cancellation should have been observed.");
+        }
+
+        public ValueTask MarkProcessedAsync(
+            Guid messageId,
+            string workerId,
+            DateTimeOffset processedAtUtc,
+            CancellationToken cancellationToken)
+        {
+            throw new InvalidOperationException("Canceled claiming should not process messages.");
+        }
+
+        public ValueTask MarkFailedAsync(
+            Guid messageId,
+            string workerId,
+            string error,
+            int attemptCount,
+            DateTimeOffset? nextAttemptAtUtc,
+            CancellationToken cancellationToken)
+        {
+            MarkFailedCount++;
+            return ValueTask.CompletedTask;
+        }
+    }
+
+    private sealed class CancelDuringMarkFailedStore : ITinyOutboxStore
+    {
+        private readonly CancellationTokenSource cancellation;
+        private readonly IReadOnlyList<TinyOutboxMessage> claimedMessages;
+
+        public CancelDuringMarkFailedStore(
+            CancellationTokenSource cancellation,
+            params TinyOutboxMessage[] claimedMessages)
+        {
+            this.cancellation = cancellation;
+            this.claimedMessages = claimedMessages;
+        }
+
+        public int MarkFailedCount { get; private set; }
+
+        public ValueTask<IReadOnlyList<TinyOutboxMessage>> ClaimPendingAsync(
+            int maxCount,
+            string workerId,
+            DateTimeOffset now,
+            TimeSpan claimTimeout,
+            CancellationToken cancellationToken)
+        {
+            return ValueTask.FromResult(claimedMessages);
+        }
+
+        public ValueTask MarkProcessedAsync(
+            Guid messageId,
+            string workerId,
+            DateTimeOffset processedAtUtc,
+            CancellationToken cancellationToken)
+        {
+            throw new InvalidOperationException("A failed consumer must not be marked as processed.");
+        }
+
+        public ValueTask MarkFailedAsync(
+            Guid messageId,
+            string workerId,
+            string error,
+            int attemptCount,
+            DateTimeOffset? nextAttemptAtUtc,
+            CancellationToken cancellationToken)
+        {
+            MarkFailedCount++;
+            cancellation.Cancel();
+            cancellationToken.ThrowIfCancellationRequested();
+            throw new InvalidOperationException("Cancellation should have been observed.");
         }
     }
 
