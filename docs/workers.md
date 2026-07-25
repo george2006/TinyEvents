@@ -88,6 +88,24 @@ On shutdown, TinyEvents does not scan and release claims. If processing does not
 
 A hosted worker can remain running while processing iterations repeatedly fail, for example during a database outage. Treat worker logs and host-level health checks as part of production operations.
 
+## Startup Validation
+
+Before polling, the hosted worker resolves the processing graph once in a
+temporary scope. This validates the processor dependencies and generated
+dispatcher registrations without claiming or processing messages.
+
+A startup validation failure escapes to the host. It is not logged, counted,
+or retried as a processing-iteration failure because changing the application
+configuration or registrations is required to recover.
+
+After validation succeeds, operational iteration failures are logged and the
+worker continues polling. Consumer failures, deserialization failures, unknown
+event types stored in messages, and lease loss remain message-level outcomes
+handled by the processor.
+
+Database schema initialization is separate from runtime graph validation.
+TinyEvents does not currently run schema migrations as part of worker startup.
+
 ## Runtime Logging
 
 TinyEvents uses `Microsoft.Extensions.Logging`. The application owns log
