@@ -251,11 +251,24 @@ public sealed class TinyEventsWorkerTests
         await worker.StopAsync(CancellationToken.None).WaitAsync(cancellation.Token);
 
         Assert.True(FailingThenRecordingProcessor.CallCount >= 2);
-        var entry = Assert.Single(logger.Entries);
-        Assert.Equal(LogLevel.Warning, entry.LogLevel);
-        Assert.Equal(1100, entry.EventId.Id);
-        Assert.Equal("WorkerIterationFailed", entry.EventId.Name);
-        Assert.IsType<InvalidOperationException>(entry.Exception);
+        Assert.Collection(
+            logger.Entries,
+            failure =>
+            {
+                Assert.Equal(LogLevel.Warning, failure.LogLevel);
+                Assert.Equal(1100, failure.EventId.Id);
+                Assert.Equal("WorkerIterationFailed", failure.EventId.Name);
+                Assert.Contains("Consecutive failures: 1", failure.Message, StringComparison.Ordinal);
+                Assert.IsType<InvalidOperationException>(failure.Exception);
+            },
+            recovery =>
+            {
+                Assert.Equal(LogLevel.Information, recovery.LogLevel);
+                Assert.Equal(1101, recovery.EventId.Id);
+                Assert.Equal("WorkerRecovered", recovery.EventId.Name);
+                Assert.Contains("after 1 consecutive failed iterations", recovery.Message, StringComparison.Ordinal);
+                Assert.Null(recovery.Exception);
+            });
     }
 
     [Fact]
