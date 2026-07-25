@@ -30,6 +30,43 @@ public sealed class TinyEventsWorkerStartupValidatorTests
         Assert.Equal(1, RecordingProcessor.DisposedCount);
     }
 
+    [Fact]
+    public void Validate_configuration_rejects_missing_processor()
+    {
+        var services = new ServiceCollection();
+        using var provider = services.BuildServiceProvider();
+        var validator = CreateValidator(provider);
+
+        var exception = Assert.Throws<InvalidOperationException>(
+            validator.ValidateConfiguration);
+
+        Assert.Contains(nameof(ITinyOutboxProcessor), exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Validate_configuration_rejects_missing_store()
+    {
+        var services = new ServiceCollection();
+        services.UseTinyEvents();
+        using var provider = services.BuildServiceProvider();
+        var validator = CreateValidator(provider);
+
+        var exception = Assert.Throws<InvalidOperationException>(
+            validator.ValidateConfiguration);
+
+        Assert.Contains(
+            typeof(TinyOutboxProcessor).FullName!,
+            exception.Message,
+            StringComparison.Ordinal);
+    }
+
+    private static TinyEventsWorkerStartupValidator CreateValidator(
+        IServiceProvider serviceProvider)
+    {
+        var scopeFactory = serviceProvider.GetRequiredService<IServiceScopeFactory>();
+        return new TinyEventsWorkerStartupValidator(scopeFactory);
+    }
+
     private sealed class RecordingProcessor : ITinyOutboxProcessor, IDisposable
     {
         public RecordingProcessor()
@@ -61,4 +98,5 @@ public sealed class TinyEventsWorkerStartupValidatorTests
             DisposedCount++;
         }
     }
+
 }
