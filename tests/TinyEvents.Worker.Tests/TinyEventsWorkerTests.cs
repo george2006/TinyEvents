@@ -259,7 +259,7 @@ public sealed class TinyEventsWorkerTests
                 Assert.Equal(LogLevel.Warning, failure.LogLevel);
                 Assert.Equal(1100, failure.EventId.Id);
                 Assert.Equal("WorkerIterationFailed", failure.EventId.Name);
-                Assert.Contains("Consecutive failures: 1", failure.Message, StringComparison.Ordinal);
+                Assert.Equal(1, failure.Properties["ConsecutiveFailures"]);
                 Assert.IsType<InvalidOperationException>(failure.Exception);
             },
             recovery =>
@@ -267,7 +267,7 @@ public sealed class TinyEventsWorkerTests
                 Assert.Equal(LogLevel.Information, recovery.LogLevel);
                 Assert.Equal(1101, recovery.EventId.Id);
                 Assert.Equal("WorkerRecovered", recovery.EventId.Name);
-                Assert.Contains("after 1 consecutive failed iterations", recovery.Message, StringComparison.Ordinal);
+                Assert.Equal(1, recovery.Properties["ConsecutiveFailures"]);
                 Assert.Null(recovery.Exception);
             });
     }
@@ -291,7 +291,7 @@ public sealed class TinyEventsWorkerTests
         await worker.StopAsync(timeout.Token);
 
         Assert.True(processor.CancellationObserved);
-        Assert.DoesNotContain(logger.Entries, entry => entry.LogLevel == LogLevel.Error);
+        Assert.Empty(logger.Entries);
     }
 
     [Fact]
@@ -327,11 +327,11 @@ public sealed class TinyEventsWorkerTests
         Assert.Contains(
             logger.Entries,
             entry => entry.EventId.Id == 1104
-                && entry.Message.Contains("failed 5 consecutive", StringComparison.Ordinal));
+                && Equals(entry.Properties["ConsecutiveFailures"], 5));
         Assert.Contains(
             logger.Entries,
             entry => entry.EventId.Id == 1104
-                && entry.Message.Contains("failed 10 consecutive", StringComparison.Ordinal));
+                && Equals(entry.Properties["ConsecutiveFailures"], 10));
     }
 
     private static async Task WaitForLogAsync<T>(
@@ -448,7 +448,25 @@ public sealed class TinyEventsWorkerTests
             Exception? exception,
             Func<TState, Exception?, string> formatter)
         {
-            Entries.Enqueue(new LogEntry(eventId, logLevel, formatter(state, exception), exception));
+            Entries.Enqueue(new LogEntry(
+                eventId,
+                logLevel,
+                formatter(state, exception),
+                exception,
+                GetProperties(state)));
+        }
+
+        private static IReadOnlyDictionary<string, object?> GetProperties<TState>(TState state)
+        {
+            if (state is not IEnumerable<KeyValuePair<string, object?>> properties)
+            {
+                return new Dictionary<string, object?>(StringComparer.Ordinal);
+            }
+
+            return properties.ToDictionary(
+                property => property.Key,
+                property => property.Value,
+                StringComparer.Ordinal);
         }
     }
 
@@ -456,5 +474,6 @@ public sealed class TinyEventsWorkerTests
         EventId EventId,
         LogLevel LogLevel,
         string Message,
-        Exception? Exception);
+        Exception? Exception,
+        IReadOnlyDictionary<string, object?> Properties);
 }
