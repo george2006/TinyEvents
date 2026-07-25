@@ -35,6 +35,18 @@ services.UseSqlServerAdoNetOutbox(options =>
 });
 ```
 
+## Worker Connections
+
+`UseWorkerConnectionFactory(...)` is required when the application processes
+the outbox, either through `ITinyOutboxProcessor` directly or through the
+hosted worker.
+
+The hosted worker validates that the factory is configured before polling. It
+does not invoke the delegate or open a database connection during startup
+validation. Missing configuration stops startup; failures creating or opening
+a configured connection occur during processing and follow the worker's
+operational retry behavior.
+
 ## Publishing Transaction Ownership
 
 TinyEvents:
