@@ -3,7 +3,8 @@ using Xunit;
 
 namespace TinyEvents.PostgreSql.Tests;
 
-public sealed class PostgreSqlContainerTests : IClassFixture<PostgreSqlFixture>
+[Collection(PostgreSqlIntegrationCollection.Name)]
+public sealed class PostgreSqlContainerTests
 {
     private readonly PostgreSqlFixture fixture;
 

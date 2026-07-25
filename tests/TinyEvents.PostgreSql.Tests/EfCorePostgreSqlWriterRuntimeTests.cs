@@ -6,7 +6,8 @@ using Xunit;
 
 namespace TinyEvents.PostgreSql.Tests;
 
-public sealed class EfCorePostgreSqlWriterRuntimeTests : IClassFixture<PostgreSqlFixture>
+[Collection(PostgreSqlIntegrationCollection.Name)]
+public sealed class EfCorePostgreSqlWriterRuntimeTests
 {
     private readonly PostgreSqlFixture fixture;
 
