@@ -2,16 +2,8 @@
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <PackageId>TinyEvents.SqlServer.EntityFrameworkCore</PackageId>
-    <Version>0.1.0-alpha.2</Version>
-    <Authors>Jorge Durban Antunano</Authors>
     <Description>SQL Server Entity Framework Core provider for TinyEvents outbox storage and worker claiming.</Description>
-    <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <PackageProjectUrl>https://github.com/george2006/TinyEvents</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/george2006/TinyEvents</RepositoryUrl>
-    <RepositoryType>git</RepositoryType>
     <PackageTags>tinyevents;outbox;sqlserver;efcore;dotnet;source-generator</PackageTags>
-    <PackageReadmeFile>README.md</PackageReadmeFile>
-    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.16" />

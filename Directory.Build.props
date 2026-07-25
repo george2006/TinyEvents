@@ -5,5 +5,14 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
+  <PropertyGroup>
+    <Version>0.1.0-alpha.2</Version>
+    <Authors>Jorge Durban Antunano</Authors>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/george2006/TinyEvents</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/george2006/TinyEvents</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+  </PropertyGroup>
 </Project>
-
