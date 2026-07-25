@@ -42,12 +42,17 @@ public sealed class TinyEventsSqlServerAdoNetOptions
             throw new ArgumentNullException(nameof(serviceProvider));
         }
 
+        ValidateWorkerConfiguration();
+
+        return workerConnectionFactory!(serviceProvider, cancellationToken);
+    }
+
+    internal void ValidateWorkerConfiguration()
+    {
         if (workerConnectionFactory is null)
         {
             throw new InvalidOperationException(
                 "An ADO.NET worker connection factory is required. Configure UseWorkerConnectionFactory(...) for outbox claiming and marking operations.");
         }
-
-        return workerConnectionFactory(serviceProvider, cancellationToken);
     }
 }
