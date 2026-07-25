@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using TinyEvents.Worker;
 using Xunit;
 
@@ -250,6 +251,28 @@ public sealed class TinyEventsWorkerTests
         Assert.True(FailingThenRecordingProcessor.CallCount >= 2);
     }
 
+    [Fact]
+    public async Task Background_service_stops_active_iteration_without_logging_cancellation_as_error()
+    {
+        var processor = new CancellationAwareProcessor();
+        var logger = new RecordingLogger<TinyEventsBackgroundService>();
+        var services = new ServiceCollection();
+        services.AddSingleton<ITinyOutboxProcessor>(processor);
+        services.AddSingleton(new TinyEventsWorkerOptions());
+        services.AddSingleton<ILogger<TinyEventsBackgroundService>>(logger);
+        services.AddSingleton<TinyEventsBackgroundService>();
+        using var provider = services.BuildServiceProvider();
+        var worker = provider.GetRequiredService<TinyEventsBackgroundService>();
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+
+        await worker.StartAsync(CancellationToken.None);
+        await processor.Started.Task.WaitAsync(timeout.Token);
+        await worker.StopAsync(timeout.Token);
+
+        Assert.True(processor.CancellationObserved);
+        Assert.DoesNotContain(logger.Entries, entry => entry.LogLevel == LogLevel.Error);
+    }
+
     private sealed class RecordingProcessor : ITinyOutboxProcessor
     {
         public static int CallCount { get; set; }
@@ -304,4 +327,58 @@ public sealed class TinyEventsWorkerTests
             return new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         }
     }
+
+    private sealed class CancellationAwareProcessor : ITinyOutboxProcessor
+    {
+        public TaskCompletionSource Started { get; } = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public bool CancellationObserved { get; private set; }
+
+        public async ValueTask ProcessPendingAsync(CancellationToken cancellationToken = default)
+        {
+            Started.TrySetResult();
+
+            try
+            {
+                await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                CancellationObserved = true;
+                throw;
+            }
+        }
+    }
+
+    private sealed class RecordingLogger<T> : ILogger<T>
+    {
+        public List<LogEntry> Entries { get; } = new List<LogEntry>();
+
+        public IDisposable? BeginScope<TState>(TState state)
+            where TState : notnull
+        {
+            return null;
+        }
+
+        public bool IsEnabled(LogLevel logLevel)
+        {
+            return true;
+        }
+
+        public void Log<TState>(
+            LogLevel logLevel,
+            EventId eventId,
+            TState state,
+            Exception? exception,
+            Func<TState, Exception?, string> formatter)
+        {
+            Entries.Add(new LogEntry(logLevel, formatter(state, exception), exception));
+        }
+    }
+
+    private sealed record LogEntry(
+        LogLevel LogLevel,
+        string Message,
+        Exception? Exception);
 }
