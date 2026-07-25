@@ -213,6 +213,24 @@ public sealed class TinyEventsWorkerTests
     }
 
     [Fact]
+    public async Task Background_service_fails_startup_before_polling_when_processor_is_missing()
+    {
+        var logger = new RecordingLogger<TinyEventsBackgroundService>();
+        var services = new ServiceCollection();
+        services.AddSingleton(new TinyEventsWorkerOptions());
+        services.AddSingleton<ILogger<TinyEventsBackgroundService>>(logger);
+        services.AddSingleton<TinyEventsBackgroundService>();
+        using var provider = services.BuildServiceProvider();
+        var worker = provider.GetRequiredService<TinyEventsBackgroundService>();
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => worker.StartAsync(CancellationToken.None));
+
+        Assert.Contains(nameof(ITinyOutboxProcessor), exception.Message, StringComparison.Ordinal);
+        Assert.Empty(logger.Entries);
+    }
+
+    [Fact]
     public async Task Background_service_creates_scope_per_processing_iteration()
     {
         ScopedProcessor.InstanceIds.Clear();
