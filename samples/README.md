@@ -100,7 +100,15 @@ Invoke-RestMethod -Method Get -Uri http://localhost:5000/welcome-emails
 
 ## Package Smoke Sample
 
-`TinyEvents.PackageSmoke` references the public NuGet packages instead of local project references. Use it after publishing packages:
+`TinyEvents.PackageSmoke` references NuGet packages instead of local project
+references and is intentionally excluded from `TinyEvents.sln`. Validate locally
+packed packages with:
+
+```powershell
+.\samples\TinyEvents.PackageSmoke\Test-PackageSmoke.ps1
+```
+
+Use it against published packages with:
 
 ```bash
 docker compose -f samples/TinyEvents.PackageSmoke/docker-compose.yml up -d

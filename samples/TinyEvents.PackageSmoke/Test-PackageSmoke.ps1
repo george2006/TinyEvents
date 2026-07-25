@@ -19,7 +19,7 @@ function Invoke-Native {
     }
 }
 
-$repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
+$repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..\..")
 $solution = Join-Path $repoRoot "TinyEvents.sln"
 $sampleProject = Join-Path $repoRoot "samples\TinyEvents.PackageSmoke\TinyEvents.PackageSmoke.csproj"
 $composeFile = Join-Path $repoRoot "samples\TinyEvents.PackageSmoke\docker-compose.yml"

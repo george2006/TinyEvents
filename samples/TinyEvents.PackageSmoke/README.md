@@ -1,11 +1,15 @@
 # TinyEvents Package Smoke
 
+This project is intentionally not part of `TinyEvents.sln`. It consumes the
+locally packed NuGet packages, so including it would make a normal solution
+restore depend on packages that have not been built yet.
+
 ## Local Package Build Smoke
 
 Run this sample against locally packed packages without touching a database:
 
 ```powershell
-.\scripts\Test-PackageSmoke.ps1
+.\samples\TinyEvents.PackageSmoke\Test-PackageSmoke.ps1
 ```
 
 That command builds the solution, packs the complete TinyEvents release train with a unique local version, restores this sample from those local packages, and builds the sample.
@@ -15,13 +19,13 @@ That command builds the solution, packs the complete TinyEvents release train wi
 To start the sample SQL Server and PostgreSQL containers and run the database smoke paths:
 
 ```powershell
-.\scripts\Test-PackageSmoke.ps1 -StartDatabases -Run
+.\samples\TinyEvents.PackageSmoke\Test-PackageSmoke.ps1 -StartDatabases -Run
 ```
 
 To run against already-started databases, omit `-StartDatabases`:
 
 ```powershell
-.\scripts\Test-PackageSmoke.ps1 -Run
+.\samples\TinyEvents.PackageSmoke\Test-PackageSmoke.ps1 -Run
 ```
 
 `-Run` uses the default SQL Server port `14334` and PostgreSQL port `54324` unless the environment variables below override them.
