@@ -43,6 +43,41 @@ public sealed class TinySqlServerAdoNetProviderTests
     }
 
     [Fact]
+    public void Resolving_processor_rejects_missing_worker_connection_factory()
+    {
+        var services = new ServiceCollection();
+        services.UseSqlServerAdoNetOutbox(_ => { });
+        using var provider = services.BuildServiceProvider();
+        using var scope = provider.CreateScope();
+
+        var exception = Assert.Throws<InvalidOperationException>(
+            () => scope.ServiceProvider.GetRequiredService<ITinyOutboxProcessor>());
+
+        Assert.Contains("Configure UseWorkerConnectionFactory(...)", exception.Message);
+    }
+
+    [Fact]
+    public void Resolving_processor_does_not_invoke_worker_connection_factory()
+    {
+        var factoryCalls = 0;
+        var services = new ServiceCollection();
+        services.UseSqlServerAdoNetOutbox(options =>
+        {
+            options.UseWorkerConnectionFactory((_, _) =>
+            {
+                factoryCalls++;
+                return new ValueTask<DbConnection>(new RecordingConnection());
+            });
+        });
+        using var provider = services.BuildServiceProvider();
+        using var scope = provider.CreateScope();
+
+        _ = scope.ServiceProvider.GetRequiredService<ITinyOutboxProcessor>();
+
+        Assert.Equal(0, factoryCalls);
+    }
+
+    [Fact]
     public void UseSqlServerAdoNetOutbox_does_not_register_unit_of_work()
     {
         var services = new ServiceCollection();

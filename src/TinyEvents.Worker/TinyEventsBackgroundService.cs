@@ -8,6 +8,7 @@ namespace TinyEvents.Worker;
 public sealed class TinyEventsBackgroundService : BackgroundService
 {
     private readonly IServiceScopeFactory scopeFactory;
+    private readonly TinyEventsWorkerStartupValidator startupValidator;
     private readonly TinyEventsWorkerOptions options;
     private readonly ILogger<TinyEventsBackgroundService> logger;
 
@@ -39,6 +40,7 @@ public sealed class TinyEventsBackgroundService : BackgroundService
         }
 
         this.scopeFactory = scopeFactory;
+        startupValidator = new TinyEventsWorkerStartupValidator(scopeFactory);
         this.options = options;
         this.logger = logger;
     }
@@ -53,6 +55,10 @@ public sealed class TinyEventsBackgroundService : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        stoppingToken.ThrowIfCancellationRequested();
+
+        startupValidator.ValidateConfiguration();
+
         var failures = new TinyEventsWorkerFailureTracker();
 
         while (!stoppingToken.IsCancellationRequested)

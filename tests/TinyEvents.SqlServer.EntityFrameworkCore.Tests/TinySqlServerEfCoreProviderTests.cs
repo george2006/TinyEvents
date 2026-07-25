@@ -128,6 +128,35 @@ public sealed class TinySqlServerEfCoreProviderTests
     }
 
     [Fact]
+    public void Resolving_processor_rejects_non_sql_server_db_context()
+    {
+        var services = new ServiceCollection();
+        services.AddDbContext<TestDbContext>(options =>
+            options.UseInMemoryDatabase(Guid.NewGuid().ToString()));
+        services.UseSqlServerEntityFrameworkCoreOutbox<TestDbContext>();
+        using var provider = services.BuildServiceProvider();
+        using var scope = provider.CreateScope();
+
+        var exception = Assert.Throws<InvalidOperationException>(
+            () => scope.ServiceProvider.GetRequiredService<ITinyOutboxProcessor>());
+
+        Assert.Contains("requires the SQL Server EF Core provider", exception.Message);
+    }
+
+    [Fact]
+    public void Resolving_processor_accepts_sql_server_db_context_without_connecting()
+    {
+        var services = new ServiceCollection();
+        services.AddDbContext<TestDbContext>(options =>
+            options.UseSqlServer("Server=localhost;Database=TinyEvents;Integrated Security=true;TrustServerCertificate=true"));
+        services.UseSqlServerEntityFrameworkCoreOutbox<TestDbContext>();
+        using var provider = services.BuildServiceProvider();
+        using var scope = provider.CreateScope();
+
+        _ = scope.ServiceProvider.GetRequiredService<ITinyOutboxProcessor>();
+    }
+
+    [Fact]
     public void EF_store_does_not_implement_writer()
     {
         Assert.False(typeof(ITinyOutboxWriter).IsAssignableFrom(typeof(TinySqlServerEfCoreOutboxStore<TestDbContext>)));

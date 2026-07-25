@@ -131,6 +131,34 @@ public sealed class TinyEventsWorkerTests
     }
 
     [Fact]
+    public void Repeated_worker_registration_keeps_worker_and_core_options_consistent()
+    {
+        var services = new ServiceCollection();
+        services.AddTinyEventsWorker(options =>
+        {
+            options.WorkerId = "first-worker";
+            options.BatchSize = 3;
+            options.PollingInterval = TimeSpan.FromSeconds(1);
+        });
+        services.AddTinyEventsWorker(options =>
+        {
+            options.WorkerId = "second-worker";
+            options.BatchSize = 7;
+            options.PollingInterval = TimeSpan.FromSeconds(2);
+        });
+
+        using var provider = services.BuildServiceProvider();
+        var workerOptions = provider.GetRequiredService<TinyEventsWorkerOptions>();
+        var coreOptions = provider.GetRequiredService<TinyEventsOptions>();
+
+        Assert.Equal("second-worker", workerOptions.WorkerId);
+        Assert.Equal(workerOptions.WorkerId, coreOptions.WorkerId);
+        Assert.Equal(7, workerOptions.BatchSize);
+        Assert.Equal(workerOptions.BatchSize, coreOptions.BatchSize);
+        Assert.Equal(TimeSpan.FromSeconds(2), workerOptions.PollingInterval);
+    }
+
+    [Fact]
     public void Add_tiny_events_worker_rejects_empty_configured_worker_id()
     {
         var services = new ServiceCollection();
@@ -210,6 +238,43 @@ public sealed class TinyEventsWorkerTests
         await worker.ProcessOnceAsync();
 
         Assert.Equal(1, RecordingProcessor.CallCount);
+    }
+
+    [Fact]
+    public async Task Background_service_fails_startup_before_polling_when_processor_is_missing()
+    {
+        var logger = new RecordingLogger<TinyEventsBackgroundService>();
+        var services = new ServiceCollection();
+        services.AddSingleton(new TinyEventsWorkerOptions());
+        services.AddSingleton<ILogger<TinyEventsBackgroundService>>(logger);
+        services.AddSingleton<TinyEventsBackgroundService>();
+        using var provider = services.BuildServiceProvider();
+        var worker = provider.GetRequiredService<TinyEventsBackgroundService>();
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => worker.StartAsync(CancellationToken.None));
+
+        Assert.Contains(nameof(ITinyOutboxProcessor), exception.Message, StringComparison.Ordinal);
+        Assert.Empty(logger.Entries);
+    }
+
+    [Fact]
+    public async Task Background_service_skips_startup_validation_when_already_stopping()
+    {
+        StartupTrackingProcessor.ConstructionCount = 0;
+        var services = new ServiceCollection();
+        services.AddScoped<ITinyOutboxProcessor, StartupTrackingProcessor>();
+        services.AddSingleton(new TinyEventsWorkerOptions());
+        services.AddSingleton<TinyEventsBackgroundService>();
+        using var provider = services.BuildServiceProvider();
+        var worker = provider.GetRequiredService<TinyEventsBackgroundService>();
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => worker.StartAsync(cancellation.Token));
+
+        Assert.Equal(0, StartupTrackingProcessor.ConstructionCount);
     }
 
     [Fact]
@@ -352,6 +417,21 @@ public sealed class TinyEventsWorkerTests
         public ValueTask ProcessPendingAsync(CancellationToken cancellationToken = default)
         {
             CallCount++;
+            return ValueTask.CompletedTask;
+        }
+    }
+
+    private sealed class StartupTrackingProcessor : ITinyOutboxProcessor
+    {
+        public StartupTrackingProcessor()
+        {
+            ConstructionCount++;
+        }
+
+        public static int ConstructionCount { get; set; }
+
+        public ValueTask ProcessPendingAsync(CancellationToken cancellationToken = default)
+        {
             return ValueTask.CompletedTask;
         }
     }

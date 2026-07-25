@@ -90,12 +90,10 @@ public sealed class TinyPostgreSqlAdoNetOptionsTests
     }
 
     [Fact]
-    public async Task Worker_connection_factory_fails_clearly_when_delegate_is_missing()
+    public void Worker_connection_factory_rejects_missing_delegate()
     {
-        var factory = NewFactory(new TinyEventsPostgreSqlAdoNetOptions());
-
-        var exception = await Assert.ThrowsAsync<InvalidOperationException>(
-            async () => await factory.CreateOpenConnectionAsync(CancellationToken.None));
+        var exception = Assert.Throws<InvalidOperationException>(
+            () => NewFactory(new TinyEventsPostgreSqlAdoNetOptions()));
 
         Assert.Contains("Configure UseWorkerConnectionFactory(...)", exception.Message);
     }
