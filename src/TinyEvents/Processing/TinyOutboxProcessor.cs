@@ -111,6 +111,19 @@ public sealed class TinyOutboxProcessor : ITinyOutboxProcessor
         try
         {
             await InvokeConsumersAsync(message, cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            await RecordProcessingFailureAsync(message, workerId, exception, cancellationToken);
+            return;
+        }
+
+        try
+        {
             await MarkProcessedAsync(message, workerId, cancellationToken);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -121,17 +134,22 @@ public sealed class TinyOutboxProcessor : ITinyOutboxProcessor
         {
             LogLeaseLost(message, workerId, exception, "marked as processed");
         }
-        catch (Exception exception)
+    }
+
+    private async ValueTask RecordProcessingFailureAsync(
+        TinyOutboxMessage message,
+        string workerId,
+        Exception exception,
+        CancellationToken cancellationToken)
+    {
+        try
         {
-            try
-            {
-                var failure = await MarkFailedAsync(message, workerId, exception, cancellationToken);
-                LogProcessingFailure(message, workerId, exception, failure);
-            }
-            catch (TinyOutboxLeaseLostException leaseLostException)
-            {
-                LogLeaseLost(message, workerId, leaseLostException, "recording a processing failure");
-            }
+            var failure = await MarkFailedAsync(message, workerId, exception, cancellationToken);
+            LogProcessingFailure(message, workerId, exception, failure);
+        }
+        catch (TinyOutboxLeaseLostException leaseLostException)
+        {
+            LogLeaseLost(message, workerId, leaseLostException, "recording a processing failure");
         }
     }
 

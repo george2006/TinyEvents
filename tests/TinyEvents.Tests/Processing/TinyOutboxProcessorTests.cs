@@ -209,6 +209,22 @@ public sealed class TinyOutboxProcessorTests
     }
 
     [Fact]
+    public async Task Process_pending_async_does_not_mark_failed_when_mark_processed_fails()
+    {
+        RecordingConsumer.Consumed.Clear();
+        var message = NewProcessingMessage(new UserCreated(Guid.NewGuid(), "user@example.com"));
+        var store = new FailingMarkProcessedStore(message);
+        var processor = BuildProcessor(store);
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(
+            async () => await processor.ProcessPendingAsync());
+
+        Assert.Equal("database failed while marking processed", exception.Message);
+        Assert.Single(RecordingConsumer.Consumed);
+        Assert.Equal(0, store.MarkFailedCount);
+    }
+
+    [Fact]
     public async Task Process_pending_async_marks_failed_with_current_worker_id()
     {
         ThrowingConsumer.Throw = true;
@@ -629,6 +645,49 @@ public sealed class TinyOutboxProcessorTests
             CancellationToken cancellationToken)
         {
             throw new InvalidOperationException("Canceled processing should not mark messages as processed.");
+        }
+
+        public ValueTask MarkFailedAsync(
+            Guid messageId,
+            string workerId,
+            string error,
+            int attemptCount,
+            DateTimeOffset? nextAttemptAtUtc,
+            CancellationToken cancellationToken)
+        {
+            MarkFailedCount++;
+            return ValueTask.CompletedTask;
+        }
+    }
+
+    private sealed class FailingMarkProcessedStore : ITinyOutboxStore
+    {
+        private readonly IReadOnlyList<TinyOutboxMessage> claimedMessages;
+
+        public FailingMarkProcessedStore(params TinyOutboxMessage[] claimedMessages)
+        {
+            this.claimedMessages = claimedMessages;
+        }
+
+        public int MarkFailedCount { get; private set; }
+
+        public ValueTask<IReadOnlyList<TinyOutboxMessage>> ClaimPendingAsync(
+            int maxCount,
+            string workerId,
+            DateTimeOffset now,
+            TimeSpan claimTimeout,
+            CancellationToken cancellationToken)
+        {
+            return ValueTask.FromResult(claimedMessages);
+        }
+
+        public ValueTask MarkProcessedAsync(
+            Guid messageId,
+            string workerId,
+            DateTimeOffset processedAtUtc,
+            CancellationToken cancellationToken)
+        {
+            throw new InvalidOperationException("database failed while marking processed");
         }
 
         public ValueTask MarkFailedAsync(
