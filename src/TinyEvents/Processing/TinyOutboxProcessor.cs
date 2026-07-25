@@ -1,3 +1,6 @@
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
+
 namespace TinyEvents;
 
 public sealed class TinyOutboxProcessor : ITinyOutboxProcessor
@@ -8,6 +11,7 @@ public sealed class TinyOutboxProcessor : ITinyOutboxProcessor
     private readonly Dictionary<string, ITinyEventDispatcher> dispatchers;
     private readonly TinyEventsOptions options;
     private readonly TimeProvider timeProvider;
+    private readonly ILogger<TinyOutboxProcessor> logger;
 
     public TinyOutboxProcessor(
         IServiceProvider serviceProvider,
@@ -16,6 +20,25 @@ public sealed class TinyOutboxProcessor : ITinyOutboxProcessor
         IEnumerable<ITinyEventDispatcher> dispatchers,
         TinyEventsOptions options,
         TimeProvider timeProvider)
+        : this(
+            serviceProvider,
+            store,
+            serializer,
+            dispatchers,
+            options,
+            timeProvider,
+            NullLogger<TinyOutboxProcessor>.Instance)
+    {
+    }
+
+    public TinyOutboxProcessor(
+        IServiceProvider serviceProvider,
+        ITinyOutboxStore store,
+        ITinyEventSerializer serializer,
+        IEnumerable<ITinyEventDispatcher> dispatchers,
+        TinyEventsOptions options,
+        TimeProvider timeProvider,
+        ILogger<TinyOutboxProcessor> logger)
     {
         if (serviceProvider is null)
         {
@@ -47,12 +70,18 @@ public sealed class TinyOutboxProcessor : ITinyOutboxProcessor
             throw new ArgumentNullException(nameof(timeProvider));
         }
 
+        if (logger is null)
+        {
+            throw new ArgumentNullException(nameof(logger));
+        }
+
         this.serviceProvider = serviceProvider;
         this.store = store;
         this.serializer = serializer;
         this.dispatchers = BuildDispatcherMap(dispatchers);
         this.options = options;
         this.timeProvider = timeProvider;
+        this.logger = logger;
     }
 
     public async ValueTask ProcessPendingAsync(CancellationToken cancellationToken = default)
@@ -88,17 +117,20 @@ public sealed class TinyOutboxProcessor : ITinyOutboxProcessor
         {
             throw;
         }
-        catch (TinyOutboxLeaseLostException)
+        catch (TinyOutboxLeaseLostException exception)
         {
+            LogLeaseLost(message, workerId, exception, "marked as processed");
         }
         catch (Exception exception)
         {
             try
             {
-                await MarkFailedAsync(message, workerId, exception, cancellationToken);
+                var failure = await MarkFailedAsync(message, workerId, exception, cancellationToken);
+                LogProcessingFailure(message, workerId, exception, failure);
             }
-            catch (TinyOutboxLeaseLostException)
+            catch (TinyOutboxLeaseLostException leaseLostException)
             {
+                LogLeaseLost(message, workerId, leaseLostException, "recording a processing failure");
             }
         }
     }
@@ -134,7 +166,7 @@ public sealed class TinyOutboxProcessor : ITinyOutboxProcessor
             cancellationToken);
     }
 
-    private async ValueTask MarkFailedAsync(
+    private async ValueTask<RecordedFailure> MarkFailedAsync(
         TinyOutboxMessage message,
         string workerId,
         Exception exception,
@@ -150,6 +182,8 @@ public sealed class TinyOutboxProcessor : ITinyOutboxProcessor
             attemptCount,
             nextAttemptAtUtc,
             cancellationToken);
+
+        return new RecordedFailure(attemptCount, nextAttemptAtUtc);
     }
 
     private DateTimeOffset? GetNextAttemptAtUtc(int attemptCount)
@@ -191,4 +225,39 @@ public sealed class TinyOutboxProcessor : ITinyOutboxProcessor
 
         dispatchers.Add(dispatcher.EventTypeName, dispatcher);
     }
+
+    private void LogProcessingFailure(
+        TinyOutboxMessage message,
+        string workerId,
+        Exception exception,
+        RecordedFailure failure)
+    {
+        logger.LogWarning(
+            exception,
+            "TinyEvents outbox message {MessageId} for event type {EventType} failed processing on worker {WorkerId} at attempt {AttemptCount}. Next attempt at {NextAttemptAtUtc}.",
+            message.Id,
+            message.EventType,
+            workerId,
+            failure.AttemptCount,
+            failure.NextAttemptAtUtc);
+    }
+
+    private void LogLeaseLost(
+        TinyOutboxMessage message,
+        string workerId,
+        TinyOutboxLeaseLostException exception,
+        string operation)
+    {
+        logger.LogWarning(
+            exception,
+            "TinyEvents outbox message {MessageId} for event type {EventType} lost its processing lease while {Operation} on worker {WorkerId}.",
+            message.Id,
+            message.EventType,
+            operation,
+            workerId);
+    }
+
+    private readonly record struct RecordedFailure(
+        int AttemptCount,
+        DateTimeOffset? NextAttemptAtUtc);
 }

@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Xunit;
 
 namespace TinyEvents.Tests;
@@ -175,6 +176,27 @@ public sealed class TinyOutboxProcessorTests
     }
 
     [Fact]
+    public async Task Process_pending_async_logs_recorded_processing_failure()
+    {
+        ThrowingConsumer.Throw = true;
+        var logger = new RecordingLogger<TinyOutboxProcessor>();
+        var store = new InMemoryTinyOutboxStore();
+        await store.AddAsync(NewPendingMessage(new UserCreated(Guid.NewGuid(), "user@example.com")), CancellationToken.None);
+        var processor = BuildProcessor(
+            store,
+            includeThrowingConsumer: true,
+            logger: logger);
+
+        await processor.ProcessPendingAsync();
+
+        var entry = Assert.Single(logger.Entries);
+        Assert.Equal(LogLevel.Warning, entry.LogLevel);
+        Assert.Contains("failed processing", entry.Message, StringComparison.Ordinal);
+        Assert.IsType<InvalidOperationException>(entry.Exception);
+        ThrowingConsumer.Throw = false;
+    }
+
+    [Fact]
     public async Task Process_pending_async_marks_processed_with_current_worker_id()
     {
         var eventInstance = new UserCreated(Guid.NewGuid(), "user@example.com");
@@ -300,29 +322,39 @@ public sealed class TinyOutboxProcessorTests
     public async Task Process_pending_async_continues_when_mark_processed_loses_lease()
     {
         RecordingConsumer.Consumed.Clear();
+        var logger = new RecordingLogger<TinyOutboxProcessor>();
         var firstMessage = NewProcessingMessage(new UserCreated(Guid.NewGuid(), "first@example.com"));
         var secondMessage = NewProcessingMessage(new UserCreated(Guid.NewGuid(), "second@example.com"));
         var store = new LeaseLostOnFirstProcessedStore(firstMessage, secondMessage);
-        var processor = BuildProcessor(store);
+        var processor = BuildProcessor(store, logger: logger);
 
         await processor.ProcessPendingAsync();
 
         Assert.Equal(2, RecordingConsumer.Consumed.Count);
         Assert.Equal(secondMessage.Id, Assert.Single(store.ProcessedMessageIds));
         Assert.Equal(0, store.MarkFailedCount);
+        Assert.Contains(logger.Entries, entry =>
+            entry.LogLevel == LogLevel.Warning
+            && entry.Message.Contains("lost its processing lease", StringComparison.Ordinal)
+            && entry.Exception is TinyOutboxLeaseLostException);
     }
 
     [Fact]
     public async Task Process_pending_async_continues_when_mark_failed_loses_lease()
     {
         ThrowingConsumer.Throw = true;
+        var logger = new RecordingLogger<TinyOutboxProcessor>();
         var message = NewProcessingMessage(new UserCreated(Guid.NewGuid(), "user@example.com"));
         var store = new LeaseLostOnFailedStore(message);
-        var processor = BuildProcessor(store, includeThrowingConsumer: true);
+        var processor = BuildProcessor(store, includeThrowingConsumer: true, logger: logger);
 
         await processor.ProcessPendingAsync();
 
         Assert.Equal(1, store.MarkFailedCount);
+        Assert.Contains(logger.Entries, entry =>
+            entry.LogLevel == LogLevel.Warning
+            && entry.Message.Contains("lost its processing lease", StringComparison.Ordinal)
+            && entry.Exception is TinyOutboxLeaseLostException);
         ThrowingConsumer.Throw = false;
     }
 
@@ -334,7 +366,8 @@ public sealed class TinyOutboxProcessorTests
         TimeProvider? timeProvider = null,
         string? workerId = "worker-1",
         int batchSize = 10,
-        TimeSpan? claimTimeout = null)
+        TimeSpan? claimTimeout = null,
+        ILogger<TinyOutboxProcessor>? logger = null)
     {
         var services = new ServiceCollection();
 
@@ -353,6 +386,11 @@ public sealed class TinyOutboxProcessorTests
             new TinyEventDispatcher<UserCreated>(typeof(UserCreated).FullName!));
         services.AddSingleton<ITinyOutboxProcessor, TinyOutboxProcessor>();
         services.AddSingleton<IEventConsumer<UserCreated>, RecordingConsumer>();
+
+        if (logger is not null)
+        {
+            services.AddSingleton(logger);
+        }
 
         if (includeSecondConsumer)
         {
@@ -701,4 +739,35 @@ public sealed class TinyOutboxProcessorTests
             throw new TinyOutboxLeaseLostException(messageId, workerId, "failed");
         }
     }
+
+    private sealed class RecordingLogger<T> : ILogger<T>
+    {
+        public List<LogEntry> Entries { get; } = new List<LogEntry>();
+
+        public IDisposable? BeginScope<TState>(TState state)
+            where TState : notnull
+        {
+            return null;
+        }
+
+        public bool IsEnabled(LogLevel logLevel)
+        {
+            return true;
+        }
+
+        public void Log<TState>(
+            LogLevel logLevel,
+            EventId eventId,
+            TState state,
+            Exception? exception,
+            Func<TState, Exception?, string> formatter)
+        {
+            Entries.Add(new LogEntry(logLevel, formatter(state, exception), exception));
+        }
+    }
+
+    private sealed record LogEntry(
+        LogLevel LogLevel,
+        string Message,
+        Exception? Exception);
 }
