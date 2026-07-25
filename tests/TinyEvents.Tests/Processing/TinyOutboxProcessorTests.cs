@@ -190,6 +190,8 @@ public sealed class TinyOutboxProcessorTests
         await processor.ProcessPendingAsync();
 
         var entry = Assert.Single(logger.Entries);
+        Assert.Equal(1202, entry.EventId.Id);
+        Assert.Equal("EventProcessingFailed", entry.EventId.Name);
         Assert.Equal(LogLevel.Warning, entry.LogLevel);
         Assert.Contains("failed processing", entry.Message, StringComparison.Ordinal);
         Assert.IsType<InvalidOperationException>(entry.Exception);
@@ -1003,11 +1005,12 @@ public sealed class TinyOutboxProcessorTests
             Exception? exception,
             Func<TState, Exception?, string> formatter)
         {
-            Entries.Add(new LogEntry(logLevel, formatter(state, exception), exception));
+            Entries.Add(new LogEntry(eventId, logLevel, formatter(state, exception), exception));
         }
     }
 
     private sealed record LogEntry(
+        EventId EventId,
         LogLevel LogLevel,
         string Message,
         Exception? Exception);

@@ -250,6 +250,19 @@ public sealed class TinyOutboxProcessor : ITinyOutboxProcessor
         Exception exception,
         RecordedFailure failure)
     {
+        if (failure.NextAttemptAtUtc is not null)
+        {
+            TinyOutboxProcessorLog.ProcessingFailed(
+                logger,
+                message.Id,
+                message.EventType,
+                workerId,
+                failure.AttemptCount,
+                failure.NextAttemptAtUtc.Value,
+                exception);
+            return;
+        }
+
         logger.LogWarning(
             exception,
             "TinyEvents outbox message {MessageId} for event type {EventType} failed processing on worker {WorkerId} at attempt {AttemptCount}. Next attempt at {NextAttemptAtUtc}.",
