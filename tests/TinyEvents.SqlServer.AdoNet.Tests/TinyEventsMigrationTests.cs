@@ -109,4 +109,85 @@ public sealed class TinyEventsMigrationTests
 
         Assert.Equal("sql", exception.ParamName);
     }
+
+    [Fact]
+    public void Constructor_rejects_a_zero_character_in_the_name()
+    {
+        var exception = Assert.Throws<ArgumentException>(
+            () => new TinyEventsMigration(1, "001_Create\0TinyOutbox", "SELECT 1;"));
+
+        Assert.Equal("name", exception.ParamName);
+    }
+
+    [Fact]
+    public void Constructor_rejects_a_zero_character_in_sql()
+    {
+        var exception = Assert.Throws<ArgumentException>(
+            () => new TinyEventsMigration(1, "001_CreateTinyOutbox", "SELECT\0 1;"));
+
+        Assert.Equal("sql", exception.ParamName);
+    }
+
+    [Theory]
+    [InlineData(
+        1,
+        "001_CreateTinyOutbox",
+        "CREATE TABLE TinyOutbox (Id uniqueidentifier NOT NULL);",
+        "1931843A5C9AE9A443970EAEC827D4F646C4ABDEB7DAAD0E9EE81C2002FE1BE0")]
+    [InlineData(
+        2,
+        "002_AddDeliveryPriority",
+        "ALTER TABLE TinyOutbox\r\nADD DeliveryPriority int NOT NULL;",
+        "C9BCFEA7FFE9741D1E8CFB8D7DA6BE2E32A5161CD4B725AD7E3B92B5708765A5")]
+    [InlineData(
+        1000,
+        "1000_ExampleFutureMigration",
+        "-- example\nSELECT 1;",
+        "9CCFB24B585C73C4FFE282D04937E00D28E114A589CBDCA9D2B464B61CB5EFE1")]
+    public void Checksum_matches_the_fixed_v1_vector(
+        long version,
+        string name,
+        string sql,
+        string expectedChecksum)
+    {
+        var migration = new TinyEventsMigration(version, name, sql);
+
+        Assert.Equal(expectedChecksum, migration.Checksum);
+        Assert.Equal(64, migration.Checksum.Length);
+    }
+
+    [Fact]
+    public void Checksum_changes_when_the_version_changes()
+    {
+        var migration = new TinyEventsMigration(1, "001_CreateTinyOutbox", "SELECT 1;");
+        var changedMigration = migration with { Version = 2 };
+
+        Assert.NotEqual(migration.Checksum, changedMigration.Checksum);
+    }
+
+    [Fact]
+    public void Checksum_changes_when_the_name_changes()
+    {
+        var migration = new TinyEventsMigration(1, "001_CreateTinyOutbox", "SELECT 1;");
+        var changedMigration = migration with { Name = "001_CreateOutbox" };
+
+        Assert.NotEqual(migration.Checksum, changedMigration.Checksum);
+    }
+
+    [Theory]
+    [InlineData("SELECT  1;")]
+    [InlineData("SELECT\n1;")]
+    [InlineData("SELECT\r\n1;")]
+    [InlineData("select 1;")]
+    [InlineData("-- comment\nSELECT 1;")]
+    public void Checksum_changes_when_sql_changes(string changedSql)
+    {
+        var migration = new TinyEventsMigration(1, "001_CreateTinyOutbox", "SELECT 1;");
+        var changedMigration = new TinyEventsMigration(
+            1,
+            "001_CreateTinyOutbox",
+            changedSql);
+
+        Assert.NotEqual(migration.Checksum, changedMigration.Checksum);
+    }
 }

@@ -1,9 +1,13 @@
 using System.Globalization;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace TinyEvents.Migrations;
 
 internal sealed record TinyEventsMigration
 {
+    private const string ChecksumDomain = "TinyEvents.Migrations.Checksum.v1";
+
     internal TinyEventsMigration(long version, string name, string sql)
     {
         if (version <= 0)
@@ -16,6 +20,20 @@ internal sealed record TinyEventsMigration
 
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentException.ThrowIfNullOrWhiteSpace(sql);
+
+        if (name.Contains('\0'))
+        {
+            throw new ArgumentException(
+                "A migration name cannot contain the zero character.",
+                nameof(name));
+        }
+
+        if (sql.Contains('\0'))
+        {
+            throw new ArgumentException(
+                "Migration SQL cannot contain the zero character.",
+                nameof(sql));
+        }
 
         var expectedNamePrefix = version.ToString("D3", CultureInfo.InvariantCulture) + "_";
 
@@ -55,6 +73,25 @@ internal sealed record TinyEventsMigration
     internal string Name { get; init; }
 
     internal string Sql { get; init; }
+
+    internal string Checksum
+    {
+        get
+        {
+            var version = Version.ToString(CultureInfo.InvariantCulture);
+            var checksumInput = string.Concat(
+                ChecksumDomain,
+                "\0",
+                version,
+                "\0",
+                Name,
+                "\0",
+                Sql);
+            var checksumBytes = Encoding.UTF8.GetBytes(checksumInput);
+
+            return Convert.ToHexString(SHA256.HashData(checksumBytes));
+        }
+    }
 
     private static bool IsAsciiLetter(char character)
     {
