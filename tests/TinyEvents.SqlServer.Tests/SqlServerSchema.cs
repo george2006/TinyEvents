@@ -3,6 +3,11 @@ namespace TinyEvents.SqlServer.Tests;
 public static class SqlServerSchema
 {
     public const string CreateSchemaSql = """
+        IF OBJECT_ID(N'dbo.TinyOutboxMigrations', N'U') IS NOT NULL
+        BEGIN
+            DROP TABLE dbo.TinyOutboxMigrations;
+        END;
+
         IF OBJECT_ID(N'dbo.Users', N'U') IS NOT NULL
         BEGIN
             DROP TABLE dbo.Users;
@@ -36,4 +41,3 @@ public static class SqlServerSchema
         );
         """;
 }
-
