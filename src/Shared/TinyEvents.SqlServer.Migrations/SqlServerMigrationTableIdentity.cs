@@ -9,9 +9,17 @@ internal sealed class SqlServerMigrationTableIdentity
         Schema = schema;
         OutboxTable = outboxTable;
         HistoryTable = outboxTable + "Migrations";
+        OutboxPrimaryKey = "PK_" + outboxTable;
+        PendingIndex = "IX_" + outboxTable + "_Pending";
+        ExpiredProcessingIndex = "IX_" + outboxTable + "_ExpiredProcessing";
+        ClaimedByIndex = "IX_" + outboxTable + "_ClaimedBy";
         HistoryPrimaryKey = "PK_" + HistoryTable;
 
         ValidateIdentifierLength(HistoryTable, "derived migration-history table");
+        ValidateIdentifierLength(OutboxPrimaryKey, "derived outbox primary key");
+        ValidateIdentifierLength(PendingIndex, "derived pending index");
+        ValidateIdentifierLength(ExpiredProcessingIndex, "derived expired-processing index");
+        ValidateIdentifierLength(ClaimedByIndex, "derived claimed-by index");
         ValidateIdentifierLength(HistoryPrimaryKey, "derived migration-history primary key");
     }
 
@@ -21,6 +29,14 @@ internal sealed class SqlServerMigrationTableIdentity
 
     internal string HistoryTable { get; }
 
+    internal string OutboxPrimaryKey { get; }
+
+    internal string PendingIndex { get; }
+
+    internal string ExpiredProcessingIndex { get; }
+
+    internal string ClaimedByIndex { get; }
+
     internal string HistoryPrimaryKey { get; }
 
     internal string QuotedSchema => Quote(Schema);
@@ -28,6 +44,14 @@ internal sealed class SqlServerMigrationTableIdentity
     internal string QuotedOutboxTable => $"{QuotedSchema}.{Quote(OutboxTable)}";
 
     internal string QuotedHistoryTable => $"{QuotedSchema}.{Quote(HistoryTable)}";
+
+    internal string QuotedOutboxPrimaryKey => Quote(OutboxPrimaryKey);
+
+    internal string QuotedPendingIndex => Quote(PendingIndex);
+
+    internal string QuotedExpiredProcessingIndex => Quote(ExpiredProcessingIndex);
+
+    internal string QuotedClaimedByIndex => Quote(ClaimedByIndex);
 
     internal string QuotedHistoryPrimaryKey => Quote(HistoryPrimaryKey);
 

@@ -1,0 +1,3 @@
+src/Shared/TinyEvents.Migrations/** text eol=lf
+src/Shared/TinyEvents.SqlServer.Migrations/** text eol=lf
+src/Shared/TinyEvents.PostgreSql.Migrations/** text eol=lf

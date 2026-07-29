@@ -13,6 +13,10 @@ public sealed class SqlServerMigrationTableIdentityTests
         Assert.Equal("dbo", identity.Schema);
         Assert.Equal("TinyOutbox", identity.OutboxTable);
         Assert.Equal("TinyOutboxMigrations", identity.HistoryTable);
+        Assert.Equal("PK_TinyOutbox", identity.OutboxPrimaryKey);
+        Assert.Equal("IX_TinyOutbox_Pending", identity.PendingIndex);
+        Assert.Equal("IX_TinyOutbox_ExpiredProcessing", identity.ExpiredProcessingIndex);
+        Assert.Equal("IX_TinyOutbox_ClaimedBy", identity.ClaimedByIndex);
         Assert.Equal("PK_TinyOutboxMigrations", identity.HistoryPrimaryKey);
         Assert.Equal("[dbo].[TinyOutbox]", identity.QuotedOutboxTable);
         Assert.Equal("[dbo].[TinyOutboxMigrations]", identity.QuotedHistoryTable);
@@ -54,14 +58,14 @@ public sealed class SqlServerMigrationTableIdentityTests
     }
 
     [Fact]
-    public void Parse_rejects_a_derived_primary_key_over_the_identifier_limit()
+    public void Parse_rejects_a_derived_outbox_index_over_the_identifier_limit()
     {
         var outboxTable = new string('A', 116);
 
         var exception = Assert.Throws<ArgumentException>(
             () => SqlServerMigrationTableIdentity.Parse(outboxTable));
 
-        Assert.Contains("migration-history primary key", exception.Message);
+        Assert.Contains("expired-processing index", exception.Message);
         Assert.Contains("128-character", exception.Message);
     }
 }
