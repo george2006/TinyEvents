@@ -50,11 +50,11 @@ internal sealed record TinyEventsMigration
         Sql = sql;
     }
 
-    internal long Version { get; }
+    internal long Version { get; init; }
 
-    internal string Name { get; }
+    internal string Name { get; init; }
 
-    internal string Sql { get; }
+    internal string Sql { get; init; }
 
     private static bool IsAsciiLetter(char character)
     {
