@@ -3,7 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using TinyEvents.SqlServer.AdoNet;
 using Xunit;
 
-namespace TinyEvents.SqlServer.Tests;
+namespace TinyEvents.SqlServer.AdoNet.Tests;
 
 public sealed class AdoNetSqlServerRuntimeTests : IClassFixture<SqlServerFixture>
 {

@@ -2,7 +2,7 @@ using Microsoft.Data.SqlClient;
 using Testcontainers.MsSql;
 using Xunit;
 
-namespace TinyEvents.SqlServer.Tests;
+namespace TinyEvents.SqlServer.Integration;
 
 public sealed class SqlServerFixture : IAsyncLifetime
 {

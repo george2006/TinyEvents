@@ -6,13 +6,13 @@ using TinyEvents.Migrations.SqlServer;
 using TinyEvents.SqlServer.AdoNet;
 using Xunit;
 
-namespace TinyEvents.SqlServer.Tests;
+namespace TinyEvents.SqlServer.AdoNet.Tests;
 
-public sealed class SqlServerTinyEventsMigratorTests : IClassFixture<SqlServerFixture>
+public sealed class SqlServerTinyEventsMigratorIntegrationTests : IClassFixture<SqlServerFixture>
 {
     private readonly SqlServerFixture fixture;
 
-    public SqlServerTinyEventsMigratorTests(SqlServerFixture fixture)
+    public SqlServerTinyEventsMigratorIntegrationTests(SqlServerFixture fixture)
     {
         this.fixture = fixture;
     }

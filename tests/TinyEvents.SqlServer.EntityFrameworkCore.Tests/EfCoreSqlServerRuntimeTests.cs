@@ -1,12 +1,12 @@
 using System.Data;
-using System.Reflection;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using TinyEvents.Migrations.SqlServer;
 using TinyEvents.SqlServer.EntityFrameworkCore;
 using Xunit;
 
-namespace TinyEvents.SqlServer.Tests;
+namespace TinyEvents.SqlServer.EntityFrameworkCore.Tests;
 
 public sealed class EfCoreSqlServerRuntimeTests : IClassFixture<SqlServerFixture>
 {
@@ -157,21 +157,13 @@ public sealed class EfCoreSqlServerRuntimeTests : IClassFixture<SqlServerFixture
             options => options.UseSqlServer(fixture.ConnectionString));
         services.UseSqlServerEntityFrameworkCoreOutbox<TestDbContext>(
             options => options.TableName = $"{schema}.Events");
-        var migratorServiceType = Assert.Single(
-            services,
-            descriptor => descriptor.ServiceType.Name == "SqlServerTinyEventsMigrator")
-            .ServiceType;
         using var provider = services.BuildServiceProvider();
         using var scope = provider.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<TestDbContext>();
-        var migrator = scope.ServiceProvider.GetRequiredService(migratorServiceType);
-        var migrateMethod = migratorServiceType.GetMethod(
-            "MigrateAsync",
-            BindingFlags.Instance | BindingFlags.NonPublic);
+        var migrator =
+            scope.ServiceProvider.GetRequiredService<SqlServerTinyEventsMigrator>();
 
-        var migrationTask = Assert.IsAssignableFrom<Task>(
-            migrateMethod!.Invoke(migrator, [CancellationToken.None]));
-        await migrationTask;
+        await migrator.MigrateAsync(CancellationToken.None);
 
         Assert.Equal(ConnectionState.Closed, dbContext.Database.GetDbConnection().State);
         await using var verificationConnection = new SqlConnection(fixture.ConnectionString);

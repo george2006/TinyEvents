@@ -1,6 +1,6 @@
 using Xunit;
 
-namespace TinyEvents.SqlServer.Tests;
+namespace TinyEvents.SqlServer.Integration;
 
 public sealed class SqlServerIntegrationFactAttribute : FactAttribute
 {
@@ -12,4 +12,3 @@ public sealed class SqlServerIntegrationFactAttribute : FactAttribute
         }
     }
 }
-

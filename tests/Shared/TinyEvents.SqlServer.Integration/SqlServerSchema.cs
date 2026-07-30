@@ -1,4 +1,4 @@
-namespace TinyEvents.SqlServer.Tests;
+namespace TinyEvents.SqlServer.Integration;
 
 public static class SqlServerSchema
 {
