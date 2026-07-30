@@ -1,3 +1,6 @@
+using System.Data;
+using System.Reflection;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using TinyEvents.SqlServer.EntityFrameworkCore;
@@ -126,6 +129,57 @@ public sealed class EfCoreSqlServerRuntimeTests : IClassFixture<SqlServerFixture
 
             Assert.Empty(claimed);
         }
+    }
+
+    [SqlServerIntegrationFact]
+    public async Task EF_registration_migrates_and_closes_the_scoped_DbContext_connection()
+    {
+        const string schema = "migrator_ef_adapter";
+        await using (var resetConnection = new SqlConnection(fixture.ConnectionString))
+        {
+            await resetConnection.OpenAsync();
+            await using var resetCommand = resetConnection.CreateCommand();
+            resetCommand.CommandText = $"""
+                IF SCHEMA_ID(N'{schema}') IS NOT NULL
+                BEGIN
+                    IF OBJECT_ID(N'{schema}.EventsMigrations', N'U') IS NOT NULL
+                        DROP TABLE [{schema}].[EventsMigrations];
+                    IF OBJECT_ID(N'{schema}.Events', N'U') IS NOT NULL
+                        DROP TABLE [{schema}].[Events];
+                    DROP SCHEMA [{schema}];
+                END;
+                """;
+            await resetCommand.ExecuteNonQueryAsync();
+        }
+
+        var services = new ServiceCollection();
+        services.AddDbContext<TestDbContext>(
+            options => options.UseSqlServer(fixture.ConnectionString));
+        services.UseSqlServerEntityFrameworkCoreOutbox<TestDbContext>(
+            options => options.TableName = $"{schema}.Events");
+        var migratorServiceType = Assert.Single(
+            services,
+            descriptor => descriptor.ServiceType.Name == "SqlServerTinyEventsMigrator")
+            .ServiceType;
+        using var provider = services.BuildServiceProvider();
+        using var scope = provider.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<TestDbContext>();
+        var migrator = scope.ServiceProvider.GetRequiredService(migratorServiceType);
+        var migrateMethod = migratorServiceType.GetMethod(
+            "MigrateAsync",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+
+        var migrationTask = Assert.IsAssignableFrom<Task>(
+            migrateMethod!.Invoke(migrator, [CancellationToken.None]));
+        await migrationTask;
+
+        Assert.Equal(ConnectionState.Closed, dbContext.Database.GetDbConnection().State);
+        await using var verificationConnection = new SqlConnection(fixture.ConnectionString);
+        await verificationConnection.OpenAsync();
+        await using var verificationCommand = verificationConnection.CreateCommand();
+        verificationCommand.CommandText =
+            $"SELECT COUNT(*) FROM [{schema}].[EventsMigrations];";
+        Assert.Equal(1, Convert.ToInt32(await verificationCommand.ExecuteScalarAsync()));
     }
 
     private ServiceProvider BuildServices()

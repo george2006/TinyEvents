@@ -15,9 +15,15 @@ internal sealed class SqlServerAdoNetMigrationConnectionFactory
             ?? throw new ArgumentNullException(nameof(workerConnectionFactory));
     }
 
-    public ValueTask<DbConnection> CreateOpenConnectionAsync(
+    public async ValueTask<SqlServerMigrationConnection> CreateOpenConnectionAsync(
         CancellationToken cancellationToken)
     {
-        return workerConnectionFactory.CreateOpenConnectionAsync(cancellationToken);
+        var connection =
+            await workerConnectionFactory.CreateOpenConnectionAsync(cancellationToken);
+
+        return new SqlServerMigrationConnection(
+            connection,
+            ownsConnection: true,
+            closeWhenDisposed: false);
     }
 }

@@ -41,8 +41,9 @@ internal sealed class SqlServerTinyEventsMigrator
 
     internal async Task MigrateAsync(CancellationToken cancellationToken)
     {
-        await using var connection =
+        await using var migrationConnection =
             await connectionFactory.CreateOpenConnectionAsync(cancellationToken);
+        var connection = migrationConnection.Connection;
         var history = new SqlServerMigrationHistory(tableIdentity, timeProvider);
         var migrationLock = new SqlServerMigrationLock(tableIdentity);
         var lockAcquired = false;

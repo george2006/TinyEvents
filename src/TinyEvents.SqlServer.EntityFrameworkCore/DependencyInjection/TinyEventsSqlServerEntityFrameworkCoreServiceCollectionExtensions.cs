@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using TinyEvents.Migrations.SqlServer;
 
 namespace TinyEvents.SqlServer.EntityFrameworkCore;
 
@@ -28,6 +29,14 @@ public static class TinyEventsSqlServerEntityFrameworkCoreServiceCollectionExten
             TinyEventsDatabaseProviderRegistrationGuard.SqlServerEntityFrameworkCore);
         services.UseTinyEvents();
         services.TryAddSingleton(options);
+        services.TryAddScoped<
+            ISqlServerMigrationConnectionFactory,
+            SqlServerEfCoreMigrationConnectionFactory<TDbContext>>();
+        services.TryAddScoped(serviceProvider =>
+            new SqlServerTinyEventsMigrator(
+                serviceProvider.GetRequiredService<ISqlServerMigrationConnectionFactory>(),
+                options.TableName,
+                serviceProvider.GetRequiredService<TimeProvider>()));
         services.Replace(ServiceDescriptor.Scoped<ITinyOutboxWriter, TinySqlServerEfCoreOutboxWriter<TDbContext>>());
         services.Replace(ServiceDescriptor.Scoped<ITinyOutboxStore, TinySqlServerEfCoreOutboxStore<TDbContext>>());
 

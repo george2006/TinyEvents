@@ -347,12 +347,15 @@ public sealed class SqlServerTinyEventsMigratorTests : IClassFixture<SqlServerFi
             this.connectionString = connectionString;
         }
 
-        public async ValueTask<DbConnection> CreateOpenConnectionAsync(
+        public async ValueTask<SqlServerMigrationConnection> CreateOpenConnectionAsync(
             CancellationToken cancellationToken)
         {
             var connection = new SqlConnection(connectionString);
             await connection.OpenAsync(cancellationToken);
-            return connection;
+            return new SqlServerMigrationConnection(
+                connection,
+                ownsConnection: true,
+                closeWhenDisposed: false);
         }
     }
 

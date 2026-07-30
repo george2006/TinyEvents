@@ -4,6 +4,6 @@ namespace TinyEvents.Migrations.SqlServer;
 
 internal interface ISqlServerMigrationConnectionFactory
 {
-    ValueTask<DbConnection> CreateOpenConnectionAsync(
+    ValueTask<SqlServerMigrationConnection> CreateOpenConnectionAsync(
         CancellationToken cancellationToken);
 }
