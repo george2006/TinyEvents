@@ -1,7 +1,9 @@
 using System.Data.Common;
+using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
 using TinyEvents.Migrations;
 using TinyEvents.Migrations.PostgreSql;
+using TinyEvents.PostgreSql.AdoNet;
 using Xunit;
 
 namespace TinyEvents.PostgreSql.AdoNet.Tests;
@@ -169,6 +171,42 @@ public sealed class PostgreSqlTinyEventsMigratorIntegrationTests
 
         Assert.Single(await ReadHistoryAsync(schema));
         Assert.True(await TableExistsAsync(schema, "Events"));
+    }
+
+    [PostgreSqlIntegrationFact]
+    public async Task ADO_NET_registration_reuses_factory_and_disposes_connection()
+    {
+        const string schema = "MigratorAdoAdapter";
+        await ResetSchemaAsync(schema);
+        var factoryCalls = 0;
+        NpgsqlConnection? migrationConnection = null;
+        var services = new ServiceCollection();
+        services.UsePostgreSqlAdoNetOutbox(options =>
+        {
+            options.TableName = $"{schema}.Events";
+            options.UseWorkerConnectionFactory(
+                async (_, cancellationToken) =>
+                {
+                    factoryCalls++;
+                    migrationConnection =
+                        new NpgsqlConnection(fixture.ConnectionString);
+                    await migrationConnection.OpenAsync(cancellationToken);
+                    return migrationConnection;
+                });
+        });
+        using var provider = services.BuildServiceProvider();
+        using var scope = provider.CreateScope();
+        var migrator = scope.ServiceProvider
+            .GetRequiredService<PostgreSqlTinyEventsMigrator>();
+
+        await migrator.MigrateAsync(CancellationToken.None);
+
+        Assert.Equal(1, factoryCalls);
+        Assert.NotNull(migrationConnection);
+        Assert.Equal(
+            System.Data.ConnectionState.Closed,
+            migrationConnection.State);
+        Assert.Single(await ReadHistoryAsync(schema));
     }
 
     private PostgreSqlTinyEventsMigrator Migrator(

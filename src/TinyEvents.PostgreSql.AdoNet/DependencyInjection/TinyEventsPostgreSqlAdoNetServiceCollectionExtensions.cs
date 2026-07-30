@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using TinyEvents.Migrations.PostgreSql;
 
 namespace TinyEvents.PostgreSql.AdoNet;
 
@@ -32,6 +33,12 @@ public static class TinyEventsPostgreSqlAdoNetServiceCollectionExtensions
         services.UseTinyEvents();
         services.TryAddSingleton(options);
         services.TryAddScoped<ITinyPostgreSqlAdoNetWorkerConnectionFactory, TinyPostgreSqlAdoNetWorkerConnectionFactory>();
+        services.TryAddScoped<IPostgreSqlMigrationConnectionFactory, PostgreSqlAdoNetMigrationConnectionFactory>();
+        services.TryAddScoped(serviceProvider =>
+            new PostgreSqlTinyEventsMigrator(
+                serviceProvider.GetRequiredService<IPostgreSqlMigrationConnectionFactory>(),
+                options.TableName,
+                serviceProvider.GetRequiredService<TimeProvider>()));
         services.Replace(ServiceDescriptor.Scoped<ITinyOutboxWriter, TinyPostgreSqlAdoNetOutboxWriter>());
         services.Replace(ServiceDescriptor.Scoped<ITinyOutboxStore, TinyPostgreSqlAdoNetOutboxStore>());
 

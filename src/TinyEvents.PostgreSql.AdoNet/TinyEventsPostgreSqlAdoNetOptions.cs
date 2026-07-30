@@ -52,7 +52,9 @@ public sealed class TinyEventsPostgreSqlAdoNetOptions
         if (workerConnectionFactory is null)
         {
             throw new InvalidOperationException(
-                "An ADO.NET worker connection factory is required. Configure UseWorkerConnectionFactory(...) for outbox claiming and marking operations.");
+                "An ADO.NET connection factory is required for outbox worker " +
+                "operations and TinyEvents migrations. Configure " +
+                "UseWorkerConnectionFactory(...).");
         }
     }
 }
