@@ -1,6 +1,6 @@
 using Xunit;
 
-namespace TinyEvents.PostgreSql.Tests;
+namespace TinyEvents.PostgreSql.Integration;
 
 public sealed class PostgreSqlIntegrationFactAttribute : FactAttribute
 {

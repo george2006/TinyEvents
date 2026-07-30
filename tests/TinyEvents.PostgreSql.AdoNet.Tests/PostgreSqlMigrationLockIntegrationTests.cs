@@ -2,14 +2,14 @@ using Npgsql;
 using TinyEvents.Migrations.PostgreSql;
 using Xunit;
 
-namespace TinyEvents.PostgreSql.Tests;
+namespace TinyEvents.PostgreSql.AdoNet.Tests;
 
 [Collection(PostgreSqlIntegrationCollection.Name)]
-public sealed class PostgreSqlMigrationLockTests
+public sealed class PostgreSqlMigrationLockIntegrationTests
 {
     private readonly PostgreSqlFixture fixture;
 
-    public PostgreSqlMigrationLockTests(PostgreSqlFixture fixture)
+    public PostgreSqlMigrationLockIntegrationTests(PostgreSqlFixture fixture)
     {
         this.fixture = fixture;
     }

@@ -4,7 +4,7 @@ using Npgsql;
 using TinyEvents.PostgreSql.AdoNet;
 using Xunit;
 
-namespace TinyEvents.PostgreSql.Tests;
+namespace TinyEvents.PostgreSql.AdoNet.Tests;
 
 [Collection(PostgreSqlIntegrationCollection.Name)]
 public sealed class AdoNetPostgreSqlEndToEndRuntimeTests

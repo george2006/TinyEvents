@@ -2,7 +2,7 @@ using Npgsql;
 using Testcontainers.PostgreSql;
 using Xunit;
 
-namespace TinyEvents.PostgreSql.Tests;
+namespace TinyEvents.PostgreSql.Integration;
 
 public sealed class PostgreSqlFixture : IAsyncLifetime
 {

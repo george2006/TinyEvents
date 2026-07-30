@@ -4,7 +4,7 @@ using Npgsql;
 using TinyEvents.PostgreSql.EntityFrameworkCore;
 using Xunit;
 
-namespace TinyEvents.PostgreSql.Tests;
+namespace TinyEvents.PostgreSql.EntityFrameworkCore.Tests;
 
 [Collection(PostgreSqlIntegrationCollection.Name)]
 public sealed class EfCorePostgreSqlWriterRuntimeTests

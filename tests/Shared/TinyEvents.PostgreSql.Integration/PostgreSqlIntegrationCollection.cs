@@ -1,6 +1,6 @@
 using Xunit;
 
-namespace TinyEvents.PostgreSql.Tests;
+namespace TinyEvents.PostgreSql.Integration;
 
 [CollectionDefinition(Name)]
 public sealed class PostgreSqlIntegrationCollection : ICollectionFixture<PostgreSqlFixture>

@@ -1,7 +1,7 @@
 using Npgsql;
 using Xunit;
 
-namespace TinyEvents.PostgreSql.Tests;
+namespace TinyEvents.PostgreSql.AdoNet.Tests;
 
 [Collection(PostgreSqlIntegrationCollection.Name)]
 public sealed class PostgreSqlContainerTests

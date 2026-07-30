@@ -1,4 +1,4 @@
-namespace TinyEvents.PostgreSql.Tests;
+namespace TinyEvents.PostgreSql.Integration;
 
 public static class PostgreSqlIntegrationSettings
 {

@@ -3,14 +3,14 @@ using TinyEvents.Migrations;
 using TinyEvents.Migrations.PostgreSql;
 using Xunit;
 
-namespace TinyEvents.PostgreSql.Tests;
+namespace TinyEvents.PostgreSql.AdoNet.Tests;
 
 [Collection(PostgreSqlIntegrationCollection.Name)]
-public sealed class PostgreSqlMigrationHistoryTests
+public sealed class PostgreSqlMigrationHistoryIntegrationTests
 {
     private readonly PostgreSqlFixture fixture;
 
-    public PostgreSqlMigrationHistoryTests(PostgreSqlFixture fixture)
+    public PostgreSqlMigrationHistoryIntegrationTests(PostgreSqlFixture fixture)
     {
         this.fixture = fixture;
     }
