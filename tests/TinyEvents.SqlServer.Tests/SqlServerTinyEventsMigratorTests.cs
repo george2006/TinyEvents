@@ -1,7 +1,9 @@
 using System.Data.Common;
 using Microsoft.Data.SqlClient;
+using Microsoft.Extensions.DependencyInjection;
 using TinyEvents.Migrations;
 using TinyEvents.Migrations.SqlServer;
+using TinyEvents.SqlServer.AdoNet;
 using Xunit;
 
 namespace TinyEvents.SqlServer.Tests;
@@ -161,6 +163,38 @@ public sealed class SqlServerTinyEventsMigratorTests : IClassFixture<SqlServerFi
 
         Assert.Single(await ReadHistoryAsync(schema));
         Assert.True(await TableExistsAsync(schema, "Events"));
+    }
+
+    [SqlServerIntegrationFact]
+    public async Task ADO_NET_registration_reuses_the_worker_factory_and_disposes_its_connection()
+    {
+        const string schema = "migrator_ado_adapter";
+        await ResetSchemaAsync(schema);
+        var factoryCalls = 0;
+        SqlConnection? migrationConnection = null;
+        var services = new ServiceCollection();
+        services.UseSqlServerAdoNetOutbox(options =>
+        {
+            options.TableName = $"{schema}.Events";
+            options.UseWorkerConnectionFactory(async (_, cancellationToken) =>
+            {
+                factoryCalls++;
+                migrationConnection = new SqlConnection(fixture.ConnectionString);
+                await migrationConnection.OpenAsync(cancellationToken);
+                return migrationConnection;
+            });
+        });
+        using var provider = services.BuildServiceProvider();
+        using var scope = provider.CreateScope();
+        var migrator =
+            scope.ServiceProvider.GetRequiredService<SqlServerTinyEventsMigrator>();
+
+        await migrator.MigrateAsync(CancellationToken.None);
+
+        Assert.Equal(1, factoryCalls);
+        Assert.NotNull(migrationConnection);
+        Assert.Equal(System.Data.ConnectionState.Closed, migrationConnection.State);
+        Assert.Single(await ReadHistoryAsync(schema));
     }
 
     private SqlServerTinyEventsMigrator Migrator(

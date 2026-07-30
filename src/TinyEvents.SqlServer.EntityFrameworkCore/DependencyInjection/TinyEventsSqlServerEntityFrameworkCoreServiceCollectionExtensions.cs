@@ -16,9 +16,16 @@ public static class TinyEventsSqlServerEntityFrameworkCoreServiceCollectionExten
             throw new ArgumentNullException(nameof(services));
         }
 
+        TinyEventsDatabaseProviderRegistrationGuard.EnsureCanRegister(
+            services,
+            TinyEventsDatabaseProviderRegistrationGuard.SqlServerEntityFrameworkCore);
+
         var options = new TinyEventsSqlServerEntityFrameworkCoreOptions();
         configure?.Invoke(options);
 
+        TinyEventsDatabaseProviderRegistrationGuard.Register(
+            services,
+            TinyEventsDatabaseProviderRegistrationGuard.SqlServerEntityFrameworkCore);
         services.UseTinyEvents();
         services.TryAddSingleton(options);
         services.Replace(ServiceDescriptor.Scoped<ITinyOutboxWriter, TinySqlServerEfCoreOutboxWriter<TDbContext>>());

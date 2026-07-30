@@ -19,9 +19,16 @@ public static class TinyEventsPostgreSqlAdoNetServiceCollectionExtensions
             throw new ArgumentNullException(nameof(configure));
         }
 
+        TinyEventsDatabaseProviderRegistrationGuard.EnsureCanRegister(
+            services,
+            TinyEventsDatabaseProviderRegistrationGuard.PostgreSqlAdoNet);
+
         var options = new TinyEventsPostgreSqlAdoNetOptions();
         configure(options);
 
+        TinyEventsDatabaseProviderRegistrationGuard.Register(
+            services,
+            TinyEventsDatabaseProviderRegistrationGuard.PostgreSqlAdoNet);
         services.UseTinyEvents();
         services.TryAddSingleton(options);
         services.TryAddScoped<ITinyPostgreSqlAdoNetWorkerConnectionFactory, TinyPostgreSqlAdoNetWorkerConnectionFactory>();

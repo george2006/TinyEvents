@@ -16,9 +16,16 @@ public static class TinyEventsPostgreSqlEntityFrameworkCoreServiceCollectionExte
             throw new ArgumentNullException(nameof(services));
         }
 
+        TinyEventsDatabaseProviderRegistrationGuard.EnsureCanRegister(
+            services,
+            TinyEventsDatabaseProviderRegistrationGuard.PostgreSqlEntityFrameworkCore);
+
         var options = new TinyEventsPostgreSqlEntityFrameworkCoreOptions();
         configure?.Invoke(options);
 
+        TinyEventsDatabaseProviderRegistrationGuard.Register(
+            services,
+            TinyEventsDatabaseProviderRegistrationGuard.PostgreSqlEntityFrameworkCore);
         services.UseTinyEvents();
         services.TryAddSingleton(options);
         services.Replace(ServiceDescriptor.Scoped<ITinyOutboxWriter, TinyPostgreSqlEfCoreOutboxWriter<TDbContext>>());
