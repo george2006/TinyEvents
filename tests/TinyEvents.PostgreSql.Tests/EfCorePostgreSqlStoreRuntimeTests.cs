@@ -176,11 +176,29 @@ public sealed class EfCorePostgreSqlStoreRuntimeTests
         return new TestDbContext(options);
     }
 
-    private static TinyPostgreSqlEfCoreOutboxStore<TestDbContext> NewStore(TestDbContext dbContext)
+    private static ITinyOutboxStore NewStore(TestDbContext dbContext)
     {
-        return new TinyPostgreSqlEfCoreOutboxStore<TestDbContext>(
-            dbContext,
-            new TinyEventsPostgreSqlEntityFrameworkCoreOptions());
+        var openStoreType = typeof(TinyEventsModelBuilderExtensions)
+            .Assembly
+            .GetType(
+                "TinyEvents.PostgreSql.EntityFrameworkCore." +
+                "TinyPostgreSqlEfCoreOutboxStore`1",
+                throwOnError: true)!;
+        var storeType = openStoreType.MakeGenericType(typeof(TestDbContext));
+
+        return Assert.IsAssignableFrom<ITinyOutboxStore>(
+            Activator.CreateInstance(
+                storeType,
+                System.Reflection.BindingFlags.Instance |
+                System.Reflection.BindingFlags.Public |
+                System.Reflection.BindingFlags.NonPublic,
+                binder: null,
+                args:
+                [
+                    dbContext,
+                    new TinyEventsPostgreSqlEntityFrameworkCoreOptions()
+                ],
+                culture: null));
     }
 
     private async Task InsertOutboxMessageAsync(

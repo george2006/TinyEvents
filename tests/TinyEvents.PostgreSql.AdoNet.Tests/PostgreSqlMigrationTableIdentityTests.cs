@@ -37,6 +37,18 @@ public sealed class PostgreSqlMigrationTableIdentityTests
     }
 
     [Fact]
+    public void Parse_validates_migration_001_index_names_before_execution()
+    {
+        var table = new string('a', 50);
+
+        var exception = Assert.Throws<ArgumentException>(
+            () => PostgreSqlMigrationTableIdentity.Parse(table));
+
+        Assert.Contains("derived expired-processing index", exception.Message);
+        Assert.Contains("63-byte identifier limit", exception.Message);
+    }
+
+    [Fact]
     public void Parse_measures_the_identifier_limit_in_utf8_bytes()
     {
         var table = new string('\u00E9', 32);

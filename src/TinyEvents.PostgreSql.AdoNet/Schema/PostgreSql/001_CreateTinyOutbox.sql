@@ -2,7 +2,8 @@ CREATE SCHEMA IF NOT EXISTS "public";
 
 CREATE TABLE IF NOT EXISTS "public"."TinyOutbox"
 (
-    "Id" uuid NOT NULL CONSTRAINT "PK_TinyOutbox" PRIMARY KEY,
+    "Id" uuid NOT NULL
+        CONSTRAINT "PK_TinyOutbox" PRIMARY KEY,
     "EventType" text NOT NULL,
     "Payload" text NOT NULL,
     "Status" integer NOT NULL,
