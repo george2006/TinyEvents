@@ -28,7 +28,10 @@ internal sealed class SqlServerMigrationHistory
 
         try
         {
-            if (!await SchemaExistsAsync(connection, transaction, cancellationToken))
+            var schemaExists =
+                await SchemaExistsAsync(connection, transaction, cancellationToken);
+
+            if (!schemaExists)
             {
                 await using var createCommand = connection.CreateCommand();
                 createCommand.Transaction = transaction;
@@ -67,7 +70,13 @@ internal sealed class SqlServerMigrationHistory
 
         try
         {
-            if (!await HistoryTableExistsAsync(connection, transaction, cancellationToken))
+            var historyTableExists =
+                await HistoryTableExistsAsync(
+                    connection,
+                    transaction,
+                    cancellationToken);
+
+            if (!historyTableExists)
             {
                 await using var command = connection.CreateCommand();
                 command.Transaction = transaction;

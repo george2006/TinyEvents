@@ -57,14 +57,21 @@ internal sealed class SqlServerTinyEventsMigrator
             var historyExisted = await history.ExistsAsync(connection, cancellationToken);
             await history.EnsureExistsAsync(connection, cancellationToken);
 
-            if (!historyExisted &&
-                await history.OutboxTableExistsAsync(connection, cancellationToken))
+            if (!historyExisted)
             {
-                await RecordAlphaBaselineAsync(
-                    connection,
-                    history,
-                    catalog.Migrations[0],
-                    cancellationToken);
+                var outboxTableExists =
+                    await history.OutboxTableExistsAsync(
+                        connection,
+                        cancellationToken);
+
+                if (outboxTableExists)
+                {
+                    await RecordAlphaBaselineAsync(
+                        connection,
+                        history,
+                        catalog.Migrations[0],
+                        cancellationToken);
+                }
             }
 
             var appliedMigrations = await history.ReadAsync(connection, cancellationToken);

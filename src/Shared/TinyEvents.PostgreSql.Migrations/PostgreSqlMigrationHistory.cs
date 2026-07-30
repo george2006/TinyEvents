@@ -27,7 +27,13 @@ internal sealed class PostgreSqlMigrationHistory
 
         try
         {
-            if (!await SchemaExistsAsync(connection, transaction, cancellationToken))
+            var schemaExists =
+                await SchemaExistsAsync(
+                    connection,
+                    transaction,
+                    cancellationToken);
+
+            if (!schemaExists)
             {
                 await using var command = connection.CreateCommand();
                 command.Transaction = transaction;
@@ -65,11 +71,14 @@ internal sealed class PostgreSqlMigrationHistory
 
         try
         {
-            if (!await TableExistsAsync(
+            var historyTableExists =
+                await TableExistsAsync(
                     connection,
                     transaction,
                     tableIdentity.HistoryTable,
-                    cancellationToken))
+                    cancellationToken);
+
+            if (!historyTableExists)
             {
                 await using var command = connection.CreateCommand();
                 command.Transaction = transaction;
