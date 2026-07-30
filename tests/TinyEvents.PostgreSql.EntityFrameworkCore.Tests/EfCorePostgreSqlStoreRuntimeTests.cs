@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
+using TinyEvents.Migrations.PostgreSql;
 using TinyEvents.PostgreSql.EntityFrameworkCore;
 using Xunit;
 
@@ -182,6 +183,50 @@ public sealed class EfCorePostgreSqlStoreRuntimeTests
         return new TinyPostgreSqlEfCoreOutboxStore<TestDbContext>(
             dbContext,
             new TinyEventsPostgreSqlEntityFrameworkCoreOptions());
+    }
+
+    [PostgreSqlIntegrationFact]
+    public async Task EF_registration_migrates_and_closes_DbContext_connection()
+    {
+        const string schema = "MigratorEfAdapter";
+        await using (var resetConnection =
+            new NpgsqlConnection(fixture.ConnectionString))
+        {
+            await resetConnection.OpenAsync();
+            await using var resetCommand = resetConnection.CreateCommand();
+            resetCommand.CommandText =
+                $"DROP SCHEMA IF EXISTS \"{schema}\" CASCADE;";
+            await resetCommand.ExecuteNonQueryAsync();
+        }
+
+        var services = new ServiceCollection();
+        services.AddDbContext<TestDbContext>(
+            options => options.UseNpgsql(fixture.ConnectionString));
+        services.UsePostgreSqlEntityFrameworkCoreOutbox<TestDbContext>(
+            options => options.TableName = $"{schema}.Events");
+        using var provider = services.BuildServiceProvider();
+        using var scope = provider.CreateScope();
+        var dbContext =
+            scope.ServiceProvider.GetRequiredService<TestDbContext>();
+        var migrator = scope.ServiceProvider
+            .GetRequiredService<PostgreSqlTinyEventsMigrator>();
+
+        await migrator.MigrateAsync(CancellationToken.None);
+
+        Assert.Equal(
+            System.Data.ConnectionState.Closed,
+            dbContext.Database.GetDbConnection().State);
+        await using var verificationConnection =
+            new NpgsqlConnection(fixture.ConnectionString);
+        await verificationConnection.OpenAsync();
+        await using var verificationCommand =
+            verificationConnection.CreateCommand();
+        verificationCommand.CommandText =
+            $"SELECT COUNT(*) FROM \"{schema}\".\"EventsMigrations\";";
+        Assert.Equal(
+            1L,
+            Assert.IsType<long>(
+                await verificationCommand.ExecuteScalarAsync()));
     }
 
     private async Task InsertOutboxMessageAsync(
