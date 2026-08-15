@@ -53,7 +53,7 @@ protected override void OnModelCreating(ModelBuilder modelBuilder)
 }
 ```
 
-The provider option controls SQL claiming and marking. The model builder extension controls EF mapping and migrations.
+The provider option controls SQL claiming and marking. The model builder extension controls EF model mapping.
 
 The SQL Server mapping uses `NVARCHAR(512)` for `EventType`, `NVARCHAR(MAX)` for `Payload`, `NVARCHAR(256)` for `ClaimedBy`, and `NVARCHAR(MAX)` for `LastError`.
 
@@ -80,11 +80,17 @@ The hosted worker creates a fresh scope for each processing iteration, so claim 
 
 ## Migrations
 
-Use normal EF Core migrations:
+After building the host, explicitly run the built-in SQL Server migrations:
 
-```bash
-dotnet ef migrations add AddTinyEventsOutbox
-dotnet ef database update
+```csharp
+using TinyEvents;
+
+var host = builder.Build();
+
+await host.Services.MigrateTinyEventsAsync();
+await host.RunAsync();
 ```
 
-TinyEvents provides mapping. Your application owns migration generation and execution.
+The migrator borrows the scoped `DbContext` connection, opens and closes it only when needed, and never disposes the context or connection. The default history table is `dbo.TinyOutboxMigrations`; custom outbox tables derive their history table in the same schema.
+
+TinyEvents does not migrate automatically during registration or worker startup.

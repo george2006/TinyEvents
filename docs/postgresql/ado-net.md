@@ -79,9 +79,24 @@ options.UseCurrentTransaction(sp =>
 });
 ```
 
-## Schema Script
+## Migrations
 
-For code-based migration runners:
+After building the host, explicitly run the built-in migrations:
+
+```csharp
+using TinyEvents;
+
+var host = builder.Build();
+
+await host.Services.MigrateTinyEventsAsync();
+await host.RunAsync();
+```
+
+Migration execution uses the configured worker connection factory. It creates and disposes a dedicated connection; it never uses the application publishing transaction.
+
+The default history table is `public.TinyOutboxMigrations`. Custom outbox tables derive their history table in the same schema.
+
+The SQL helper remains available as a compatibility asset:
 
 ```csharp
 var sql = TinyPostgreSqlAdoNetSchema.CreateOutboxSql();
@@ -93,10 +108,12 @@ For custom tables:
 var sql = TinyPostgreSqlAdoNetSchema.CreateOutboxSql("app.MyOutbox");
 ```
 
-The package also includes the default PostgreSQL script:
+The package also includes the legacy default PostgreSQL script:
 
 ```text
 schema/postgresql/001_CreateTinyOutbox.sql
 ```
 
 The default PostgreSQL schema uses `text` for `EventType`, `Payload`, `ClaimedBy`, and `LastError`.
+
+TinyEvents does not migrate automatically during registration or worker startup.

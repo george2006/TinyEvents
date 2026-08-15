@@ -79,9 +79,24 @@ options.UseCurrentTransaction(sp =>
 });
 ```
 
-## Schema Script
+## Migrations
 
-For code-based migration runners:
+After building the host, explicitly run the built-in migrations:
+
+```csharp
+using TinyEvents;
+
+var host = builder.Build();
+
+await host.Services.MigrateTinyEventsAsync();
+await host.RunAsync();
+```
+
+Migration execution uses the configured worker connection factory. It creates and disposes a dedicated connection; it never uses the application publishing transaction.
+
+The default history table is `dbo.TinyOutboxMigrations`. Custom outbox tables derive their history table in the same schema.
+
+The SQL helper remains available as a compatibility asset:
 
 ```csharp
 var sql = TinySqlServerAdoNetSchema.CreateOutboxSql();
@@ -93,10 +108,12 @@ For custom tables:
 var sql = TinySqlServerAdoNetSchema.CreateOutboxSql("app.MyOutbox");
 ```
 
-The package also includes the default SQL Server script:
+The package also includes the legacy default SQL Server script:
 
 ```text
 schema/sqlserver/001_CreateTinyOutbox.sql
 ```
 
 The default SQL Server schema uses `NVARCHAR(512)` for `EventType`, `NVARCHAR(MAX)` for `Payload`, `NVARCHAR(256)` for `ClaimedBy`, and `NVARCHAR(MAX)` for `LastError`.
+
+TinyEvents does not migrate automatically during registration or worker startup.

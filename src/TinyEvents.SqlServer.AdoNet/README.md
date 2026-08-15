@@ -43,9 +43,24 @@ TinyEvents does not open, begin, commit, roll back, or dispose the application t
 
 Worker connections returned by `UseWorkerConnectionFactory(...)` are owned by TinyEvents for that worker operation and may be disposed after use.
 
-## Schema
+## Migrations
 
-Apply the SQL Server schema with your migration tool of choice:
+After building the host, explicitly apply the built-in SQL Server migrations before starting it:
+
+```csharp
+using TinyEvents;
+
+var host = builder.Build();
+
+await host.Services.MigrateTinyEventsAsync();
+await host.RunAsync();
+```
+
+The migrator uses `UseWorkerConnectionFactory(...)` to create a dedicated connection and disposes it after the operation. The factory is therefore required for both worker processing and migration execution.
+
+The default tables are `dbo.TinyOutbox` and `dbo.TinyOutboxMigrations`. A custom outbox such as `app.MyOutbox` uses `app.MyOutboxMigrations`.
+
+The SQL helper remains available as a compatibility asset:
 
 ```csharp
 var sql = TinySqlServerAdoNetSchema.CreateOutboxSql();
@@ -57,13 +72,15 @@ For custom tables:
 var sql = TinySqlServerAdoNetSchema.CreateOutboxSql("app.MyOutbox");
 ```
 
-The package also includes the default SQL Server script:
+The package also includes the legacy default SQL Server script:
 
 ```text
 schema/sqlserver/001_CreateTinyOutbox.sql
 ```
 
 The default table is `dbo.TinyOutbox`.
+
+TinyEvents never applies migrations automatically during service registration or worker startup.
 
 ## More Documentation
 
