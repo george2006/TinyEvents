@@ -2,7 +2,7 @@ using System.Data.Common;
 
 namespace TinyEvents.Migrations.SqlServer;
 
-internal sealed class SqlServerTinyEventsMigrator
+internal sealed class SqlServerTinyEventsMigrator : ITinyEventsMigrator
 {
     private readonly ISqlServerMigrationConnectionFactory connectionFactory;
     private readonly SqlServerMigrationTableIdentity tableIdentity;
@@ -95,6 +95,11 @@ internal sealed class SqlServerTinyEventsMigrator
                 await migrationLock.ReleaseAsync(connection, CancellationToken.None);
             }
         }
+    }
+
+    Task ITinyEventsMigrator.MigrateAsync(CancellationToken cancellationToken)
+    {
+        return MigrateAsync(cancellationToken);
     }
 
     private static async Task RecordAlphaBaselineAsync(

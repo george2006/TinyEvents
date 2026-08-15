@@ -39,6 +39,8 @@ public static class TinyEventsSqlServerAdoNetServiceCollectionExtensions
                 serviceProvider.GetRequiredService<ISqlServerMigrationConnectionFactory>(),
                 options.TableName,
                 serviceProvider.GetRequiredService<TimeProvider>()));
+        services.TryAddScoped<ITinyEventsMigrator>(serviceProvider =>
+            serviceProvider.GetRequiredService<SqlServerTinyEventsMigrator>());
         services.Replace(ServiceDescriptor.Scoped<ITinyOutboxWriter, TinySqlServerAdoNetOutboxWriter>());
         services.Replace(ServiceDescriptor.Scoped<ITinyOutboxStore, TinySqlServerAdoNetOutboxStore>());
 

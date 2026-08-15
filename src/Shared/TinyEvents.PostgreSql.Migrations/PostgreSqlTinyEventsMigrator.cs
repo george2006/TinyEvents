@@ -2,7 +2,7 @@ using System.Data.Common;
 
 namespace TinyEvents.Migrations.PostgreSql;
 
-internal sealed class PostgreSqlTinyEventsMigrator
+internal sealed class PostgreSqlTinyEventsMigrator : ITinyEventsMigrator
 {
     private readonly IPostgreSqlMigrationConnectionFactory connectionFactory;
     private readonly PostgreSqlMigrationTableIdentity tableIdentity;
@@ -103,6 +103,11 @@ internal sealed class PostgreSqlTinyEventsMigrator
                     CancellationToken.None);
             }
         }
+    }
+
+    Task ITinyEventsMigrator.MigrateAsync(CancellationToken cancellationToken)
+    {
+        return MigrateAsync(cancellationToken);
     }
 
     private static async Task RecordAlphaBaselineAsync(

@@ -37,6 +37,8 @@ public static class TinyEventsPostgreSqlEntityFrameworkCoreServiceCollectionExte
                 serviceProvider.GetRequiredService<IPostgreSqlMigrationConnectionFactory>(),
                 options.TableName,
                 serviceProvider.GetRequiredService<TimeProvider>()));
+        services.TryAddScoped<ITinyEventsMigrator>(serviceProvider =>
+            serviceProvider.GetRequiredService<PostgreSqlTinyEventsMigrator>());
         services.Replace(ServiceDescriptor.Scoped<ITinyOutboxWriter, TinyPostgreSqlEfCoreOutboxWriter<TDbContext>>());
         services.Replace(ServiceDescriptor.Scoped<ITinyOutboxStore, TinyPostgreSqlEfCoreOutboxStore<TDbContext>>());
 

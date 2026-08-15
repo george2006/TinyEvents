@@ -37,6 +37,8 @@ public static class TinyEventsSqlServerEntityFrameworkCoreServiceCollectionExten
                 serviceProvider.GetRequiredService<ISqlServerMigrationConnectionFactory>(),
                 options.TableName,
                 serviceProvider.GetRequiredService<TimeProvider>()));
+        services.TryAddScoped<ITinyEventsMigrator>(serviceProvider =>
+            serviceProvider.GetRequiredService<SqlServerTinyEventsMigrator>());
         services.Replace(ServiceDescriptor.Scoped<ITinyOutboxWriter, TinySqlServerEfCoreOutboxWriter<TDbContext>>());
         services.Replace(ServiceDescriptor.Scoped<ITinyOutboxStore, TinySqlServerEfCoreOutboxStore<TDbContext>>());
 

@@ -39,6 +39,8 @@ public static class TinyEventsPostgreSqlAdoNetServiceCollectionExtensions
                 serviceProvider.GetRequiredService<IPostgreSqlMigrationConnectionFactory>(),
                 options.TableName,
                 serviceProvider.GetRequiredService<TimeProvider>()));
+        services.TryAddScoped<ITinyEventsMigrator>(serviceProvider =>
+            serviceProvider.GetRequiredService<PostgreSqlTinyEventsMigrator>());
         services.Replace(ServiceDescriptor.Scoped<ITinyOutboxWriter, TinyPostgreSqlAdoNetOutboxWriter>());
         services.Replace(ServiceDescriptor.Scoped<ITinyOutboxStore, TinyPostgreSqlAdoNetOutboxStore>());
 

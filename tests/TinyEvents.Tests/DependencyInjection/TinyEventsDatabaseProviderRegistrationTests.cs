@@ -39,6 +39,21 @@ public sealed class TinyEventsDatabaseProviderRegistrationTests
 
     [Theory]
     [MemberData(nameof(ProviderIdentities))]
+    public void Provider_registers_the_public_scoped_migrator_contract(
+        string providerIdentity)
+    {
+        var services = new ServiceCollection();
+
+        Register(services, providerIdentity);
+
+        var descriptor = Assert.Single(
+            services,
+            service => service.ServiceType == typeof(ITinyEventsMigrator));
+        Assert.Equal(ServiceLifetime.Scoped, descriptor.Lifetime);
+    }
+
+    [Theory]
+    [MemberData(nameof(ProviderIdentities))]
     public void Repeating_a_provider_is_rejected_before_configuration_or_mutation(
         string providerIdentity)
     {

@@ -8,6 +8,7 @@
     <PackageReference Include="xunit" Version="2.8.1" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.8.1" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.1" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\TinyEvents\TinyEvents.csproj" />
@@ -16,5 +17,6 @@
     <ProjectReference Include="..\..\src\TinyEvents.PostgreSql.AdoNet\TinyEvents.PostgreSql.AdoNet.csproj" />
     <ProjectReference Include="..\..\src\TinyEvents.PostgreSql.EntityFrameworkCore\TinyEvents.PostgreSql.EntityFrameworkCore.csproj" />
     <ProjectReference Include="..\..\src\TinyEvents.SourceGen\TinyEvents.SourceGen.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />
+    <ProjectReference Include="..\..\src\TinyEvents.Worker\TinyEvents.Worker.csproj" />
   </ItemGroup>
 </Project>

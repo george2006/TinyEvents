@@ -195,11 +195,8 @@ public sealed class PostgreSqlTinyEventsMigratorIntegrationTests
                 });
         });
         using var provider = services.BuildServiceProvider();
-        using var scope = provider.CreateScope();
-        var migrator = scope.ServiceProvider
-            .GetRequiredService<PostgreSqlTinyEventsMigrator>();
 
-        await migrator.MigrateAsync(CancellationToken.None);
+        await provider.MigrateTinyEventsAsync();
 
         Assert.Equal(1, factoryCalls);
         Assert.NotNull(migrationConnection);
