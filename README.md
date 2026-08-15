@@ -176,32 +176,24 @@ Consumers must be idempotent. TinyEvents guarantees at-least-once delivery, not 
 
 ## Schema and migrations
 
-TinyEvents owns the outbox schema definition. Applications own migration execution.
-
-EF Core applications should call `modelBuilder.UseTinyEventsOutbox()` and create normal EF migrations.
-
-ADO.NET applications should use the script helper for their database provider.
-
-SQL Server:
+TinyEvents owns forward-only migrations for its outbox schema. Execution is explicit: register exactly one database provider, build the host, migrate, and then run it.
 
 ```csharp
-var sql = TinySqlServerAdoNetSchema.CreateOutboxSql();
+var host = builder.Build();
+
+await host.Services.MigrateTinyEventsAsync();
+await host.RunAsync();
 ```
 
-PostgreSQL:
+The same entry point works with ASP.NET Core, worker-only hosts, console applications, and test hosts. It creates its own dependency-injection scope and applies only migrations that are absent from the provider-specific history table.
 
-```csharp
-var sql = TinyPostgreSqlAdoNetSchema.CreateOutboxSql();
-```
+TinyEvents never migrates automatically during service registration or worker startup. Applications choose when migration execution is safe.
 
-The ADO.NET packages also include default SQL scripts as package content:
+The default outbox tables are `dbo.TinyOutbox` on SQL Server and `public.TinyOutbox` on PostgreSQL. Their history tables are `dbo.TinyOutboxMigrations` and `public.TinyOutboxMigrations`. Custom outbox names derive the history name in the same schema.
 
-```text
-schema/sqlserver/001_CreateTinyOutbox.sql
-schema/postgresql/001_CreateTinyOutbox.sql
-```
+Existing alpha databases receive one narrow compatibility behavior: when the history table is absent and the configured outbox table already exists, the initial migration is recorded as a baseline without recreating the table. TinyEvents does not inspect or repair that table, so manually altered or incompatible alpha schemas must be reconciled by the application first.
 
-TinyEvents does not run migrations automatically.
+See [Schema and Migrations](docs/schema-and-migrations.md) for provider ownership details, upgrade guidance, and explicit non-goals.
 
 ## Run the samples
 
@@ -284,6 +276,7 @@ TinyEvents is intentionally small.
 - [PostgreSQL ADO.NET](docs/postgresql/ado-net.md)
 - [Workers and Leases](docs/workers.md)
 - [Schema and Migrations](docs/schema-and-migrations.md)
+- [Upgrading to 0.1.0-alpha.3](docs/upgrading-to-alpha-3.md)
 - [The Tiny Suite](docs/tiny-suite.md)
 - [Source Generator](docs/source-generator.md)
 - [Architecture](docs/architecture.md)
@@ -300,7 +293,7 @@ TinyEvents is an alpha.
 - Providers use database-specific atomic claiming.
 - There is no claim heartbeat or renewal in v1.
 - Long-running consumers must use a long enough `ClaimTimeout`.
-- There is no migration runner.
+- Built-in migrations are forward-only; down migrations and schema repair are not provided.
 - Exactly-once side effects are not guaranteed.
 - Native ASP.NET convenience integration is intentionally not the first layer; the samples use minimal APIs directly.
 

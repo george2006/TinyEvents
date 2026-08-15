@@ -18,7 +18,7 @@ public sealed class TinySqlServerEfCoreProviderTests
         var entity = dbContext.Model.FindEntityType(typeof(TinyOutboxMessage));
 
         Assert.NotNull(entity);
-        Assert.NotNull(entity.FindPrimaryKey());
+        Assert.Equal("PK_TinyOutbox", entity.FindPrimaryKey()!.GetName());
     }
 
     [Fact]
@@ -49,6 +49,16 @@ public sealed class TinySqlServerEfCoreProviderTests
         Assert.NotNull(entity);
         Assert.Equal("MyOutbox", entity.GetTableName());
         Assert.Equal("app", entity.GetSchema());
+        Assert.Equal("PK_MyOutbox", entity.FindPrimaryKey()!.GetName());
+        Assert.Contains(
+            entity.GetIndexes(),
+            index => index.GetDatabaseName() == "IX_MyOutbox_Pending");
+        Assert.Contains(
+            entity.GetIndexes(),
+            index => index.GetDatabaseName() == "IX_MyOutbox_ExpiredProcessing");
+        Assert.Contains(
+            entity.GetIndexes(),
+            index => index.GetDatabaseName() == "IX_MyOutbox_ClaimedBy");
     }
 
     [Fact]

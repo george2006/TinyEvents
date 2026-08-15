@@ -6,10 +6,19 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.10.0" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.1" />
+    <PackageReference Include="Microsoft.Data.SqlClient" Version="7.0.1" />
+    <PackageReference Include="Testcontainers.MsSql" Version="4.12.0" />
     <PackageReference Include="xunit" Version="2.8.1" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.8.1" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\TinyEvents.SqlServer.AdoNet\TinyEvents.SqlServer.AdoNet.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Using Include="TinyEvents.SqlServer.Integration" />
+    <Compile Include="..\Shared\TinyEvents.Testing\RecordingLogger.cs"
+             Link="Testing\RecordingLogger.cs" />
+    <Compile Include="..\Shared\TinyEvents.SqlServer.Integration\*.cs"
+             Link="Integration\%(Filename)%(Extension)" />
   </ItemGroup>
 </Project>

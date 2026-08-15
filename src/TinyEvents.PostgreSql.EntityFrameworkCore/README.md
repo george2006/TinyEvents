@@ -64,7 +64,24 @@ protected override void OnModelCreating(ModelBuilder modelBuilder)
 }
 ```
 
-The provider option controls SQL claiming and marking. The model builder extension controls EF mapping and migrations.
+The provider option controls SQL claiming and marking. The model builder extension controls EF model mapping.
+
+## Migrations
+
+After building the host, explicitly apply the built-in PostgreSQL migrations before starting it:
+
+```csharp
+using TinyEvents;
+
+var host = builder.Build();
+
+await host.Services.MigrateTinyEventsAsync();
+await host.RunAsync();
+```
+
+The migrator borrows the scoped `AppDbContext` connection, opens and closes it only when needed, and never disposes the context or its connection. The default history table is `public.TinyOutboxMigrations`; custom outbox names derive their history table in the same schema.
+
+TinyEvents never applies migrations automatically during service registration or worker startup.
 
 ## More Documentation
 

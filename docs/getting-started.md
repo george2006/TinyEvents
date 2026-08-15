@@ -60,6 +60,8 @@ using TinyEvents.PostgreSql.EntityFrameworkCore;
 services.UsePostgreSqlEntityFrameworkCoreOutbox<AppDbContext>();
 ```
 
+Register exactly one TinyEvents database provider in an application.
+
 ## Map The Outbox
 
 Call the model builder extension from your `DbContext`:
@@ -72,6 +74,33 @@ protected override void OnModelCreating(ModelBuilder modelBuilder)
 ```
 
 The default table name is `TinyOutbox`.
+
+## Apply Built-In Migrations
+
+Build the host, explicitly apply TinyEvents migrations, and then start it:
+
+```csharp
+var host = builder.Build();
+
+await host.Services.MigrateTinyEventsAsync();
+await host.RunAsync();
+```
+
+This flow works for ASP.NET Core and worker-only hosts. A worker-only application uses the same ordering:
+
+```csharp
+var builder = Host.CreateApplicationBuilder(args);
+
+builder.Services.UseSqlServerEntityFrameworkCoreOutbox<AppDbContext>();
+builder.Services.AddTinyEventsWorker();
+
+var host = builder.Build();
+
+await host.Services.MigrateTinyEventsAsync();
+await host.RunAsync();
+```
+
+Migration execution is never implicit. The hosted worker does not create or upgrade the schema during startup.
 
 ## Define An Event
 

@@ -1,5 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging;
+using TinyEvents.Migrations.PostgreSql;
 
 namespace TinyEvents.PostgreSql.AdoNet;
 
@@ -19,12 +21,28 @@ public static class TinyEventsPostgreSqlAdoNetServiceCollectionExtensions
             throw new ArgumentNullException(nameof(configure));
         }
 
+        TinyEventsDatabaseProviderRegistrationGuard.EnsureCanRegister(
+            services,
+            TinyEventsDatabaseProviderRegistrationGuard.PostgreSqlAdoNet);
+
         var options = new TinyEventsPostgreSqlAdoNetOptions();
         configure(options);
 
+        TinyEventsDatabaseProviderRegistrationGuard.Register(
+            services,
+            TinyEventsDatabaseProviderRegistrationGuard.PostgreSqlAdoNet);
         services.UseTinyEvents();
         services.TryAddSingleton(options);
         services.TryAddScoped<ITinyPostgreSqlAdoNetWorkerConnectionFactory, TinyPostgreSqlAdoNetWorkerConnectionFactory>();
+        services.TryAddScoped<IPostgreSqlMigrationConnectionFactory, PostgreSqlAdoNetMigrationConnectionFactory>();
+        services.TryAddScoped(serviceProvider =>
+            new PostgreSqlTinyEventsMigrator(
+                serviceProvider.GetRequiredService<IPostgreSqlMigrationConnectionFactory>(),
+                options.TableName,
+                serviceProvider.GetRequiredService<TimeProvider>(),
+                serviceProvider.GetService<ILogger<PostgreSqlTinyEventsMigrator>>()));
+        services.TryAddScoped<ITinyEventsMigrator>(serviceProvider =>
+            serviceProvider.GetRequiredService<PostgreSqlTinyEventsMigrator>());
         services.Replace(ServiceDescriptor.Scoped<ITinyOutboxWriter, TinyPostgreSqlAdoNetOutboxWriter>());
         services.Replace(ServiceDescriptor.Scoped<ITinyOutboxStore, TinyPostgreSqlAdoNetOutboxStore>());
 

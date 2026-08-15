@@ -30,9 +30,11 @@ if ([string]::IsNullOrWhiteSpace($PackageVersion)) {
 
 $artifactRoot = Join-Path $repoRoot "artifacts\package-smoke\$PackageVersion"
 $packagesDirectory = Join-Path $artifactRoot "packages"
+$packageCacheDirectory = Join-Path $artifactRoot "nuget-cache"
 $nugetConfig = Join-Path $artifactRoot "NuGet.config"
 
 New-Item -ItemType Directory -Force -Path $packagesDirectory | Out-Null
+New-Item -ItemType Directory -Force -Path $packageCacheDirectory | Out-Null
 
 $projects = @(
     "src\TinyEvents\TinyEvents.csproj",
@@ -62,6 +64,63 @@ foreach ($project in $projects) {
         "/p:Version=$PackageVersion")
 }
 
+$expectedPackageIds = @(
+    "TinyEvents",
+    "TinyEvents.Worker",
+    "TinyEvents.SqlServer.AdoNet",
+    "TinyEvents.SqlServer.EntityFrameworkCore",
+    "TinyEvents.PostgreSql.AdoNet",
+    "TinyEvents.PostgreSql.EntityFrameworkCore"
+)
+
+$packageFiles = @(Get-ChildItem -LiteralPath $packagesDirectory -Filter "*.nupkg" -File |
+    Where-Object { -not $_.Name.EndsWith(".snupkg", [StringComparison]::OrdinalIgnoreCase) })
+
+if ($packageFiles.Count -ne $expectedPackageIds.Count) {
+    throw "Expected $($expectedPackageIds.Count) packages but found $($packageFiles.Count)."
+}
+
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+
+foreach ($packageId in $expectedPackageIds) {
+    $expectedFileName = "$packageId.$PackageVersion.nupkg"
+    $packageFile = $packageFiles | Where-Object {
+        $_.Name.Equals($expectedFileName, [StringComparison]::OrdinalIgnoreCase)
+    }
+
+    if ($null -eq $packageFile) {
+        throw "Expected package was not produced: $expectedFileName"
+    }
+
+    $archive = [System.IO.Compression.ZipFile]::OpenRead($packageFile.FullName)
+
+    try {
+        $unexpectedMigrationAssembly = $archive.Entries | Where-Object {
+            $_.FullName -match '(^|/)TinyEvents\..*Migrations\.dll$'
+        }
+
+        if ($null -ne $unexpectedMigrationAssembly) {
+            throw "Package $packageId contains an unexpected migration assembly: $($unexpectedMigrationAssembly.FullName)"
+        }
+
+        if ($packageId -like "TinyEvents.*.*") {
+            $providerAssembly = "lib/net8.0/$packageId.dll"
+            $containsProviderAssembly = $archive.Entries | Where-Object {
+                $_.FullName.Equals($providerAssembly, [StringComparison]::OrdinalIgnoreCase)
+            }
+
+            if ($null -eq $containsProviderAssembly) {
+                throw "Package $packageId does not contain its compiled provider assembly."
+            }
+        }
+    }
+    finally {
+        $archive.Dispose()
+    }
+}
+
+Write-Host "Verified the existing package set and in-package provider assemblies."
+
 @"
 <?xml version="1.0" encoding="utf-8"?>
 <configuration>
@@ -74,6 +133,7 @@ foreach ($project in $projects) {
 "@ | Set-Content -Path $nugetConfig -Encoding UTF8
 
 Write-Host "Restoring package smoke sample from local TinyEvents packages..."
+$env:NUGET_PACKAGES = $packageCacheDirectory
 Invoke-Native "dotnet" @(
     "restore",
     $sampleProject,

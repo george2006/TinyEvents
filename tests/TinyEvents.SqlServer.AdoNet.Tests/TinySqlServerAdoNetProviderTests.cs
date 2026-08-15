@@ -1,6 +1,7 @@
 using System.Data;
 using System.Data.Common;
 using Microsoft.Extensions.DependencyInjection;
+using TinyEvents.Migrations.SqlServer;
 using TinyEvents.SqlServer.AdoNet;
 using Xunit;
 
@@ -54,6 +55,42 @@ public sealed class TinySqlServerAdoNetProviderTests
             () => scope.ServiceProvider.GetRequiredService<ITinyOutboxProcessor>());
 
         Assert.Contains("Configure UseWorkerConnectionFactory(...)", exception.Message);
+    }
+
+    [Fact]
+    public void Resolving_migrator_rejects_missing_connection_factory_without_opening_a_connection()
+    {
+        var services = new ServiceCollection();
+        services.UseSqlServerAdoNetOutbox(_ => { });
+        using var provider = services.BuildServiceProvider();
+        using var scope = provider.CreateScope();
+
+        var exception = Assert.Throws<InvalidOperationException>(
+            () => scope.ServiceProvider.GetRequiredService<SqlServerTinyEventsMigrator>());
+
+        Assert.Contains("TinyEvents migrations", exception.Message);
+        Assert.Contains("Configure UseWorkerConnectionFactory(...)", exception.Message);
+    }
+
+    [Fact]
+    public void Resolving_migrator_does_not_invoke_the_connection_factory()
+    {
+        var factoryCalls = 0;
+        var services = new ServiceCollection();
+        services.UseSqlServerAdoNetOutbox(options =>
+        {
+            options.UseWorkerConnectionFactory((_, _) =>
+            {
+                factoryCalls++;
+                return new ValueTask<DbConnection>(new RecordingConnection());
+            });
+        });
+        using var provider = services.BuildServiceProvider();
+        using var scope = provider.CreateScope();
+
+        _ = scope.ServiceProvider.GetRequiredService<SqlServerTinyEventsMigrator>();
+
+        Assert.Equal(0, factoryCalls);
     }
 
     [Fact]

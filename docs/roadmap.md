@@ -33,7 +33,7 @@ TinyEvents core should not grow into:
 
 - a broker abstraction
 - a saga or workflow engine
-- a migration runner
+- a general-purpose application migration framework
 - a distributed lock framework
 - a general-purpose scheduler
 - a direct in-process notification dispatcher
@@ -42,7 +42,6 @@ TinyEvents core should not grow into:
 
 Future functionality should stay isolated when it brings external dependencies:
 
-- migration helper packages
 - host-specific packages
 - additional database providers
 - optional claim renewal support for long-running consumers

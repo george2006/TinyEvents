@@ -12,6 +12,12 @@
     <ProjectReference Include="..\TinyEvents\TinyEvents.csproj" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="..\Shared\TinyEvents.Migrations\**\*.cs"
+             Link="Migrations\Common\%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="..\Shared\TinyEvents.PostgreSql.Migrations\**\*.cs"
+             Link="Migrations\PostgreSql\%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+  <ItemGroup>
     <None Include="README.md" Pack="true" PackagePath="\" />
     <None Include="Schema\PostgreSql\*.sql" Pack="true" PackagePath="schema\postgresql" />
   </ItemGroup>

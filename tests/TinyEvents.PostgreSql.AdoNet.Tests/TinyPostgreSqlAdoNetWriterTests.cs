@@ -1,12 +1,53 @@
 using System.Data;
 using System.Data.Common;
 using Microsoft.Extensions.DependencyInjection;
+using TinyEvents.Migrations.PostgreSql;
 using Xunit;
 
 namespace TinyEvents.PostgreSql.AdoNet.Tests;
 
 public sealed class TinyPostgreSqlAdoNetWriterTests
 {
+    [Fact]
+    public void Resolving_migrator_rejects_missing_connection_factory()
+    {
+        var services = new ServiceCollection();
+        services.UsePostgreSqlAdoNetOutbox(_ => { });
+        using var provider = services.BuildServiceProvider();
+        using var scope = provider.CreateScope();
+
+        var exception = Assert.Throws<InvalidOperationException>(
+            () => scope.ServiceProvider
+                .GetRequiredService<PostgreSqlTinyEventsMigrator>());
+
+        Assert.Contains("TinyEvents migrations", exception.Message);
+        Assert.Contains(
+            "Configure UseWorkerConnectionFactory(...)",
+            exception.Message);
+    }
+
+    [Fact]
+    public void Resolving_migrator_does_not_invoke_connection_factory()
+    {
+        var factoryCalls = 0;
+        var services = new ServiceCollection();
+        services.UsePostgreSqlAdoNetOutbox(options =>
+        {
+            options.UseWorkerConnectionFactory((_, _) =>
+            {
+                factoryCalls++;
+                return new ValueTask<DbConnection>(new RecordingConnection());
+            });
+        });
+        using var provider = services.BuildServiceProvider();
+        using var scope = provider.CreateScope();
+
+        _ = scope.ServiceProvider
+            .GetRequiredService<PostgreSqlTinyEventsMigrator>();
+
+        Assert.Equal(0, factoryCalls);
+    }
+
     [Fact]
     public void Use_postgre_sql_ado_net_outbox_rejects_null_services()
     {

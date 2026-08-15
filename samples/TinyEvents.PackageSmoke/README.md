@@ -12,7 +12,7 @@ Run this sample against locally packed packages without touching a database:
 .\samples\TinyEvents.PackageSmoke\Test-PackageSmoke.ps1
 ```
 
-That command builds the solution, packs the complete TinyEvents release train with a unique local version, restores this sample from those local packages, and builds the sample.
+That command builds the solution, packs the complete TinyEvents release train with a unique local version, verifies that migration code remains inside the existing provider assemblies, and restores/builds this sample against an empty isolated NuGet cache.
 
 ## Local Package Runtime Smoke
 
@@ -29,6 +29,16 @@ To run against already-started databases, omit `-StartDatabases`:
 ```
 
 `-Run` uses the default SQL Server port `14334` and PostgreSQL port `54324` unless the environment variables below override them.
+
+## Published Alpha Upgrade Smoke
+
+To prove the real upgrade path, run:
+
+```powershell
+.\samples\TinyEvents.PackageSmoke\Test-AlphaUpgrade.ps1
+```
+
+This restores the published `0.1.0-alpha.2` ADO.NET provider packages into an empty cache and uses their schema helpers to create the legacy SQL Server and PostgreSQL outbox tables. It then restores the locally packed packages into a second empty cache, calls `MigrateTinyEventsAsync`, and verifies that each legacy table receives exactly one baselined migration history row.
 
 To run this sample after publishing packages to NuGet:
 
@@ -54,4 +64,4 @@ set TINYEVENTS_PACKAGE_SMOKE_POSTGRESQL=Host=localhost;Port=5432;Database=TinyEv
 
 The sample references package versions through `TinyEventsPackageVersion`, which defaults to the shared version from `Directory.Build.props`. The local smoke script overrides that property with the temporary locally packed package version.
 
-It verifies that the core package, SQL Server providers, PostgreSQL providers, worker package, dependency injection extensions, source-generator consumer registration, publishing, claiming, and processing can be consumed from NuGet packages instead of project references.
+It verifies that the core package, SQL Server providers, PostgreSQL providers, worker package, public migration entry point, dependency injection extensions, source-generator consumer registration, publishing, claiming, and processing can be consumed from NuGet packages instead of project references. Runtime smoke calls `MigrateTinyEventsAsync` through all four packaged providers.

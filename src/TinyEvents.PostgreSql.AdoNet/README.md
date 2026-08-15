@@ -46,9 +46,24 @@ services.UsePostgreSqlAdoNetOutbox(options =>
 });
 ```
 
-## Schema
+## Migrations
 
-Apply the PostgreSQL schema with your migration tool of choice:
+After building the host, explicitly apply the built-in PostgreSQL migrations before starting it:
+
+```csharp
+using TinyEvents;
+
+var host = builder.Build();
+
+await host.Services.MigrateTinyEventsAsync();
+await host.RunAsync();
+```
+
+The migrator uses `UseWorkerConnectionFactory(...)` to create a dedicated connection and disposes it after the operation. The factory is therefore required for both worker processing and migration execution.
+
+The default tables are `public.TinyOutbox` and `public.TinyOutboxMigrations`. A custom outbox such as `app.MyOutbox` uses `app.MyOutboxMigrations`.
+
+The SQL helper remains available as a compatibility asset:
 
 ```csharp
 var sql = TinyPostgreSqlAdoNetSchema.CreateOutboxSql();
@@ -60,11 +75,13 @@ For custom tables:
 var sql = TinyPostgreSqlAdoNetSchema.CreateOutboxSql("app.MyOutbox");
 ```
 
-The package also includes the default PostgreSQL script:
+The package also includes the legacy default PostgreSQL script:
 
 ```text
 schema/postgresql/001_CreateTinyOutbox.sql
 ```
+
+TinyEvents never applies migrations automatically during service registration or worker startup.
 
 ## More Documentation
 
