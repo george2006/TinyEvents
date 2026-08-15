@@ -16,6 +16,8 @@
   </ItemGroup>
   <ItemGroup>
     <Using Include="TinyEvents.PostgreSql.Integration" />
+    <Compile Include="..\Shared\TinyEvents.Testing\RecordingLogger.cs"
+             Link="Testing\RecordingLogger.cs" />
     <Compile Include="..\Shared\TinyEvents.PostgreSql.Integration\*.cs"
              Link="Integration\%(Filename)%(Extension)" />
   </ItemGroup>

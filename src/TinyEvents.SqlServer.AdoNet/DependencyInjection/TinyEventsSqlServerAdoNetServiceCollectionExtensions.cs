@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging;
 using TinyEvents.Migrations.SqlServer;
 
 namespace TinyEvents.SqlServer.AdoNet;
@@ -38,7 +39,8 @@ public static class TinyEventsSqlServerAdoNetServiceCollectionExtensions
             new SqlServerTinyEventsMigrator(
                 serviceProvider.GetRequiredService<ISqlServerMigrationConnectionFactory>(),
                 options.TableName,
-                serviceProvider.GetRequiredService<TimeProvider>()));
+                serviceProvider.GetRequiredService<TimeProvider>(),
+                serviceProvider.GetService<ILogger<SqlServerTinyEventsMigrator>>()));
         services.TryAddScoped<ITinyEventsMigrator>(serviceProvider =>
             serviceProvider.GetRequiredService<SqlServerTinyEventsMigrator>());
         services.Replace(ServiceDescriptor.Scoped<ITinyOutboxWriter, TinySqlServerAdoNetOutboxWriter>());

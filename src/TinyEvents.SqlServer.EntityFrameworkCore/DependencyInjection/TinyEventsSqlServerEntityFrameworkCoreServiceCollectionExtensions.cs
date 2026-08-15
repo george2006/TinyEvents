@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging;
 using TinyEvents.Migrations.SqlServer;
 
 namespace TinyEvents.SqlServer.EntityFrameworkCore;
@@ -36,7 +37,8 @@ public static class TinyEventsSqlServerEntityFrameworkCoreServiceCollectionExten
             new SqlServerTinyEventsMigrator(
                 serviceProvider.GetRequiredService<ISqlServerMigrationConnectionFactory>(),
                 options.TableName,
-                serviceProvider.GetRequiredService<TimeProvider>()));
+                serviceProvider.GetRequiredService<TimeProvider>(),
+                serviceProvider.GetService<ILogger<SqlServerTinyEventsMigrator>>()));
         services.TryAddScoped<ITinyEventsMigrator>(serviceProvider =>
             serviceProvider.GetRequiredService<SqlServerTinyEventsMigrator>());
         services.Replace(ServiceDescriptor.Scoped<ITinyOutboxWriter, TinySqlServerEfCoreOutboxWriter<TDbContext>>());

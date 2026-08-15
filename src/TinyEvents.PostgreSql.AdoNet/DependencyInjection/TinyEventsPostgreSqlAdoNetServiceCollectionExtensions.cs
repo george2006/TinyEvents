@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging;
 using TinyEvents.Migrations.PostgreSql;
 
 namespace TinyEvents.PostgreSql.AdoNet;
@@ -38,7 +39,8 @@ public static class TinyEventsPostgreSqlAdoNetServiceCollectionExtensions
             new PostgreSqlTinyEventsMigrator(
                 serviceProvider.GetRequiredService<IPostgreSqlMigrationConnectionFactory>(),
                 options.TableName,
-                serviceProvider.GetRequiredService<TimeProvider>()));
+                serviceProvider.GetRequiredService<TimeProvider>(),
+                serviceProvider.GetService<ILogger<PostgreSqlTinyEventsMigrator>>()));
         services.TryAddScoped<ITinyEventsMigrator>(serviceProvider =>
             serviceProvider.GetRequiredService<PostgreSqlTinyEventsMigrator>());
         services.Replace(ServiceDescriptor.Scoped<ITinyOutboxWriter, TinyPostgreSqlAdoNetOutboxWriter>());

@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging;
 using TinyEvents.Migrations.PostgreSql;
 
 namespace TinyEvents.PostgreSql.EntityFrameworkCore;
@@ -36,7 +37,8 @@ public static class TinyEventsPostgreSqlEntityFrameworkCoreServiceCollectionExte
             new PostgreSqlTinyEventsMigrator(
                 serviceProvider.GetRequiredService<IPostgreSqlMigrationConnectionFactory>(),
                 options.TableName,
-                serviceProvider.GetRequiredService<TimeProvider>()));
+                serviceProvider.GetRequiredService<TimeProvider>(),
+                serviceProvider.GetService<ILogger<PostgreSqlTinyEventsMigrator>>()));
         services.TryAddScoped<ITinyEventsMigrator>(serviceProvider =>
             serviceProvider.GetRequiredService<PostgreSqlTinyEventsMigrator>());
         services.Replace(ServiceDescriptor.Scoped<ITinyOutboxWriter, TinyPostgreSqlEfCoreOutboxWriter<TDbContext>>());

@@ -1,9 +1,11 @@
 using System.Data.Common;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Npgsql;
 using TinyEvents.Migrations;
 using TinyEvents.Migrations.PostgreSql;
 using TinyEvents.PostgreSql.AdoNet;
+using TinyEvents.Testing;
 using Xunit;
 
 namespace TinyEvents.PostgreSql.AdoNet.Tests;
@@ -26,9 +28,11 @@ public sealed class PostgreSqlTinyEventsMigratorIntegrationTests
         var appliedAtUtc =
             new DateTimeOffset(2026, 7, 30, 9, 0, 0, TimeSpan.Zero);
         await ResetSchemaAsync(schema);
+        var logger = new RecordingLogger();
         var migrator = Migrator(
             schema,
-            new FixedTimeProvider(appliedAtUtc));
+            new FixedTimeProvider(appliedAtUtc),
+            logger);
 
         await migrator.MigrateAsync(CancellationToken.None);
         await migrator.MigrateAsync(CancellationToken.None);
@@ -38,6 +42,14 @@ public sealed class PostgreSqlTinyEventsMigratorIntegrationTests
         Assert.Equal("001_CreateTinyOutbox", applied.Name);
         Assert.Equal(appliedAtUtc, applied.AppliedAtUtc);
         Assert.True(await TableExistsAsync(schema, "Events"));
+        Assert.Equal(
+            [1400, 1401, 1403, 1400, 1402, 1403],
+            logger.Entries.Select(entry => entry.EventId.Id));
+        Assert.All(
+            logger.Entries,
+            entry => Assert.Equal(
+                "postgresql",
+                entry.Properties["Provider"]));
     }
 
     [PostgreSqlIntegrationFact]
@@ -208,24 +220,28 @@ public sealed class PostgreSqlTinyEventsMigratorIntegrationTests
 
     private PostgreSqlTinyEventsMigrator Migrator(
         string schema,
-        TimeProvider timeProvider)
+        TimeProvider timeProvider,
+        ILogger? logger = null)
     {
         return new PostgreSqlTinyEventsMigrator(
             new TestMigrationConnectionFactory(fixture.ConnectionString),
             $"{schema}.Events",
-            timeProvider);
+            timeProvider,
+            logger);
     }
 
     private PostgreSqlTinyEventsMigrator Migrator(
         PostgreSqlMigrationTableIdentity identity,
         TinyEventsMigrationCatalog catalog,
-        TimeProvider timeProvider)
+        TimeProvider timeProvider,
+        ILogger? logger = null)
     {
         return new PostgreSqlTinyEventsMigrator(
             new TestMigrationConnectionFactory(fixture.ConnectionString),
             identity,
             timeProvider,
-            catalog);
+            catalog,
+            logger);
     }
 
     private async Task<IReadOnlyList<AppliedTinyEventsMigration>>

@@ -1,4 +1,6 @@
 using System.Data.Common;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace TinyEvents.Migrations.SqlServer;
 
@@ -8,16 +10,19 @@ internal sealed class SqlServerTinyEventsMigrator : ITinyEventsMigrator
     private readonly SqlServerMigrationTableIdentity tableIdentity;
     private readonly TinyEventsMigrationCatalog catalog;
     private readonly TimeProvider timeProvider;
+    private readonly ILogger logger;
 
     internal SqlServerTinyEventsMigrator(
         ISqlServerMigrationConnectionFactory connectionFactory,
         string configuredOutboxTable,
-        TimeProvider timeProvider)
+        TimeProvider timeProvider,
+        ILogger? logger = null)
         : this(
             connectionFactory,
             SqlServerMigrationTableIdentity.Parse(configuredOutboxTable),
             timeProvider,
-            catalog: null)
+            catalog: null,
+            logger)
     {
     }
 
@@ -25,7 +30,8 @@ internal sealed class SqlServerTinyEventsMigrator : ITinyEventsMigrator
         ISqlServerMigrationConnectionFactory connectionFactory,
         SqlServerMigrationTableIdentity tableIdentity,
         TimeProvider timeProvider,
-        TinyEventsMigrationCatalog? catalog)
+        TinyEventsMigrationCatalog? catalog,
+        ILogger? logger = null)
     {
         this.connectionFactory = connectionFactory
             ?? throw new ArgumentNullException(nameof(connectionFactory));
@@ -33,6 +39,7 @@ internal sealed class SqlServerTinyEventsMigrator : ITinyEventsMigrator
             ?? throw new ArgumentNullException(nameof(tableIdentity));
         this.timeProvider = timeProvider
             ?? throw new ArgumentNullException(nameof(timeProvider));
+        this.logger = logger ?? NullLogger.Instance;
         this.catalog = catalog ?? new TinyEventsMigrationCatalog(
         [
             SqlServerMigration001CreateOutbox.Create(tableIdentity)
@@ -41,59 +48,143 @@ internal sealed class SqlServerTinyEventsMigrator : ITinyEventsMigrator
 
     internal async Task MigrateAsync(CancellationToken cancellationToken)
     {
-        await using var migrationConnection =
-            await connectionFactory.CreateOpenConnectionAsync(cancellationToken);
-        var connection = migrationConnection.Connection;
-        var history = new SqlServerMigrationHistory(tableIdentity, timeProvider);
-        var migrationLock = new SqlServerMigrationLock(tableIdentity);
-        var lockAcquired = false;
+        const string provider = "sqlserver";
+        var startedAt = timeProvider.GetTimestamp();
+        var previousVersion = 0L;
+        var targetVersion = catalog.Migrations[^1].Version;
+        var appliedCount = 0;
+        TinyEventsMigrationLog.Started(
+            logger,
+            provider,
+            tableIdentity.Schema,
+            tableIdentity.OutboxTable);
 
         try
         {
-            await migrationLock.AcquireAsync(connection, cancellationToken);
-            lockAcquired = true;
+            await using var migrationConnection =
+                await connectionFactory.CreateOpenConnectionAsync(cancellationToken);
+            var connection = migrationConnection.Connection;
+            var history =
+                new SqlServerMigrationHistory(tableIdentity, timeProvider);
+            var migrationLock = new SqlServerMigrationLock(tableIdentity);
+            var lockAcquired = false;
 
-            await history.EnsureSchemaAsync(connection, cancellationToken);
-            var historyExisted = await history.ExistsAsync(connection, cancellationToken);
-            await history.EnsureExistsAsync(connection, cancellationToken);
-
-            if (!historyExisted)
+            try
             {
-                var outboxTableExists =
-                    await history.OutboxTableExistsAsync(
-                        connection,
-                        cancellationToken);
+                await migrationLock.AcquireAsync(connection, cancellationToken);
+                lockAcquired = true;
 
-                if (outboxTableExists)
+                await history.EnsureSchemaAsync(connection, cancellationToken);
+                var historyExisted =
+                    await history.ExistsAsync(connection, cancellationToken);
+                await history.EnsureExistsAsync(connection, cancellationToken);
+
+                if (!historyExisted)
                 {
-                    await RecordAlphaBaselineAsync(
+                    var outboxTableExists =
+                        await history.OutboxTableExistsAsync(
+                            connection,
+                            cancellationToken);
+
+                    if (outboxTableExists)
+                    {
+                        var baselineMigration = catalog.Migrations[0];
+                        await RecordAlphaBaselineAsync(
+                            connection,
+                            history,
+                            baselineMigration,
+                            cancellationToken);
+                        appliedCount++;
+                        TinyEventsMigrationLog.Applied(
+                            logger,
+                            provider,
+                            tableIdentity.Schema,
+                            tableIdentity.OutboxTable,
+                            baselineMigration.Version,
+                            baselineMigration.Name,
+                            isBaseline: true);
+                    }
+                }
+
+                var appliedMigrations =
+                    await history.ReadAsync(connection, cancellationToken);
+
+                if (historyExisted && appliedMigrations.Count > 0)
+                {
+                    previousVersion = appliedMigrations[^1].Version;
+                }
+
+                var plan = new TinyEventsMigrationPlanner()
+                    .CreatePlan(catalog, appliedMigrations);
+
+                if (plan.IsCurrent)
+                {
+                    TinyEventsMigrationLog.SchemaCurrent(
+                        logger,
+                        provider,
+                        tableIdentity.Schema,
+                        tableIdentity.OutboxTable,
+                        plan.CurrentVersion,
+                        plan.TargetVersion);
+                }
+
+                foreach (var migration in plan.PendingMigrations)
+                {
+                    await ApplyMigrationAsync(
                         connection,
                         history,
-                        catalog.Migrations[0],
+                        migration,
                         cancellationToken);
+                    appliedCount++;
+                    TinyEventsMigrationLog.Applied(
+                        logger,
+                        provider,
+                        tableIdentity.Schema,
+                        tableIdentity.OutboxTable,
+                        migration.Version,
+                        migration.Name,
+                        isBaseline: false);
+                }
+
+                await EnsureSchemaIsCurrentAsync(
+                    connection,
+                    history,
+                    cancellationToken);
+            }
+            finally
+            {
+                if (lockAcquired)
+                {
+                    await migrationLock.ReleaseAsync(
+                        connection,
+                        CancellationToken.None);
                 }
             }
 
-            var appliedMigrations = await history.ReadAsync(connection, cancellationToken);
-            var plan = new TinyEventsMigrationPlanner().CreatePlan(catalog, appliedMigrations);
-
-            foreach (var migration in plan.PendingMigrations)
-            {
-                await ApplyMigrationAsync(
-                    connection,
-                    history,
-                    migration,
-                    cancellationToken);
-            }
-
-            await EnsureSchemaIsCurrentAsync(connection, history, cancellationToken);
+            TinyEventsMigrationLog.Completed(
+                logger,
+                provider,
+                tableIdentity.Schema,
+                tableIdentity.OutboxTable,
+                previousVersion,
+                targetVersion,
+                appliedCount,
+                timeProvider.GetElapsedTime(startedAt).TotalMilliseconds);
         }
-        finally
+        catch (OperationCanceledException)
         {
-            if (lockAcquired)
-            {
-                await migrationLock.ReleaseAsync(connection, CancellationToken.None);
-            }
+            throw;
+        }
+        catch (Exception exception)
+        {
+            TinyEventsMigrationLog.Failed(
+                logger,
+                provider,
+                tableIdentity.Schema,
+                tableIdentity.OutboxTable,
+                timeProvider.GetElapsedTime(startedAt).TotalMilliseconds,
+                exception);
+            throw;
         }
     }
 

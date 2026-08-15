@@ -1,9 +1,11 @@
 using System.Data.Common;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using TinyEvents.Migrations;
 using TinyEvents.Migrations.SqlServer;
 using TinyEvents.SqlServer.AdoNet;
+using TinyEvents.Testing;
 using Xunit;
 
 namespace TinyEvents.SqlServer.AdoNet.Tests;
@@ -23,7 +25,11 @@ public sealed class SqlServerTinyEventsMigratorIntegrationTests : IClassFixture<
         const string schema = "migrator_fresh";
         var appliedAtUtc = new DateTimeOffset(2026, 7, 30, 9, 0, 0, TimeSpan.Zero);
         await ResetSchemaAsync(schema);
-        var migrator = Migrator(schema, new FixedTimeProvider(appliedAtUtc));
+        var logger = new RecordingLogger();
+        var migrator = Migrator(
+            schema,
+            new FixedTimeProvider(appliedAtUtc),
+            logger);
 
         await migrator.MigrateAsync(CancellationToken.None);
         await migrator.MigrateAsync(CancellationToken.None);
@@ -34,6 +40,14 @@ public sealed class SqlServerTinyEventsMigratorIntegrationTests : IClassFixture<
         Assert.Equal("001_CreateTinyOutbox", migration.Name);
         Assert.Equal(appliedAtUtc, migration.AppliedAtUtc);
         Assert.True(await TableExistsAsync(schema, "Events"));
+        Assert.Equal(
+            [1400, 1401, 1403, 1400, 1402, 1403],
+            logger.Entries.Select(entry => entry.EventId.Id));
+        var appliedEntry = Assert.Single(
+            logger.Entries,
+            entry => entry.EventId.Id == 1401);
+        Assert.Equal("sqlserver", appliedEntry.Properties["Provider"]);
+        Assert.Equal(false, appliedEntry.Properties["IsBaseline"]);
     }
 
     [SqlServerIntegrationFact]
@@ -49,7 +63,11 @@ public sealed class SqlServerTinyEventsMigratorIntegrationTests : IClassFixture<
                 [Id] uniqueidentifier NOT NULL
             );
             """);
-        var migrator = Migrator(schema, new FixedTimeProvider(DateTimeOffset.UnixEpoch));
+        var logger = new RecordingLogger();
+        var migrator = Migrator(
+            schema,
+            new FixedTimeProvider(DateTimeOffset.UnixEpoch),
+            logger);
 
         await migrator.MigrateAsync(CancellationToken.None);
 
@@ -58,6 +76,10 @@ public sealed class SqlServerTinyEventsMigratorIntegrationTests : IClassFixture<
             SqlServerMigrationTableIdentity.Parse($"{schema}.Events"));
         Assert.Equal(expectedMigration.Checksum, appliedMigration.Checksum);
         Assert.Equal(0, await SecondaryIndexCountAsync(schema, "Events"));
+        var baselineEntry = Assert.Single(
+            logger.Entries,
+            entry => entry.EventId.Id == 1401);
+        Assert.Equal(true, baselineEntry.Properties["IsBaseline"]);
     }
 
     [SqlServerIntegrationFact]
@@ -94,17 +116,25 @@ public sealed class SqlServerTinyEventsMigratorIntegrationTests : IClassFixture<
             "002_" + new string('A', 510),
             $"CREATE TABLE [{schema}].[AtomicStep] ([Id] int NOT NULL);");
         var catalog = new TinyEventsMigrationCatalog([migration1, migration2]);
+        var logger = new RecordingLogger();
         var migrator = Migrator(
             identity,
             catalog,
-            new FixedTimeProvider(DateTimeOffset.UnixEpoch));
+            new FixedTimeProvider(DateTimeOffset.UnixEpoch),
+            logger);
 
-        await Assert.ThrowsAsync<SqlException>(
+        var exception = await Assert.ThrowsAsync<SqlException>(
             () => migrator.MigrateAsync(CancellationToken.None));
 
         var appliedMigrations = await ReadHistoryAsync(schema);
         Assert.Equal([1L], appliedMigrations.Select(migration => migration.Version));
         Assert.False(await TableExistsAsync(schema, "AtomicStep"));
+        var failedEntry = Assert.Single(
+            logger.Entries,
+            entry => entry.EventId.Id == 1404);
+        Assert.Same(exception, failedEntry.Exception);
+        Assert.DoesNotContain("Sql", failedEntry.Properties.Keys);
+        Assert.DoesNotContain("ConnectionString", failedEntry.Properties.Keys);
     }
 
     [SqlServerIntegrationFact]
@@ -196,24 +226,28 @@ public sealed class SqlServerTinyEventsMigratorIntegrationTests : IClassFixture<
 
     private SqlServerTinyEventsMigrator Migrator(
         string schema,
-        TimeProvider timeProvider)
+        TimeProvider timeProvider,
+        ILogger? logger = null)
     {
         return new SqlServerTinyEventsMigrator(
             new TestMigrationConnectionFactory(fixture.ConnectionString),
             $"{schema}.Events",
-            timeProvider);
+            timeProvider,
+            logger);
     }
 
     private SqlServerTinyEventsMigrator Migrator(
         SqlServerMigrationTableIdentity identity,
         TinyEventsMigrationCatalog catalog,
-        TimeProvider timeProvider)
+        TimeProvider timeProvider,
+        ILogger? logger = null)
     {
         return new SqlServerTinyEventsMigrator(
             new TestMigrationConnectionFactory(fixture.ConnectionString),
             identity,
             timeProvider,
-            catalog);
+            catalog,
+            logger);
     }
 
     private async Task<IReadOnlyList<AppliedTinyEventsMigration>> ReadHistoryAsync(
