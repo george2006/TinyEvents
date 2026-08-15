@@ -1476,6 +1476,42 @@ Never log:
 
 Logging must be implemented in a dedicated component, not as helper methods inside the migrator.
 
+### 15.1 Implemented-flow event inventory
+
+MIG-21 fixes the smallest stable v1 catalogue from the completed runner. Event
+IDs continue after the existing worker and processor ranges.
+
+| Event ID | Event name | Level | Emission | Structured properties |
+| --- | --- | --- | --- | --- |
+| 1400 | `MigrationStarted` | Information | Once when an explicit provider migration call begins. | `Provider`, `Schema`, `Table` |
+| 1401 | `MigrationApplied` | Information | Once after a migration SQL/history transaction commits, or after the migration-001 alpha baseline history transaction commits. | `Provider`, `Schema`, `Table`, `MigrationVersion`, `MigrationName`, `IsBaseline` |
+| 1402 | `MigrationSchemaCurrent` | Information | Once when planning finds no pending migrations. | `Provider`, `Schema`, `Table`, `CurrentVersion`, `TargetVersion` |
+| 1403 | `MigrationCompleted` | Information | Once after final history inspection proves the schema current. | `Provider`, `Schema`, `Table`, `PreviousVersion`, `TargetVersion`, `AppliedCount`, `ElapsedMilliseconds` |
+| 1404 | `MigrationFailed` | Error | Once when an explicit provider migration call fails, including lock acquisition or release failure; the original exception still escapes. | `Provider`, `Schema`, `Table`, `ElapsedMilliseconds` |
+
+`Provider` uses the stable lowercase values `sqlserver` and `postgresql`.
+`Schema` and `Table` are the resolved exact identifiers already held by the
+provider migrator. `PreviousVersion` is the coherent history version observed
+before baseline or pending-migration execution. `AppliedCount` includes a
+committed alpha-baseline row. `IsBaseline` distinguishes that row from executed
+migration SQL without logging SQL or physical-schema details.
+
+`MigrationCompleted` is emitted for every successful call. A current/no-op call
+therefore emits started, schema-current, and completed. A call that applies
+migrations emits started, one applied event per committed migration, and
+completed. A failed call emits started and failed, plus any applied events for
+earlier transactions that committed before the failure.
+
+The failure event carries the exception through the logging API but never adds
+connection strings, credentials, SQL, command text, parameters, payloads, or
+provider exception detail as structured properties. Cancellation is not logged
+as an error event because it is caller-directed control flow and still escapes
+unchanged.
+
+No lock-wait event is included in v1. Acquisition already has a bounded timeout,
+and logging every uncontended acquisition would add noise. A future lock-wait
+event requires evidence that a distinct operational signal is useful.
+
 ---
 
 ## 16. Test strategy
