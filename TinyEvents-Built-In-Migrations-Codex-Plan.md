@@ -1,6 +1,6 @@
 # TinyEvents Built-In Migrations — Codex Implementation Plan
 
-Status: Architecture frozen; MIG-2 through MIG-10 implemented; ready for MIG-11
+Status: Implemented and acceptance-verified through MIG-25
 Target: Next TinyEvents alpha
 Working mode: Small reviewable slices, one slice at a time
 
@@ -28,6 +28,38 @@ reviewed and committed slices:
 | MIG-8 | `331f4c4` | Added transactional SQL Server schema/history bootstrap, reads, writes, table checks, and `TimeProvider` timestamps. |
 | MIG-9 | `79f7e56` | Added deterministic session-scoped SQL Server locking, timeout, cancellation cleanup, explicit release, and concurrency tests. |
 | MIG-10 | `b935d33` | Added authoritative SQL Server migration 001 shared by ADO.NET and EF Core. |
+
+## 0.1 Final implementation checkpoint — 2026-08-15
+
+The remaining architecture was implemented as reviewed slices:
+
+| Slice | Commit | Established contract |
+|---|---|---|
+| MIG-11 | `f3a69ef` | Added SQL Server migration orchestration, transactional per-migration execution, strict planning, baselining, and retry behavior. |
+| MIG-12 | `c72b9ba` | Connected the SQL Server ADO.NET provider through its worker connection factory with dedicated connection ownership. |
+| MIG-13 | `ede86f5` | Connected the SQL Server EF Core provider through its scoped `DbContext` connection. |
+| MIG-14 | `0ec78a3` | Added transactional PostgreSQL schema/history bootstrap and history behavior. |
+| MIG-15 | `083866c` | Added deterministic PostgreSQL advisory locking, timeout, cancellation, and concurrency behavior. |
+| MIG-16 | `c315bc9` | Added the authoritative PostgreSQL migration 001 shared by ADO.NET and EF Core. |
+| Test boundary | `1264a47`, `e8d48aa` | Split PostgreSQL and SQL Server integration tests into provider-specific projects without duplicating shared fixtures. |
+| MIG-17 | `c9074b7` | Added PostgreSQL migration orchestration with parity across planning, baselining, retry, and concurrency. |
+| MIG-18 | `8359454` | Connected the PostgreSQL ADO.NET provider with dedicated connection ownership. |
+| MIG-19 | `c8c8aff` | Connected the PostgreSQL EF Core provider with scoped `DbContext` connection ownership. |
+| MIG-20 | `eaaafeb` | Added public `ITinyEventsMigrator` and `MigrateTinyEventsAsync` host entry points. |
+| MIG-21 | `78effb4` | Froze the stable migration logging catalogue. |
+| MIG-22 | `b68309d` | Added safe structured migration logging for start, apply, current, completion, and failure outcomes. |
+| MIG-23 | `b57448b` | Documented the explicit four-provider migration workflow, alpha upgrade behavior, and non-goals. |
+| MIG-24 | `fa39a74` | Added package-shape and clean-cache smoke gates plus runtime calls through all four packaged providers. |
+
+MIG-25 acceptance completed successfully:
+
+- Release solution build: zero warnings and zero errors;
+- complete suite with both Testcontainers switches enabled: 493 passed, zero failed, zero skipped;
+- SQL Server and PostgreSQL concurrent migration tests executed against real databases;
+- package smoke: six expected packages, no migration package or DLL, clean isolated NuGet cache, and runtime success through all four providers;
+- public API audit: only `ITinyEventsMigrator` and `TinyEventsMigrationServiceProviderExtensions` were added;
+- documentation link audit: all local links in 29 tracked Markdown files resolved;
+- branch scope and `git diff --check`: clean.
 
 ### Current implementation shape
 
