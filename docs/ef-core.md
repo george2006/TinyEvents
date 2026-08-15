@@ -9,6 +9,8 @@ Choose the provider for your database:
 - [SQL Server EF Core](sql-server/ef-core.md)
 - [PostgreSQL EF Core](postgresql/ef-core.md)
 
+Register exactly one TinyEvents database provider per service collection.
+
 Both providers use the same core publishing model:
 
 ```csharp

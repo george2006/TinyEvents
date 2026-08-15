@@ -9,6 +9,8 @@ Choose the provider for your database:
 - [SQL Server ADO.NET](sql-server/ado-net.md)
 - [PostgreSQL ADO.NET](postgresql/ado-net.md)
 
+Register exactly one TinyEvents database provider per service collection.
+
 The application owns the persistence boundary:
 
 ```csharp

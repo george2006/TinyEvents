@@ -134,13 +134,7 @@ Use the sample when you want to see TinyEvents working with TinyDispatcher and T
 
 ## Why Small Libraries
 
-Successful open-source projects often grow because users need more integration, more support, more hosting choices, more cloud stories, and more commercial guarantees.
-
-That success is good. But it can also turn a small library into a complex product owned by a company. The public API becomes larger. The dependency graph grows. The project starts serving every possible enterprise scenario. Eventually the simple thing that made the library attractive becomes hard to see.
-
-The Tiny suite has a different bias.
-
-The open-source libraries should stay small, readable, and useful on their own. Commercial software can be built around them, but the public OSS core should not become a disguised sales funnel or a heavy platform.
+The Tiny suite keeps each library small, readable, and independently useful.
 
 The philosophy is:
 
@@ -149,43 +143,7 @@ The philosophy is:
 - use source generation only where it removes mechanical code
 - avoid runtime scanning and magic
 - avoid framework lock-in
-- make commercial products compose around the libraries, not swallow them
 - let users keep ownership of their architecture
-
-## Commercial Software Around Public OSS
-
-It is reasonable to build commercial software around open-source foundations.
-
-The important line is ownership.
-
-The public Tiny libraries should remain understandable and independently useful. Paid products, services, templates, hosting, support, or higher-level tooling can exist around them without making the core libraries worse.
-
-That means the OSS layer should not need to absorb every commercial feature.
-
-Examples of things that can stay outside the core:
-
-- hosted dashboards
-- operational tooling
-- migration runners
-- cloud deployment templates
-- opinionated application templates
-- paid support packages
-- advanced integrations with specific platforms
-
-The core stays small. The ecosystem can grow around it.
-
-## What This Is Not
-
-The Tiny suite is not trying to replace:
-
-- ASP.NET Core
-- EF Core
-- message brokers
-- workflow engines
-- enterprise service buses
-- full application frameworks
-
-It is meant to sit inside ordinary .NET applications and make the application layer more explicit.
 
 ## The North Star
 
@@ -197,5 +155,3 @@ The Tiny suite should feel like a set of libraries a senior engineer would write
 - documented honestly
 - friendly to tests
 - respectful of the application's architecture
-
-If a feature makes the public core harder to understand, it should probably live outside the core.

@@ -42,7 +42,7 @@ Runs from local project references and demonstrates SQL Server EF Core publishin
 dotnet run --project samples/TinyEvents.Sample.EfCore
 ```
 
-The EF Core sample creates its database schema with `Database.EnsureCreatedAsync()` for local demo purposes.
+The EF Core sample creates its complete demo schema with `Database.EnsureCreatedAsync()` so the local sample remains disposable and self-contained. This is sample bootstrap code, not production deployment guidance. Applications should explicitly call `MigrateTinyEventsAsync` for the TinyEvents schema.
 
 ### SQL Server ADO.NET
 
@@ -52,7 +52,7 @@ Runs from local project references and demonstrates SQL Server application-owned
 dotnet run --project samples/TinyEvents.Sample.AdoNet
 ```
 
-The ADO.NET sample creates the demo `Users` table and `TinyOutbox` table on startup for local demo purposes. Real applications should run the TinyEvents outbox SQL through their normal migration tool.
+The ADO.NET sample creates the demo `Users` and `TinyOutbox` tables together so the local sample remains disposable and self-contained. This is sample bootstrap code, not production deployment guidance. Applications should explicitly call `MigrateTinyEventsAsync` for the TinyEvents schema.
 
 ### PostgreSQL EF Core
 
@@ -62,7 +62,7 @@ Runs from local project references and demonstrates PostgreSQL EF Core publishin
 dotnet run --project samples/TinyEvents.Sample.PostgreSql.EfCore
 ```
 
-The PostgreSQL EF Core sample creates its database schema with `Database.EnsureCreatedAsync()` for local demo purposes.
+The PostgreSQL EF Core sample creates its complete demo schema with `Database.EnsureCreatedAsync()` so the local sample remains disposable and self-contained. This is sample bootstrap code, not production deployment guidance. Applications should explicitly call `MigrateTinyEventsAsync` for the TinyEvents schema.
 
 ### PostgreSQL ADO.NET
 
@@ -72,7 +72,7 @@ Runs from local project references and demonstrates PostgreSQL application-owned
 dotnet run --project samples/TinyEvents.Sample.PostgreSql.AdoNet
 ```
 
-The PostgreSQL ADO.NET sample creates the demo `Users` table and `TinyOutbox` table on startup for local demo purposes. Real applications should run the TinyEvents outbox SQL through their normal migration tool.
+The PostgreSQL ADO.NET sample creates the demo `Users` and `TinyOutbox` tables together so the local sample remains disposable and self-contained. This is sample bootstrap code, not production deployment guidance. Applications should explicitly call `MigrateTinyEventsAsync` for the TinyEvents schema.
 
 ## 3. Try The Endpoints
 

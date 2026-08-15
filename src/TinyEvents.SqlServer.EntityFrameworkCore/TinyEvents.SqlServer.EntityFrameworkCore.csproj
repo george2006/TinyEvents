@@ -2,7 +2,7 @@
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <PackageId>TinyEvents.SqlServer.EntityFrameworkCore</PackageId>
-    <Description>SQL Server Entity Framework Core provider for TinyEvents outbox storage and worker claiming.</Description>
+    <Description>SQL Server EF Core provider for transactional outbox storage, worker claiming, and explicit built-in migrations.</Description>
     <PackageTags>tinyevents;outbox;sqlserver;efcore;dotnet;source-generator</PackageTags>
   </PropertyGroup>
   <ItemGroup>
@@ -23,17 +23,22 @@
   </ItemGroup>
   <PropertyGroup>
     <PackageReleaseNotes>
-      TinyEvents.SqlServer.EntityFrameworkCore 0.1.0-alpha.2
+      TinyEvents.SqlServer.EntityFrameworkCore 0.1.0-alpha.3
 
       Added
-      - Alpha.2 release train alignment with the expanded provider family.
-      - Provider-specific documentation and package README updates.
-      - Sample documentation updates for database-specific sample projects.
+      - Forward-only built-in SQL Server migrations with strict history and checksums.
+      - Session-scoped migration locking, timeout, cancellation, and concurrency safety.
+      - Existing alpha outbox baselining without recreating the table.
+      - Structured migration logging and public MigrateTinyEventsAsync support.
 
-      Notes
+      Ownership
+      - Migration execution borrows the scoped DbContext connection and preserves its ownership and open state.
+      - Publishing still commits business data and outbox messages through caller-owned SaveChangesAsync.
+
+      Compatibility
       - Early alpha / active development.
       - APIs may change before 1.0.
-      - SQL Server EF Core runtime behavior is unchanged in this release train.
+      - Upgrade every TinyEvents package in the application to alpha.3 together.
     </PackageReleaseNotes>
   </PropertyGroup>
 </Project>

@@ -2,7 +2,7 @@
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <PackageId>TinyEvents.PostgreSql.EntityFrameworkCore</PackageId>
-    <Description>PostgreSQL Entity Framework Core provider for TinyEvents outbox storage and worker claiming.</Description>
+    <Description>PostgreSQL EF Core provider for transactional outbox storage, worker claiming, and explicit built-in migrations.</Description>
     <PackageTags>tinyevents;outbox;postgresql;postgres;efcore;dotnet;source-generator</PackageTags>
   </PropertyGroup>
   <ItemGroup>
@@ -22,18 +22,21 @@
   </ItemGroup>
   <PropertyGroup>
     <PackageReleaseNotes>
-      TinyEvents.PostgreSql.EntityFrameworkCore 0.1.0-alpha.2
+      TinyEvents.PostgreSql.EntityFrameworkCore 0.1.0-alpha.3
 
       Added
-      - PostgreSQL EF Core outbox writer using caller-owned DbContext changes.
-      - PostgreSQL worker store with atomic lease-based claiming.
-      - EF Core model builder extension for the PostgreSQL outbox schema.
-      - Dependency injection registration for PostgreSQL EF Core publishing and worker processing.
-      - PostgreSQL runtime tests and sample application.
+      - Forward-only built-in PostgreSQL migrations with strict history and checksums.
+      - Session-scoped advisory locking, timeout, cancellation, and concurrency safety.
+      - Existing alpha outbox baselining without recreating the table.
+      - Structured migration logging and public MigrateTinyEventsAsync support.
 
-      Notes
+      Ownership
+      - Migration execution borrows the scoped DbContext connection and preserves its ownership and open state.
+      - Publishing still commits business data and outbox messages through caller-owned SaveChangesAsync.
+
+      Compatibility
       - Early alpha / active development.
-      - Consumers must be idempotent because delivery is at-least-once.
+      - Upgrade every TinyEvents package in the application to alpha.3 together.
     </PackageReleaseNotes>
   </PropertyGroup>
 </Project>

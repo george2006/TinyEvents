@@ -1,11 +1,12 @@
 # Architecture
 
-TinyEvents has four main parts:
+TinyEvents has five main parts:
 
 - core runtime
 - incremental source generator
 - providers
 - worker integration
+- built-in migrations
 
 The core library is host-agnostic and provider-agnostic.
 
@@ -53,6 +54,14 @@ public interface IEventConsumer<TEvent>
 }
 ```
 
+Applications execute provider migrations through:
+
+```csharp
+await host.Services.MigrateTinyEventsAsync(cancellationToken);
+```
+
+`ITinyEventsMigrator` is the scoped provider contract behind that host-level entry point.
+
 ## Runtime Project
 
 ```text
@@ -60,10 +69,12 @@ src/TinyEvents
   Abstractions
   DependencyInjection
   Generation
+  Migrations
   Options
   Outbox
   Processing
   Publishing
+  Registry
   Serialization
 ```
 
@@ -86,12 +97,13 @@ src/TinyEvents.SqlServer.EntityFrameworkCore
 src/TinyEvents.SqlServer.AdoNet
 src/TinyEvents.PostgreSql.EntityFrameworkCore
 src/TinyEvents.PostgreSql.AdoNet
-src/TinyEvents.Worker
 ```
 
 Provider projects register implementations of core abstractions. Providers do not implement publisher or processor behavior.
 
 Provider registration also calls core registration, which applies generated TinyEvents contributions to the service collection.
+
+One service collection supports exactly one TinyEvents database provider. Repeated core registration is safe, but a second provider registration fails immediately with both provider identities.
 
 Current database providers:
 
@@ -100,7 +112,30 @@ Current database providers:
 - PostgreSQL ADO.NET provider
 - PostgreSQL EF Core provider
 
-Future database providers may target MySQL, SQLite, or other engines if they can implement safe atomic claiming for that database.
+## Worker Project
+
+```text
+src/TinyEvents.Worker
+```
+
+Worker integration validates the processing graph before polling, creates a dependency-injection scope per iteration, and keeps polling after non-cancellation operational failures.
+
+## Migration Architecture
+
+Common planning, history models, checksums, and structured logging compile into each database provider assembly from shared source. Database-specific history, locking, SQL, and orchestration compile into the matching SQL Server or PostgreSQL provider assembly.
+
+There is no migration package or migration DLL. ADO.NET adapters create dedicated connections through the worker connection factory. EF Core adapters borrow the scoped `DbContext` connection without changing its ownership.
+
+Migration execution is explicit and forward-only:
+
+```text
+host service provider
+  -> asynchronous migration scope
+  -> scoped provider migrator
+  -> provider history and session lock
+  -> ordered pending migrations
+  -> final history verification
+```
 
 ## Publishing Flow
 

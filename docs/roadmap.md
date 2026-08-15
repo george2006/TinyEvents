@@ -1,49 +1,41 @@
 # Roadmap
 
-TinyEvents is in alpha. The current goal is to keep the core model small while proving the runtime against SQL Server and PostgreSQL.
+TinyEvents is moving from feature completion into contract stabilization and production-readiness validation.
 
-## Before 1.0
+## 0.1.0-alpha.3
 
-Planned hardening:
+The final alpha establishes the complete initial product shape:
 
-- polish README and provider docs as APIs settle
-- keep SQL Server and PostgreSQL runtime tests green with Testcontainers
-- keep samples split by database family and provider style
-- review NuGet package boundaries
-- keep provider package publishing explicit and repeatable
-- keep provider package names explicit by database family
-- keep source generator diagnostics focused and useful
+- provider-agnostic transactional outbox publishing and processing
+- generated consumer registration and event dispatch without runtime scanning
+- SQL Server and PostgreSQL providers for ADO.NET and EF Core
+- lease-based multi-worker claiming and at-least-once delivery
+- resilient worker failure handling, startup validation, and structured logging
+- explicit forward-only built-in migrations with history, locking, and existing-alpha baselining
+- one coordinated six-package release train
+- real-database, package-consumer, and published-alpha upgrade tests
 
-## Provider Boundaries
+## 0.1.0-beta.1
 
-The current package boundaries are:
+The beta milestone stabilizes the contracts established by the final alpha:
 
-- `TinyEvents`
-- `TinyEvents.SqlServer.EntityFrameworkCore`
-- `TinyEvents.SqlServer.AdoNet`
-- `TinyEvents.PostgreSql.EntityFrameworkCore`
-- `TinyEvents.PostgreSql.AdoNet`
-- `TinyEvents.Worker`
+- review and freeze the intended public API surface
+- freeze migration identifiers, history shape, checksum behavior, and logging event IDs
+- stabilize worker failure, retry, recovery, and cancellation behavior
+- establish automated public API and package compatibility checks
+- verify package metadata, dependency alignment, and clean-consumer installation
+- tighten diagnostics, examples, deployment guidance, and upgrade documentation
+- measure representative processing, claiming, and migration behavior under load
 
-Other databases should be separate provider packages once they exist.
+## 1.0.0
 
-## Not Planned For The Core
+The 1.0 release requires evidence that the stabilized contracts are ready for production use:
 
-TinyEvents core should not grow into:
-
-- a broker abstraction
-- a saga or workflow engine
-- a general-purpose application migration framework
-- a distributed lock framework
-- a general-purpose scheduler
-- a direct in-process notification dispatcher
-
-## Possible Future Packages
-
-Future functionality should stay isolated when it brings external dependencies:
-
-- host-specific packages
-- additional database providers
-- optional claim renewal support for long-running consumers
-
-Claim renewal is not part of v1. For v1, `ClaimTimeout` should be configured longer than expected consumer processing time.
+- SQL Server and PostgreSQL runtime suites pass with no skipped database tests
+- concurrent claiming and migration behavior remains deterministic
+- supported upgrade paths are repeatable from published packages
+- package contents, dependencies, and public APIs pass compatibility gates
+- failure, cancellation, retry, lease-loss, and recovery behavior is documented and tested
+- security, SQL-safety, logging-safety, and operational reviews have no release blockers
+- installation, migration, deployment, recovery, and troubleshooting guidance is complete
+- no known correctness issue remains in the supported provider matrix
