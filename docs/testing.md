@@ -1,125 +1,109 @@
 # Testing
 
-TinyEvents has two test lanes.
+TinyEvents separates fast behavior tests from opt-in real-database tests and package-consumer gates.
 
 ## Normal Suite
 
-Run the normal behavior suite:
+Run the solution suite without database integration tests:
 
-```bash
+```powershell
 dotnet test TinyEvents.sln --no-restore
 ```
 
-This lane uses fakes and in-memory test doubles. It should stay fast and should not require Docker.
+The real-database tests are discovered but skipped unless their environment switches are enabled. The normal lane covers:
 
-It covers:
-
-- publisher behavior
-- processor behavior
+- publisher and processor behavior
+- retry, cancellation, lease-loss, and error persistence
 - in-memory claim lifecycle
-- source generator output, contribution bootstrap, and runtime registration
-- EF Core provider mapping and SQL shape
-- ADO.NET transaction ownership and SQL shape
-- worker service registration and scoped processing
+- generated dispatch, contribution bootstrap, and multi-assembly registration
+- provider mapping, SQL shape, configuration, and connection ownership
+- worker registration, startup validation, logging, and failure recovery
+- migration models, catalogs, planning, checksums, SQL generation, and adapter ownership
 
-## SQL Server Runtime Suite
+## Complete Real-Database Suite
 
-The SQL Server runtime tests live in:
-
-```text
-tests/TinyEvents.SqlServer.Tests
-```
-
-They use Testcontainers and are skipped unless this environment variable is set:
+Enable both integration lanes and run the complete solution:
 
 ```powershell
 $env:TINYEVENTS_RUN_SQLSERVER_TESTS = "true"
-dotnet test tests\TinyEvents.SqlServer.Tests\TinyEvents.SqlServer.Tests.csproj
-```
-
-These tests start an ephemeral SQL Server container and prove behavior fakes cannot prove:
-
-- ADO.NET business data and outbox messages commit together.
-- ADO.NET business data and outbox messages roll back together.
-- Competing workers do not claim the same message.
-- Expired processing leases can be reclaimed.
-- Active processing leases are not reclaimed.
-- EF Core SQL Server claim SQL works against the real database.
-
-## PostgreSQL Runtime Suite
-
-The PostgreSQL runtime tests live in:
-
-```text
-tests/TinyEvents.PostgreSql.Tests
-```
-
-They use Testcontainers and are skipped unless this environment variable is set:
-
-```powershell
 $env:TINYEVENTS_RUN_POSTGRESQL_TESTS = "true"
-dotnet test tests\TinyEvents.PostgreSql.Tests\TinyEvents.PostgreSql.Tests.csproj
+dotnet test TinyEvents.sln -c Release --no-build --no-restore
 ```
 
-These tests start an ephemeral PostgreSQL container and prove behavior fakes cannot prove:
+Release acceptance requires zero skipped database tests.
 
-- ADO.NET schema creation works against the real database.
-- ADO.NET business data and outbox messages commit together.
-- ADO.NET business data and outbox messages roll back together.
-- ADO.NET worker claim and mark SQL works against the real database.
-- EF Core PostgreSQL writer and store SQL works against the real database.
+## SQL Server Runtime Projects
 
-## Local SQL Server
-
-For manual development and app samples, start SQL Server first:
-
-```bash
-docker compose up -d sqlserver
-```
-
-Connection details:
+SQL Server behavior is split by provider style:
 
 ```text
-Server=localhost,14333
-User Id=sa
-Password=TinyEvents_2026!
-TrustServerCertificate=True
+tests/TinyEvents.SqlServer.AdoNet.Tests
+tests/TinyEvents.SqlServer.EntityFrameworkCore.Tests
 ```
 
-## Running Samples
+Run either project with `TINYEVENTS_RUN_SQLSERVER_TESTS=true`, or use the complete solution command above.
 
-The full sample runbook lives in:
+The real SQL Server lane proves:
+
+- ADO.NET transaction commit and rollback ownership
+- EF Core publishing and provider-specific claim/mark SQL
+- active-lease exclusion and expired-lease reclamation
+- competing-worker claim safety
+- migration history transactions and exact timestamps
+- migration locking, timeout, cancellation, and concurrent serialization
+- fresh migration, current/no-op, alpha baseline, retry, and rollback behavior
+- ADO.NET and EF Core migration connection ownership
+
+## PostgreSQL Runtime Projects
+
+PostgreSQL behavior is split by provider style:
 
 ```text
-samples/README.md
+tests/TinyEvents.PostgreSql.AdoNet.Tests
+tests/TinyEvents.PostgreSql.EntityFrameworkCore.Tests
 ```
 
-Run the ADO.NET sample:
+Run either project with `TINYEVENTS_RUN_POSTGRESQL_TESTS=true`, or use the complete solution command above.
 
-```bash
-dotnet run --project samples/TinyEvents.Sample.AdoNet -- "Server=localhost,14333;Database=TinyEventsSamples;User Id=sa;Password=TinyEvents_2026!;Encrypt=False;TrustServerCertificate=True"
-```
+The real PostgreSQL lane proves:
 
-Create a user:
+- ADO.NET transaction commit and rollback ownership
+- EF Core publishing and PostgreSQL claim/mark SQL
+- active-lease exclusion and expired-lease reclamation
+- competing-worker claim safety
+- migration history transactions and exact timestamps
+- advisory locking, timeout, cancellation, and concurrent serialization
+- fresh migration, current/no-op, alpha baseline, retry, and rollback behavior
+- ADO.NET and EF Core migration connection ownership
+
+## Package Consumer Gates
+
+Build all packages, inspect their contents, and restore/build an external consumer through an empty isolated NuGet cache:
 
 ```powershell
-Invoke-RestMethod `
-  -Method Post `
-  -Uri http://localhost:5000/users `
-  -ContentType "application/json" `
-  -Body '{"email":"ada@example.com"}'
+.\samples\TinyEvents.PackageSmoke\Test-PackageSmoke.ps1
 ```
 
-Process one outbox batch:
+Run the packaged providers against SQL Server and PostgreSQL:
 
 ```powershell
-Invoke-RestMethod -Method Post -Uri http://localhost:5000/outbox/process
+.\samples\TinyEvents.PackageSmoke\Test-PackageSmoke.ps1 -StartDatabases -Run
 ```
 
-Run the EF Core sample:
+Prove the real upgrade journey from published `0.1.0-alpha.2` packages to locally packed `0.1.0-alpha.3` packages:
 
-```bash
-dotnet run --project samples/TinyEvents.Sample.EfCore -- "Server=localhost,14333;Database=TinyEventsSamples;User Id=sa;Password=TinyEvents_2026!;Encrypt=False;TrustServerCertificate=True"
+```powershell
+.\samples\TinyEvents.PackageSmoke\Test-AlphaUpgrade.ps1
 ```
 
-It exposes the same sample endpoints.
+That gate creates the legacy schemas with the published alpha packages, upgrades the consumer package train, runs `MigrateTinyEventsAsync`, and verifies SQL Server and PostgreSQL baseline history.
+
+## Local Sample Databases
+
+For manual development and app samples, start both databases:
+
+```powershell
+docker compose up -d sqlserver postgresql
+```
+
+The complete sample runbook, ports, connection strings, and endpoints live in [TinyEvents Samples](../samples/README.md).

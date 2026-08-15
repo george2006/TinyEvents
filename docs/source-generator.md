@@ -65,16 +65,15 @@ TinyEvents does not scan application assemblies or force-load referenced assembl
 
 An outbox message whose stored event type has no registered dispatcher is treated as a processing failure by the worker. It follows the normal retry and max-attempt rules. Load consumer assemblies before TinyEvents registration so their generated contributions are available.
 
-For example:
+For example, register the one database provider used by the application:
 
 ```csharp
 services.UseSqlServerEntityFrameworkCoreOutbox<AppDbContext>();
-services.UsePostgreSqlEntityFrameworkCoreOutbox<AppDbContext>();
 ```
 
 Provider registration methods register core services and apply generated contributions.
 
-Calling TinyEvents registration more than once on the same service collection is safe.
+Calling core `UseTinyEvents(...)` registration more than once on the same service collection is safe. Database provider registration is intentionally exclusive: one service collection supports exactly one TinyEvents database provider.
 
 ## Generator Architecture
 

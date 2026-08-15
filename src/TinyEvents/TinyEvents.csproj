@@ -2,7 +2,7 @@
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <PackageId>TinyEvents</PackageId>
-    <Description>Provider-agnostic outbox-first application event library for durable same-process event processing.</Description>
+    <Description>Provider-agnostic transactional outbox with generated event dispatch, durable processing, and explicit database migrations.</Description>
     <PackageTags>events;outbox;source-generator;dotnet;dependency-injection;tinyevents</PackageTags>
   </PropertyGroup>
   <PropertyGroup>
@@ -21,17 +21,22 @@
   </ItemGroup>
   <PropertyGroup>
     <PackageReleaseNotes>
-      TinyEvents 0.1.0-alpha.2
+      TinyEvents 0.1.0-alpha.3
 
       Added
-      - Alpha.2 release train for the PostgreSQL provider milestone.
-      - Documentation updates for SQL Server and PostgreSQL provider families.
-      - Release workflow support for full-train and single-package publishing.
+      - Public MigrateTinyEventsAsync entry point and scoped migrator contract.
+      - Generated event dispatchers that avoid runtime reflection and assembly scanning.
+      - Structured, secret-safe outbox processing and migration logging.
+      - Explicit database-provider registration exclusivity and option validation.
 
-      Notes
+      Hardened
+      - Cancellation boundaries, retry persistence, lease-loss detection, and failure classification.
+      - Multi-assembly generated consumer registration and package boundaries.
+
+      Compatibility
       - Early alpha / active development.
       - APIs may change before 1.0.
-      - Core publishing, processing, and source-generator contracts remain provider-agnostic.
+      - Upgrade every TinyEvents package in the application to alpha.3 together.
     </PackageReleaseNotes>
   </PropertyGroup>
 </Project>

@@ -6,11 +6,11 @@ It helps application code publish durable events without turning `PublishAsync` 
 
 In practice, TinyEvents gives you domain-event or application-event handlers with the reliability guarantees of the outbox pattern. The outbox message is the durable record of the event to handle; your `IEventConsumer<TEvent>` remains the handler. You get reliable event handling without requiring a message bus, broker, or separate async messaging platform.
 
-> Status: early alpha / active development.
+> Status: `0.1.0-alpha.3` / active development.
 >
 > TinyEvents is not production-ready yet. Development is ongoing, the API surface may change before 1.0, and the current release is meant for experimentation, feedback, and integration work.
 >
-> Alpha packages are published so we can build and test a complete Tiny Suite sample with TinyDispatcher, TinyValidations, and TinyEvents using real package references. Publishing to NuGet at this stage does not mean the library is stable for production systems.
+> `0.1.0-alpha.3` is the feature-complete final alpha. The next phase focuses on contract stabilization and production-readiness evidence before 1.0. Publishing to NuGet at this stage does not mean the library is stable for production systems.
 
 ## Contents
 
@@ -49,9 +49,9 @@ That means TinyEvents sits in the space between plain in-process event handlers 
 Install the alpha packages:
 
 ```bash
-dotnet add package TinyEvents --version 0.1.0-alpha.2
-dotnet add package TinyEvents.SqlServer.EntityFrameworkCore --version 0.1.0-alpha.2
-dotnet add package TinyEvents.Worker --version 0.1.0-alpha.2
+dotnet add package TinyEvents --version 0.1.0-alpha.3
+dotnet add package TinyEvents.SqlServer.EntityFrameworkCore --version 0.1.0-alpha.3
+dotnet add package TinyEvents.Worker --version 0.1.0-alpha.3
 ```
 
 Provider packages are database-specific. Use `TinyEvents.SqlServer.*` for SQL Server or `TinyEvents.PostgreSql.*` for PostgreSQL.
@@ -193,7 +193,7 @@ The default outbox tables are `dbo.TinyOutbox` on SQL Server and `public.TinyOut
 
 Existing alpha databases receive one narrow compatibility behavior: when the history table is absent and the configured outbox table already exists, the initial migration is recorded as a baseline without recreating the table. TinyEvents does not inspect or repair that table, so manually altered or incompatible alpha schemas must be reconciled by the application first.
 
-See [Schema and Migrations](docs/schema-and-migrations.md) for provider ownership details, upgrade guidance, and explicit non-goals.
+See [Schema and Migrations](docs/schema-and-migrations.md) for provider ownership details, logging, and upgrade guidance.
 
 ## Run the samples
 
@@ -282,7 +282,6 @@ TinyEvents is intentionally small.
 - [Architecture](docs/architecture.md)
 - [Testing](docs/testing.md)
 - [Samples](samples/README.md)
-- [Releasing](docs/releasing.md)
 - [Roadmap](docs/roadmap.md)
 
 ## Current limitations
@@ -301,9 +300,9 @@ See [Roadmap](docs/roadmap.md) for planned hardening.
 
 ## Why publish an alpha?
 
-TinyEvents is being published early because the Tiny Suite needs to be exercised as real packages, not only as local project references.
+TinyEvents is published as a real package train so package boundaries, database behavior, and upgrade compatibility are exercised outside project-reference builds.
 
-The goal of the alpha is to validate:
+The final alpha validates:
 
 - package boundaries
 - generated registrations
@@ -312,4 +311,4 @@ The goal of the alpha is to validate:
 - sample application ergonomics
 - how TinyDispatcher, TinyValidations, and TinyEvents fit together as an application layer
 
-Use the alpha to explore the design, build samples, and give feedback. Wait for later releases before treating the public API as stable.
+Use the alpha to evaluate the design, exercise upgrades, and give feedback. The beta phase will focus on stabilizing public, package, database, and operational contracts before 1.0.

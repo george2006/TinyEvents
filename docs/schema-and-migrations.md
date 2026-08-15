@@ -15,6 +15,8 @@ await host.RunAsync();
 
 TinyEvents does not run migrations during service registration or worker startup. Calling the entry point without a registered provider fails with guidance to register exactly one provider.
 
+Built-in migrations are currently forward-only. TinyEvents does not apply down migrations or repair schema drift.
+
 ## Outbox Table
 
 The outbox message shape is:
@@ -133,13 +135,16 @@ The first built-in migration has a deliberately narrow baseline rule for databas
 
 Before upgrading, applications with manually altered schemas must confirm that their existing outbox table matches the expected provider shape. TinyEvents will not infer compatibility or repair drift.
 
-## Explicit Non-Goals
+## Migration Logging
 
-Built-in migrations do not provide:
+Migration execution uses stable `Microsoft.Extensions.Logging` events:
 
-- automatic migration during host or worker startup
-- down migrations
-- schema drift detection or repair
-- general-purpose baselining
-- a user-defined migration framework or DSL
-- external SQL scripts as the migration authority
+| Event ID | Name | Level | Meaning |
+|---:|---|---|---|
+| 1400 | `MigrationStarted` | Information | A migration operation started for the configured provider and outbox. |
+| 1401 | `MigrationApplied` | Information | One migration was applied or recorded as an existing-alpha baseline. |
+| 1402 | `MigrationSchemaCurrent` | Information | Planning found no pending migrations. |
+| 1403 | `MigrationCompleted` | Information | Final history inspection confirmed the target version. |
+| 1404 | `MigrationFailed` | Error | Migration execution failed. |
+
+Structured properties include provider, schema, table, versions, migration name, baseline status, applied count, and elapsed time. Migration logs do not include SQL, connection strings, credentials, or event payloads. Requested cancellation propagates without being logged as a migration failure.

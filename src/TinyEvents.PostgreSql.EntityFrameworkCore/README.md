@@ -17,8 +17,8 @@ PostgreSQL worker claiming uses `FOR UPDATE SKIP LOCKED`.
 ## Install
 
 ```bash
-dotnet add package TinyEvents --version 0.1.0-alpha.2
-dotnet add package TinyEvents.PostgreSql.EntityFrameworkCore --version 0.1.0-alpha.2
+dotnet add package TinyEvents --version 0.1.0-alpha.3
+dotnet add package TinyEvents.PostgreSql.EntityFrameworkCore --version 0.1.0-alpha.3
 ```
 
 ## Register
@@ -34,6 +34,8 @@ services.AddDbContext<AppDbContext>(options =>
 
 services.UsePostgreSqlEntityFrameworkCoreOutbox<AppDbContext>();
 ```
+
+Register exactly one TinyEvents database provider per service collection.
 
 ## Map The Outbox Entity
 

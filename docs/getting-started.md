@@ -18,9 +18,9 @@ Think of consumers as domain-event or application-event handlers with outbox rel
 Install the alpha packages:
 
 ```bash
-dotnet add package TinyEvents --version 0.1.0-alpha.2
-dotnet add package TinyEvents.SqlServer.EntityFrameworkCore --version 0.1.0-alpha.2
-dotnet add package TinyEvents.Worker --version 0.1.0-alpha.2
+dotnet add package TinyEvents --version 0.1.0-alpha.3
+dotnet add package TinyEvents.SqlServer.EntityFrameworkCore --version 0.1.0-alpha.3
+dotnet add package TinyEvents.Worker --version 0.1.0-alpha.3
 ```
 
 TinyEvents core is provider-agnostic. Provider packages are database-specific:
@@ -35,29 +35,37 @@ TinyEvents uses Microsoft dependency injection.
 ```csharp
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using TinyEvents;
 using TinyEvents.SqlServer.EntityFrameworkCore;
+using TinyEvents.Worker;
 
-var services = new ServiceCollection();
+var builder = Host.CreateApplicationBuilder(args);
 
-services.AddDbContext<AppDbContext>(options =>
+builder.Services.AddDbContext<AppDbContext>(options =>
 {
     options.UseSqlServer(connectionString);
 });
 
-services.UseSqlServerEntityFrameworkCoreOutbox<AppDbContext>();
+builder.Services.UseSqlServerEntityFrameworkCoreOutbox<AppDbContext>();
+builder.Services.AddTinyEventsWorker(options =>
+{
+    options.BatchSize = 50;
+    options.PollingInterval = TimeSpan.FromSeconds(5);
+    options.ClaimTimeout = TimeSpan.FromMinutes(5);
+});
 ```
 
 `UseSqlServerEntityFrameworkCoreOutbox<TDbContext>` registers TinyEvents core services, the EF Core outbox writer, and the EF Core outbox store.
 
 It also applies generated TinyEvents contributions for assemblies already loaded in the process. Those contributions contain the consumer and event dispatcher registrations emitted by the source generator.
 
-For PostgreSQL EF Core, use the PostgreSQL provider package and registration method:
+For PostgreSQL EF Core, replace the SQL Server provider package and registration method with:
 
 ```csharp
 using TinyEvents.PostgreSql.EntityFrameworkCore;
 
-services.UsePostgreSqlEntityFrameworkCoreOutbox<AppDbContext>();
+builder.Services.UsePostgreSqlEntityFrameworkCoreOutbox<AppDbContext>();
 ```
 
 Register exactly one TinyEvents database provider in an application.
@@ -86,19 +94,7 @@ await host.Services.MigrateTinyEventsAsync();
 await host.RunAsync();
 ```
 
-This flow works for ASP.NET Core and worker-only hosts. A worker-only application uses the same ordering:
-
-```csharp
-var builder = Host.CreateApplicationBuilder(args);
-
-builder.Services.UseSqlServerEntityFrameworkCoreOutbox<AppDbContext>();
-builder.Services.AddTinyEventsWorker();
-
-var host = builder.Build();
-
-await host.Services.MigrateTinyEventsAsync();
-await host.RunAsync();
-```
+This ordering is the same for ASP.NET Core, worker-only, console, and test hosts.
 
 Migration execution is never implicit. The hosted worker does not create or upgrade the schema during startup.
 
@@ -159,21 +155,22 @@ With EF Core, the event becomes durable when `SaveChangesAsync` commits.
 
 ## Process The Outbox
 
-For manual processing:
+For manual processing instead of the hosted worker, create a scope from the built host:
 
 ```csharp
-var processor = provider.GetRequiredService<ITinyOutboxProcessor>();
+await using var scope = host.Services.CreateAsyncScope();
+var processor = scope.ServiceProvider.GetRequiredService<ITinyOutboxProcessor>();
 await processor.ProcessPendingAsync(ct);
 ```
 
 Processing resolves a generated `ITinyEventDispatcher` for the stored event type, deserializes the payload, and invokes matching `IEventConsumer<TEvent>` services through dependency injection.
 
-For hosted processing:
+Hosted processing was registered earlier with:
 
 ```csharp
 using TinyEvents.Worker;
 
-services.AddTinyEventsWorker(options =>
+builder.Services.AddTinyEventsWorker(options =>
 {
     options.BatchSize = 50;
     options.PollingInterval = TimeSpan.FromSeconds(5);
