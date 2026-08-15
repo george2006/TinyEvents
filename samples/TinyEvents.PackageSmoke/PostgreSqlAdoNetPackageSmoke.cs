@@ -39,6 +39,8 @@ public static class PostgreSqlAdoNetPackageSmoke
         });
 
         using var provider = services.BuildServiceProvider();
+        await provider.MigrateTinyEventsAsync();
+
         using var scope = provider.CreateScope();
 
         var publisher = scope.ServiceProvider.GetRequiredService<ITinyEventPublisher>();

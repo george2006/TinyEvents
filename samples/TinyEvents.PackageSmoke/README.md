@@ -12,7 +12,7 @@ Run this sample against locally packed packages without touching a database:
 .\samples\TinyEvents.PackageSmoke\Test-PackageSmoke.ps1
 ```
 
-That command builds the solution, packs the complete TinyEvents release train with a unique local version, restores this sample from those local packages, and builds the sample.
+That command builds the solution, packs the complete TinyEvents release train with a unique local version, verifies that migration code remains inside the existing provider assemblies, and restores/builds this sample against an empty isolated NuGet cache.
 
 ## Local Package Runtime Smoke
 
@@ -54,4 +54,4 @@ set TINYEVENTS_PACKAGE_SMOKE_POSTGRESQL=Host=localhost;Port=5432;Database=TinyEv
 
 The sample references package versions through `TinyEventsPackageVersion`, which defaults to the shared version from `Directory.Build.props`. The local smoke script overrides that property with the temporary locally packed package version.
 
-It verifies that the core package, SQL Server providers, PostgreSQL providers, worker package, dependency injection extensions, source-generator consumer registration, publishing, claiming, and processing can be consumed from NuGet packages instead of project references.
+It verifies that the core package, SQL Server providers, PostgreSQL providers, worker package, public migration entry point, dependency injection extensions, source-generator consumer registration, publishing, claiming, and processing can be consumed from NuGet packages instead of project references. Runtime smoke calls `MigrateTinyEventsAsync` through all four packaged providers.
