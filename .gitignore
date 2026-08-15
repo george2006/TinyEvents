@@ -4,3 +4,8 @@ artifacts/
 .vs/
 TestResults/
 
+# Private Codex collaboration notes and implementation plans
+/*Plan.md
+/*Audit.md
+/TinyEvents-Coding-Guide.md
+/docs/way-of-working.md
