@@ -13,6 +13,7 @@ TinyEvents is an outbox-first event library. The docs are organized around how u
   - [ADO.NET](postgresql/ado-net.md)
 - [Workers and Leases](workers.md)
 - [Schema and Migrations](schema-and-migrations.md)
+- [Upgrading to 0.1.0-alpha.3](upgrading-to-alpha-3.md)
 - [The Tiny Suite](tiny-suite.md)
 - [Source Generator](source-generator.md)
 - [Architecture](architecture.md)

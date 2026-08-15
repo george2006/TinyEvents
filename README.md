@@ -276,6 +276,7 @@ TinyEvents is intentionally small.
 - [PostgreSQL ADO.NET](docs/postgresql/ado-net.md)
 - [Workers and Leases](docs/workers.md)
 - [Schema and Migrations](docs/schema-and-migrations.md)
+- [Upgrading to 0.1.0-alpha.3](docs/upgrading-to-alpha-3.md)
 - [The Tiny Suite](docs/tiny-suite.md)
 - [Source Generator](docs/source-generator.md)
 - [Architecture](docs/architecture.md)

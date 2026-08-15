@@ -30,6 +30,16 @@ To run against already-started databases, omit `-StartDatabases`:
 
 `-Run` uses the default SQL Server port `14334` and PostgreSQL port `54324` unless the environment variables below override them.
 
+## Published Alpha Upgrade Smoke
+
+To prove the real upgrade path, run:
+
+```powershell
+.\samples\TinyEvents.PackageSmoke\Test-AlphaUpgrade.ps1
+```
+
+This restores the published `0.1.0-alpha.2` ADO.NET provider packages into an empty cache and uses their schema helpers to create the legacy SQL Server and PostgreSQL outbox tables. It then restores the locally packed packages into a second empty cache, calls `MigrateTinyEventsAsync`, and verifies that each legacy table receives exactly one baselined migration history row.
+
 To run this sample after publishing packages to NuGet:
 
 ```bash

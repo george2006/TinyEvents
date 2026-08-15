@@ -56,7 +56,7 @@ MIG-25 acceptance completed successfully:
 - Release solution build: zero warnings and zero errors;
 - complete suite with both Testcontainers switches enabled: 493 passed, zero failed, zero skipped;
 - SQL Server and PostgreSQL concurrent migration tests executed against real databases;
-- package smoke: six expected packages, no migration package or DLL, clean isolated NuGet cache, and runtime success through all four providers;
+- package smoke: six expected packages, no migration package or DLL, clean isolated NuGet cache, runtime success through all four providers, and a real published `alpha.2` to local-package baseline upgrade on SQL Server and PostgreSQL;
 - public API audit: only `ITinyEventsMigrator` and `TinyEventsMigrationServiceProviderExtensions` were added;
 - documentation link audit: all local links in 29 tracked Markdown files resolved;
 - branch scope and `git diff --check`: clean.
