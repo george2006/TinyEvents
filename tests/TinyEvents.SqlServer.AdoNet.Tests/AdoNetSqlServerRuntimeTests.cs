@@ -82,6 +82,35 @@ public sealed class AdoNetSqlServerRuntimeTests : IClassFixture<SqlServerFixture
     }
 
     [SqlServerIntegrationFact]
+    public async Task Store_claims_message_when_its_next_attempt_is_due()
+    {
+        await fixture.ResetSchemaAsync();
+        using var services = BuildServices();
+        var now = DateTimeOffset.UtcNow;
+        var nextAttemptAtUtc = now.AddMinutes(5);
+        await AddPendingMessageAsync(services, now);
+        var message = Assert.Single(await ClaimInNewScopeAsync(services, "worker-1", now));
+        using (var scope = services.CreateScope())
+        {
+            var store = scope.ServiceProvider.GetRequiredService<ITinyOutboxStore>();
+            await store.MarkFailedAsync(
+                message.Id,
+                "worker-1",
+                "retry later",
+                1,
+                nextAttemptAtUtc,
+                CancellationToken.None);
+        }
+
+        var claimedWhenRetryIsDue = await ClaimInNewScopeAsync(
+            services,
+            "worker-2",
+            nextAttemptAtUtc);
+
+        Assert.Single(claimedWhenRetryIsDue);
+    }
+
+    [SqlServerIntegrationFact]
     public async Task Store_rejects_completion_from_worker_that_does_not_own_lease()
     {
         await fixture.ResetSchemaAsync();
