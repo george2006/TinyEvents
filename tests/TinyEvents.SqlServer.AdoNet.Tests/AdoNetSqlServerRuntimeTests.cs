@@ -106,6 +106,34 @@ public sealed class AdoNetSqlServerRuntimeTests : IClassFixture<SqlServerFixture
     }
 
     [SqlServerIntegrationFact]
+    public async Task Store_does_not_reclaim_terminal_failure()
+    {
+        await fixture.ResetSchemaAsync();
+        using var services = BuildServices();
+        var now = DateTimeOffset.UtcNow;
+        await AddPendingMessageAsync(services, now);
+        var message = Assert.Single(await ClaimInNewScopeAsync(services, "worker-1", now));
+        using (var scope = services.CreateScope())
+        {
+            var store = scope.ServiceProvider.GetRequiredService<ITinyOutboxStore>();
+            await store.MarkFailedAsync(
+                message.Id,
+                "worker-1",
+                "permanent failure",
+                1,
+                nextAttemptAtUtc: null,
+                CancellationToken.None);
+        }
+
+        var claimedAfterLeaseExpired = await ClaimInNewScopeAsync(
+            services,
+            "worker-2",
+            now.AddHours(1));
+
+        Assert.Empty(claimedAfterLeaseExpired);
+    }
+
+    [SqlServerIntegrationFact]
     public async Task Competing_workers_claim_message_only_once()
     {
         await fixture.ResetSchemaAsync();
