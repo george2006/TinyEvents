@@ -82,6 +82,30 @@ public sealed class AdoNetSqlServerRuntimeTests : IClassFixture<SqlServerFixture
     }
 
     [SqlServerIntegrationFact]
+    public async Task Store_rejects_completion_from_worker_that_does_not_own_lease()
+    {
+        await fixture.ResetSchemaAsync();
+        using var services = BuildServices();
+        var now = DateTimeOffset.UtcNow;
+        await AddPendingMessageAsync(services, now);
+        var message = Assert.Single(await ClaimInNewScopeAsync(services, "worker-1", now));
+        using var scope = services.CreateScope();
+        var store = scope.ServiceProvider.GetRequiredService<ITinyOutboxStore>();
+
+        await Assert.ThrowsAnyAsync<InvalidOperationException>(async () =>
+            await store.MarkProcessedAsync(
+                message.Id,
+                "worker-2",
+                now,
+                CancellationToken.None));
+        await store.MarkProcessedAsync(
+            message.Id,
+            "worker-1",
+            now,
+            CancellationToken.None);
+    }
+
+    [SqlServerIntegrationFact]
     public async Task Competing_workers_claim_message_only_once()
     {
         await fixture.ResetSchemaAsync();
