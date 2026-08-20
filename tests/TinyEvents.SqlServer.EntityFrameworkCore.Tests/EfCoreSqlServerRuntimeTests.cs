@@ -18,6 +18,27 @@ public sealed class EfCoreSqlServerRuntimeTests : IClassFixture<SqlServerFixture
     }
 
     [SqlServerIntegrationFact]
+    public async Task Processor_publishes_consumes_and_marks_message_processed()
+    {
+        RecordingConsumer.Consumed.Clear();
+        await fixture.ResetSchemaAsync();
+        using var services = BuildServices();
+        using var scope = services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<TestDbContext>();
+        var publisher = scope.ServiceProvider.GetRequiredService<ITinyEventPublisher>();
+        var processor = scope.ServiceProvider.GetRequiredService<ITinyOutboxProcessor>();
+        var userId = Guid.NewGuid();
+
+        await publisher.PublishAsync(new UserCreated(userId, "user@example.com"));
+        await dbContext.SaveChangesAsync();
+        await processor.ProcessPendingAsync();
+
+        var consumed = Assert.Single(RecordingConsumer.Consumed);
+        Assert.Equal(userId, consumed.UserId);
+        Assert.Equal(TinyOutboxMessageStatus.Processed, await ReadStatusAsync());
+    }
+
+    [SqlServerIntegrationFact]
     public async Task Writer_commits_business_data_and_outbox_message_with_save_changes()
     {
         await fixture.ResetSchemaAsync();
@@ -183,8 +204,20 @@ public sealed class EfCoreSqlServerRuntimeTests : IClassFixture<SqlServerFixture
             options.UseSqlServer(fixture.ConnectionString);
         });
         services.UseSqlServerEntityFrameworkCoreOutbox<TestDbContext>();
+        services.AddSingleton<ITinyEventDispatcher>(new TinyEventDispatcher<UserCreated>());
+        services.AddScoped<IEventConsumer<UserCreated>, RecordingConsumer>();
 
         return services.BuildServiceProvider();
+    }
+
+    private async Task<TinyOutboxMessageStatus> ReadStatusAsync()
+    {
+        await using var connection = new SqlConnection(fixture.ConnectionString);
+        await connection.OpenAsync();
+        await using var command = connection.CreateCommand();
+        command.CommandText = "SELECT Status FROM dbo.TinyOutbox;";
+        var result = await command.ExecuteScalarAsync();
+        return (TinyOutboxMessageStatus)Convert.ToInt32(result);
     }
 
     private static TinyOutboxMessage NewMessage()
@@ -248,4 +281,17 @@ public sealed class EfCoreSqlServerRuntimeTests : IClassFixture<SqlServerFixture
     }
 
     private sealed record UserCreated(Guid UserId, string Email);
+
+    private sealed class RecordingConsumer : IEventConsumer<UserCreated>
+    {
+        public static List<UserCreated> Consumed { get; } = new List<UserCreated>();
+
+        public ValueTask ConsumeAsync(
+            UserCreated @event,
+            CancellationToken cancellationToken)
+        {
+            Consumed.Add(@event);
+            return ValueTask.CompletedTask;
+        }
+    }
 }
