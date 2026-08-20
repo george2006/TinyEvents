@@ -184,6 +184,23 @@ public sealed class AdoNetSqlServerRuntimeTests : IClassFixture<SqlServerFixture
     }
 
     [SqlServerIntegrationFact]
+    public async Task Store_does_not_reclaim_message_with_active_lease()
+    {
+        await fixture.ResetSchemaAsync();
+        using var services = BuildServices();
+        var now = DateTimeOffset.UtcNow;
+        await AddPendingMessageAsync(services, now);
+        Assert.Single(await ClaimInNewScopeAsync(services, "worker-1", now));
+
+        var claimedBySecondWorker = await ClaimInNewScopeAsync(
+            services,
+            "worker-2",
+            now.AddMinutes(1));
+
+        Assert.Empty(claimedBySecondWorker);
+    }
+
+    [SqlServerIntegrationFact]
     public async Task Store_reclaims_expired_processing_message()
     {
         await fixture.ResetSchemaAsync();
