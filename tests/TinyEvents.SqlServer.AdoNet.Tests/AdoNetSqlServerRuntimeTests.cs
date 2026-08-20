@@ -204,14 +204,15 @@ public sealed class AdoNetSqlServerRuntimeTests : IClassFixture<SqlServerFixture
     public async Task Store_reclaims_expired_processing_message()
     {
         await fixture.ResetSchemaAsync();
-        await InsertOutboxMessageAsync(
-            Guid.NewGuid(),
-            TinyOutboxMessageStatus.Processing,
-            workerId: "dead-worker",
-            claimExpiresAtUtc: DateTimeOffset.UtcNow.AddSeconds(-1));
-        var services = BuildServices();
+        using var services = BuildServices();
+        var now = DateTimeOffset.UtcNow;
+        await AddPendingMessageAsync(services, now);
+        Assert.Single(await ClaimInNewScopeAsync(services, "dead-worker", now));
 
-        var claimed = await ClaimInNewScopeAsync(services, "worker-2", DateTimeOffset.UtcNow);
+        var claimed = await ClaimInNewScopeAsync(
+            services,
+            "worker-2",
+            now.AddMinutes(5));
 
         var message = Assert.Single(claimed);
         Assert.Equal("worker-2", message.ClaimedBy);
