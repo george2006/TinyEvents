@@ -57,6 +57,31 @@ public sealed class AdoNetSqlServerRuntimeTests : IClassFixture<SqlServerFixture
     }
 
     [SqlServerIntegrationFact]
+    public async Task Store_does_not_claim_message_before_its_next_attempt()
+    {
+        await fixture.ResetSchemaAsync();
+        using var services = BuildServices();
+        var now = DateTimeOffset.UtcNow;
+        await AddPendingMessageAsync(services, now);
+        var message = Assert.Single(await ClaimInNewScopeAsync(services, "worker-1", now));
+        using (var scope = services.CreateScope())
+        {
+            var store = scope.ServiceProvider.GetRequiredService<ITinyOutboxStore>();
+            await store.MarkFailedAsync(
+                message.Id,
+                "worker-1",
+                "retry later",
+                1,
+                now.AddMinutes(5),
+                CancellationToken.None);
+        }
+
+        var claimedBeforeRetry = await ClaimInNewScopeAsync(services, "worker-2", now);
+
+        Assert.Empty(claimedBeforeRetry);
+    }
+
+    [SqlServerIntegrationFact]
     public async Task Competing_workers_claim_message_only_once()
     {
         await fixture.ResetSchemaAsync();
@@ -146,6 +171,28 @@ public sealed class AdoNetSqlServerRuntimeTests : IClassFixture<SqlServerFixture
             now: now,
             claimTimeout: TimeSpan.FromMinutes(5),
             cancellationToken: CancellationToken.None);
+    }
+
+    private static async Task AddPendingMessageAsync(
+        ServiceProvider services,
+        DateTimeOffset createdAtUtc)
+    {
+        var message = new TinyOutboxMessage
+        {
+            Id = Guid.NewGuid(),
+            EventType = "TinyEvents.Tests.Event",
+            Payload = "{}",
+            Status = TinyOutboxMessageStatus.Pending,
+            CreatedAtUtc = createdAtUtc
+        };
+        using var scope = services.CreateScope();
+        var session = scope.ServiceProvider.GetRequiredService<ApplicationDbSession>();
+        var writer = scope.ServiceProvider.GetRequiredService<ITinyOutboxWriter>();
+
+        await session.ExecuteInTransactionAsync(async (_, _, cancellationToken) =>
+        {
+            await writer.AddAsync(message, cancellationToken);
+        });
     }
 
     private async Task InsertUserAsync(
