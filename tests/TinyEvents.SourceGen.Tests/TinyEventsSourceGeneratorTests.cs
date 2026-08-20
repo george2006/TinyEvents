@@ -188,8 +188,7 @@ public sealed class TinyEventsSourceGeneratorTests
         Assert.Contains("IEventConsumer<global::MyApp.UserCreated>", source);
         Assert.Contains("global::MyApp.SendWelcomeEmail", source);
         Assert.Contains("ITinyEventDispatcher", source);
-        Assert.Contains("TinyEventDispatcher<global::MyApp.UserCreated>", source);
-        Assert.Contains("\"MyApp.UserCreated\"", source);
+        Assert.Contains("TinyEventDispatcher<global::MyApp.UserCreated>()", source);
         Assert.Contains("TinyEventsBootstrap.AddContribution", source);
     }
 
@@ -265,8 +264,8 @@ public sealed class TinyEventsSourceGeneratorTests
 
         Assert.Contains("IEventConsumer<global::MyApp.UserCreated>", source);
         Assert.Contains("IEventConsumer<global::MyApp.UserDeleted>", source);
-        Assert.Contains("\"MyApp.UserCreated\"", source);
-        Assert.Contains("\"MyApp.UserDeleted\"", source);
+        Assert.Contains("TinyEventDispatcher<global::MyApp.UserCreated>()", source);
+        Assert.Contains("TinyEventDispatcher<global::MyApp.UserDeleted>()", source);
     }
 
     [Fact]
@@ -495,6 +494,35 @@ public sealed class TinyEventsSourceGeneratorTests
         var diagnostic = Assert.Single(result.Diagnostics);
 
         Assert.Equal("TEV001", diagnostic.Id);
+        Assert.Empty(result.GeneratedTrees);
+    }
+
+    [Fact]
+    public void Generator_rejects_closed_generic_event_contracts()
+    {
+        var result = SourceGeneratorTestHost.Run(
+            """
+            using System.Threading;
+            using System.Threading.Tasks;
+            using TinyEvents;
+
+            namespace MyApp;
+
+            public sealed record GenericEvent<T>(T Value);
+
+            public sealed class GenericEventConsumer : IEventConsumer<GenericEvent<int>>
+            {
+                public ValueTask ConsumeAsync(GenericEvent<int> @event, CancellationToken cancellationToken)
+                {
+                    return ValueTask.CompletedTask;
+                }
+            }
+            """);
+
+        var diagnostic = Assert.Single(result.Diagnostics);
+
+        Assert.Equal("TEV002", diagnostic.Id);
+        Assert.Equal(Microsoft.CodeAnalysis.DiagnosticSeverity.Error, diagnostic.Severity);
         Assert.Empty(result.GeneratedTrees);
     }
 }

@@ -16,6 +16,7 @@ TinyEvents is an outbox-first event library. The docs are organized around how u
 - [Upgrading to 0.1.0-alpha.3](upgrading-to-alpha-3.md)
 - [The Tiny Suite](tiny-suite.md)
 - [Source Generator](source-generator.md)
+- [Event Contracts and Durable Names](event-contracts.md)
 - [Architecture](architecture.md)
 - [Testing](testing.md)
 - [Samples](../samples/README.md)

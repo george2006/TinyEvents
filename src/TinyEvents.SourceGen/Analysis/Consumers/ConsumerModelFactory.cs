@@ -11,7 +11,6 @@ internal static class ConsumerModelFactory
     {
         return new DiscoveredConsumer(
             implementationType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
-            eventType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
-            eventType.ToDisplayString());
+            eventType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat));
     }
 }

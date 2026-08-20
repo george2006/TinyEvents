@@ -20,4 +20,13 @@ internal sealed class GenerationIssue
             "TEV001",
             $"Open generic event consumer '{consumerTypeName}' is not supported by TinyEvents source generation.");
     }
+
+    public static GenerationIssue GenericEventContract(
+        string consumerTypeName,
+        string eventTypeName)
+    {
+        return new GenerationIssue(
+            "TEV002",
+            $"Event consumer '{consumerTypeName}' uses generic event contract '{eventTypeName}'. TinyEvents does not support generic event contracts. Use a dedicated non-generic event type.");
+    }
 }

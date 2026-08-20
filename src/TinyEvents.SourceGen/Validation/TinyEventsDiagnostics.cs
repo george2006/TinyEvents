@@ -14,6 +14,14 @@ internal static class TinyEventsDiagnostics
         DiagnosticSeverity.Warning,
         true);
 
+    private static readonly DiagnosticDescriptor GenericEventContract = new DiagnosticDescriptor(
+        "TEV002",
+        "Generic event contracts are not supported",
+        "{0}",
+        "TinyEvents.SourceGeneration",
+        DiagnosticSeverity.Error,
+        true);
+
     public static void Report(
         SourceProductionContext context,
         IReadOnlyList<GenerationIssue> issues)
@@ -32,6 +40,11 @@ internal static class TinyEventsDiagnostics
         if (issue.Id == OpenGenericConsumer.Id)
         {
             return OpenGenericConsumer;
+        }
+
+        if (issue.Id == GenericEventContract.Id)
+        {
+            return GenericEventContract;
         }
 
         return new DiagnosticDescriptor(

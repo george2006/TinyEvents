@@ -15,9 +15,9 @@ internal static class TinyEventsGenerationPlanner
             .ToArray();
 
         var dispatchers = discovery.Consumers
-            .GroupBy(consumer => consumer.EventTypeDisplayName, StringComparer.Ordinal)
+            .GroupBy(consumer => consumer.EventTypeName, StringComparer.Ordinal)
             .Select(group => CreateEventDispatcher(group.First()))
-            .OrderBy(dispatcher => dispatcher.EventTypeDisplayName, StringComparer.Ordinal)
+            .OrderBy(dispatcher => dispatcher.EventTypeName, StringComparer.Ordinal)
             .ToArray();
 
         return new TinyEventsGenerationPlan(registrations, dispatchers);
@@ -32,8 +32,6 @@ internal static class TinyEventsGenerationPlanner
 
     private static EventDispatcherPlan CreateEventDispatcher(DiscoveredConsumer consumer)
     {
-        return new EventDispatcherPlan(
-            consumer.EventTypeName,
-            consumer.EventTypeDisplayName);
+        return new EventDispatcherPlan(consumer.EventTypeName);
     }
 }

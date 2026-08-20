@@ -8,7 +8,7 @@ public sealed class TinyOutboxProcessor : ITinyOutboxProcessor
     private readonly IServiceProvider serviceProvider;
     private readonly ITinyOutboxStore store;
     private readonly ITinyEventSerializer serializer;
-    private readonly Dictionary<string, ITinyEventDispatcher> dispatchers;
+    private readonly TinyEventDispatcherRegistry dispatcherRegistry;
     private readonly TinyEventsOptions options;
     private readonly TimeProvider timeProvider;
     private readonly ILogger<TinyOutboxProcessor> logger;
@@ -78,7 +78,7 @@ public sealed class TinyOutboxProcessor : ITinyOutboxProcessor
         this.serviceProvider = serviceProvider;
         this.store = store;
         this.serializer = serializer;
-        this.dispatchers = BuildDispatcherMap(dispatchers);
+        dispatcherRegistry = new TinyEventDispatcherRegistry(dispatchers, options.EventNameAliases);
         this.options = options;
         this.timeProvider = timeProvider;
         this.logger = logger;
@@ -174,19 +174,9 @@ public sealed class TinyOutboxProcessor : ITinyOutboxProcessor
         TinyOutboxMessage message,
         CancellationToken cancellationToken)
     {
-        var dispatcher = ResolveDispatcher(message);
+        var dispatcher = dispatcherRegistry.Resolve(message.EventType);
         var eventInstance = serializer.Deserialize(message.Payload, dispatcher.EventType);
         await dispatcher.DispatchAsync(serviceProvider, eventInstance, cancellationToken);
-    }
-
-    private ITinyEventDispatcher ResolveDispatcher(TinyOutboxMessage message)
-    {
-        if (dispatchers.TryGetValue(message.EventType, out var dispatcher))
-        {
-            return dispatcher;
-        }
-
-        throw new InvalidOperationException($"Event type '{message.EventType}' is not registered.");
     }
 
     private async ValueTask MarkProcessedAsync(
@@ -229,36 +219,6 @@ public sealed class TinyOutboxProcessor : ITinyOutboxProcessor
         }
 
         return timeProvider.GetUtcNow().Add(options.RetryDelay);
-    }
-
-    private static Dictionary<string, ITinyEventDispatcher> BuildDispatcherMap(IEnumerable<ITinyEventDispatcher> dispatchers)
-    {
-        var dispatcherMap = new Dictionary<string, ITinyEventDispatcher>(StringComparer.Ordinal);
-
-        foreach (var dispatcher in dispatchers)
-        {
-            AddDispatcher(dispatcherMap, dispatcher);
-        }
-
-        return dispatcherMap;
-    }
-
-    private static void AddDispatcher(
-        Dictionary<string, ITinyEventDispatcher> dispatchers,
-        ITinyEventDispatcher dispatcher)
-    {
-        if (dispatchers.TryGetValue(dispatcher.EventTypeName, out var existingDispatcher))
-        {
-            if (existingDispatcher.EventType == dispatcher.EventType)
-            {
-                return;
-            }
-
-            throw new InvalidOperationException(
-                $"Event type name '{dispatcher.EventTypeName}' is registered for both '{existingDispatcher.EventType.FullName}' and '{dispatcher.EventType.FullName}'.");
-        }
-
-        dispatchers.Add(dispatcher.EventTypeName, dispatcher);
     }
 
     private readonly record struct RecordedFailure(

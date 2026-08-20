@@ -2,6 +2,7 @@ namespace TinyEvents;
 
 public sealed class TinyEventsOptions
 {
+    private readonly List<TinyEventNameAlias> eventNameAliases = new List<TinyEventNameAlias>();
     private int batchSize = 50;
     private int maxAttempts = 5;
     private TimeSpan retryDelay = TimeSpan.FromSeconds(30);
@@ -97,6 +98,18 @@ public sealed class TinyEventsOptions
             workerId = value;
         }
     }
+
+    public void AcceptPreviousEventName<TEvent>(string previousEventName)
+    {
+        if (string.IsNullOrWhiteSpace(previousEventName))
+        {
+            throw new ArgumentException("Previous event name is required.", nameof(previousEventName));
+        }
+
+        eventNameAliases.Add(new TinyEventNameAlias(previousEventName, typeof(TEvent)));
+    }
+
+    internal IReadOnlyList<TinyEventNameAlias> EventNameAliases => eventNameAliases;
 
     internal string GetWorkerId()
     {

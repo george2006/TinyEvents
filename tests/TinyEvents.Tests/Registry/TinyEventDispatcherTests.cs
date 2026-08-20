@@ -6,6 +6,14 @@ namespace TinyEvents.Tests;
 public sealed class TinyEventDispatcherTests
 {
     [Fact]
+    public void Default_constructor_uses_runtime_event_type_name()
+    {
+        var dispatcher = new TinyEventDispatcher<NestedEvents.UserCreated>();
+
+        Assert.Equal(typeof(NestedEvents.UserCreated).FullName, dispatcher.EventTypeName);
+    }
+
+    [Fact]
     public void Constructor_rejects_empty_event_type_name()
     {
         Assert.Throws<ArgumentException>(() => new TinyEventDispatcher<UserCreated>(" "));
@@ -77,6 +85,11 @@ public sealed class TinyEventDispatcherTests
     }
 
     private sealed record UserCreated(Guid UserId);
+
+    private static class NestedEvents
+    {
+        public sealed record UserCreated(Guid UserId);
+    }
 
     private sealed class RecordingConsumer : IEventConsumer<UserCreated>
     {
