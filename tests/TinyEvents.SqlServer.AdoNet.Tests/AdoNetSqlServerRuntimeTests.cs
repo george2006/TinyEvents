@@ -15,6 +15,31 @@ public sealed class AdoNetSqlServerRuntimeTests : IClassFixture<SqlServerFixture
     }
 
     [SqlServerIntegrationFact]
+    public async Task Processor_publishes_consumes_and_marks_message_processed()
+    {
+        RecordingConsumer.Consumed.Clear();
+        await fixture.ResetSchemaAsync();
+        using var services = BuildServices();
+        using var scope = services.CreateScope();
+        var session = scope.ServiceProvider.GetRequiredService<ApplicationDbSession>();
+        var publisher = scope.ServiceProvider.GetRequiredService<ITinyEventPublisher>();
+        var processor = scope.ServiceProvider.GetRequiredService<ITinyOutboxProcessor>();
+        var userId = Guid.NewGuid();
+
+        await session.ExecuteInTransactionAsync(async (_, _, cancellationToken) =>
+        {
+            await publisher.PublishAsync(
+                new UserCreated(userId, "user@example.com"),
+                cancellationToken);
+        });
+        await processor.ProcessPendingAsync();
+
+        var consumed = Assert.Single(RecordingConsumer.Consumed);
+        Assert.Equal(userId, consumed.UserId);
+        Assert.Equal(TinyOutboxMessageStatus.Processed, await ReadStatusAsync());
+    }
+
+    [SqlServerIntegrationFact]
     public async Task Application_transaction_commits_business_data_and_outbox_message_together()
     {
         await fixture.ResetSchemaAsync();
@@ -240,6 +265,8 @@ public sealed class AdoNetSqlServerRuntimeTests : IClassFixture<SqlServerFixture
                 return connection;
             });
         });
+        services.AddSingleton<ITinyEventDispatcher>(new TinyEventDispatcher<UserCreated>());
+        services.AddScoped<IEventConsumer<UserCreated>, RecordingConsumer>();
 
         return services.BuildServiceProvider();
     }
@@ -344,6 +371,16 @@ public sealed class AdoNetSqlServerRuntimeTests : IClassFixture<SqlServerFixture
         await command.ExecuteNonQueryAsync();
     }
 
+    private async Task<TinyOutboxMessageStatus> ReadStatusAsync()
+    {
+        await using var connection = new SqlConnection(fixture.ConnectionString);
+        await connection.OpenAsync();
+        await using var command = connection.CreateCommand();
+        command.CommandText = "SELECT Status FROM dbo.TinyOutbox;";
+        var result = await command.ExecuteScalarAsync();
+        return (TinyOutboxMessageStatus)Convert.ToInt32(result);
+    }
+
     private async Task<int> CountAsync(string tableName)
     {
         await using var connection = new SqlConnection(fixture.ConnectionString);
@@ -366,6 +403,19 @@ public sealed class AdoNetSqlServerRuntimeTests : IClassFixture<SqlServerFixture
     }
 
     private sealed record UserCreated(Guid UserId, string Email);
+
+    private sealed class RecordingConsumer : IEventConsumer<UserCreated>
+    {
+        public static List<UserCreated> Consumed { get; } = new List<UserCreated>();
+
+        public ValueTask ConsumeAsync(
+            UserCreated @event,
+            CancellationToken cancellationToken)
+        {
+            Consumed.Add(@event);
+            return ValueTask.CompletedTask;
+        }
+    }
 
     private sealed class ApplicationDbSession
     {
