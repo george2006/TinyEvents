@@ -160,61 +160,83 @@ public sealed class EfCoreSqlServerRuntimeTests : IClassFixture<SqlServerFixture
     public async Task Store_reclaims_expired_processing_message()
     {
         await fixture.ResetSchemaAsync();
-        var services = BuildServices();
+        using var services = BuildServices();
+        var now = DateTimeOffset.UtcNow;
 
-        using (var scope = services.CreateScope())
-        {
-            var dbContext = scope.ServiceProvider.GetRequiredService<TestDbContext>();
-            dbContext.Set<TinyOutboxMessage>().Add(NewProcessingMessage(
-                workerId: "dead-worker",
-                claimExpiresAtUtc: DateTimeOffset.UtcNow.AddSeconds(-1)));
-            await dbContext.SaveChangesAsync();
-        }
+        await PublishUserCreatedAsync(services, Guid.NewGuid());
+        Assert.Single(await ClaimInNewScopeAsync(services, "dead-worker", now));
 
-        using (var scope = services.CreateScope())
-        {
-            var store = scope.ServiceProvider.GetRequiredService<ITinyOutboxStore>();
+        var claimed = await ClaimInNewScopeAsync(
+            services,
+            "worker-2",
+            now.AddMinutes(5));
 
-            var claimed = await store.ClaimPendingAsync(
-                maxCount: 1,
-                workerId: "ef-worker-2",
-                now: DateTimeOffset.UtcNow,
-                claimTimeout: TimeSpan.FromMinutes(5),
-                cancellationToken: CancellationToken.None);
-
-            var message = Assert.Single(claimed);
-            Assert.Equal("ef-worker-2", message.ClaimedBy);
-        }
+        var message = Assert.Single(claimed);
+        Assert.Equal("worker-2", message.ClaimedBy);
+        Assert.Equal(TinyOutboxMessageStatus.Processing, message.Status);
     }
 
     [SqlServerIntegrationFact]
     public async Task Store_does_not_claim_active_processing_message()
     {
         await fixture.ResetSchemaAsync();
-        var services = BuildServices();
+        using var services = BuildServices();
+        var now = DateTimeOffset.UtcNow;
 
-        using (var scope = services.CreateScope())
-        {
-            var dbContext = scope.ServiceProvider.GetRequiredService<TestDbContext>();
-            dbContext.Set<TinyOutboxMessage>().Add(NewProcessingMessage(
-                workerId: "ef-worker-1",
-                claimExpiresAtUtc: DateTimeOffset.UtcNow.AddMinutes(5)));
-            await dbContext.SaveChangesAsync();
-        }
+        await PublishUserCreatedAsync(services, Guid.NewGuid());
+        Assert.Single(await ClaimInNewScopeAsync(services, "worker-1", now));
 
-        using (var scope = services.CreateScope())
-        {
-            var store = scope.ServiceProvider.GetRequiredService<ITinyOutboxStore>();
+        var claimedBySecondWorker = await ClaimInNewScopeAsync(
+            services,
+            "worker-2",
+            now.AddMinutes(1));
 
-            var claimed = await store.ClaimPendingAsync(
-                maxCount: 1,
-                workerId: "ef-worker-2",
-                now: DateTimeOffset.UtcNow,
-                claimTimeout: TimeSpan.FromMinutes(5),
-                cancellationToken: CancellationToken.None);
+        Assert.Empty(claimedBySecondWorker);
+    }
 
-            Assert.Empty(claimed);
-        }
+    [SqlServerIntegrationFact]
+    public async Task Competing_workers_claim_message_only_once()
+    {
+        await fixture.ResetSchemaAsync();
+        using var services = BuildServices();
+        var now = DateTimeOffset.UtcNow;
+
+        await PublishUserCreatedAsync(services, Guid.NewGuid());
+
+        var first = ClaimInNewScopeAsync(services, "worker-1", now);
+        var second = ClaimInNewScopeAsync(services, "worker-2", now);
+
+        var results = await Task.WhenAll(first, second);
+        var totalClaimed = results.Sum(result => result.Count);
+
+        Assert.Equal(1, totalClaimed);
+    }
+
+    [SqlServerIntegrationFact]
+    public async Task Store_rejects_completion_from_worker_that_does_not_own_lease()
+    {
+        await fixture.ResetSchemaAsync();
+        using var services = BuildServices();
+        var now = DateTimeOffset.UtcNow;
+
+        await PublishUserCreatedAsync(services, Guid.NewGuid());
+        var message = Assert.Single(await ClaimInNewScopeAsync(services, "worker-1", now));
+
+        using var scope = services.CreateScope();
+        var store = scope.ServiceProvider.GetRequiredService<ITinyOutboxStore>();
+
+        await Assert.ThrowsAnyAsync<InvalidOperationException>(async () =>
+            await store.MarkProcessedAsync(
+                message.Id,
+                "worker-2",
+                now,
+                CancellationToken.None));
+
+        await store.MarkProcessedAsync(
+            message.Id,
+            "worker-1",
+            now,
+            CancellationToken.None);
     }
 
     [SqlServerIntegrationFact]
@@ -322,24 +344,6 @@ public sealed class EfCoreSqlServerRuntimeTests : IClassFixture<SqlServerFixture
             Payload = "{}",
             Status = TinyOutboxMessageStatus.Pending,
             AttemptCount = 0,
-            CreatedAtUtc = DateTimeOffset.UtcNow
-        };
-    }
-
-    private static TinyOutboxMessage NewProcessingMessage(
-        string workerId,
-        DateTimeOffset claimExpiresAtUtc)
-    {
-        return new TinyOutboxMessage
-        {
-            Id = Guid.NewGuid(),
-            EventType = typeof(UserCreated).FullName!,
-            Payload = "{}",
-            Status = TinyOutboxMessageStatus.Processing,
-            AttemptCount = 0,
-            ClaimedBy = workerId,
-            ClaimedAtUtc = DateTimeOffset.UtcNow,
-            ClaimExpiresAtUtc = claimExpiresAtUtc,
             CreatedAtUtc = DateTimeOffset.UtcNow
         };
     }
