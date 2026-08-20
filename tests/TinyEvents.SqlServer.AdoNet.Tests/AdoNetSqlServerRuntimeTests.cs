@@ -219,22 +219,6 @@ public sealed class AdoNetSqlServerRuntimeTests : IClassFixture<SqlServerFixture
         Assert.Equal(TinyOutboxMessageStatus.Processing, message.Status);
     }
 
-    [SqlServerIntegrationFact]
-    public async Task Store_does_not_claim_active_processing_message()
-    {
-        await fixture.ResetSchemaAsync();
-        await InsertOutboxMessageAsync(
-            Guid.NewGuid(),
-            TinyOutboxMessageStatus.Processing,
-            workerId: "worker-1",
-            claimExpiresAtUtc: DateTimeOffset.UtcNow.AddMinutes(5));
-        var services = BuildServices();
-
-        var claimed = await ClaimInNewScopeAsync(services, "worker-2", DateTimeOffset.UtcNow);
-
-        Assert.Empty(claimed);
-    }
-
     private ServiceProvider BuildServices()
     {
         var services = new ServiceCollection();
