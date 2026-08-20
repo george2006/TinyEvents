@@ -92,6 +92,71 @@ public sealed class EfCoreSqlServerRuntimeTests : IClassFixture<SqlServerFixture
     }
 
     [SqlServerIntegrationFact]
+    public async Task Store_retries_failed_message_when_next_attempt_is_due()
+    {
+        await fixture.ResetSchemaAsync();
+        using var services = BuildServices();
+        var now = DateTimeOffset.UtcNow;
+        var nextAttemptAtUtc = now.AddMinutes(5);
+
+        await PublishUserCreatedAsync(services, Guid.NewGuid());
+        var message = Assert.Single(await ClaimInNewScopeAsync(services, "worker-1", now));
+
+        using (var scope = services.CreateScope())
+        {
+            var store = scope.ServiceProvider.GetRequiredService<ITinyOutboxStore>();
+            await store.MarkFailedAsync(
+                message.Id,
+                "worker-1",
+                "retry later",
+                1,
+                nextAttemptAtUtc,
+                CancellationToken.None);
+        }
+
+        Assert.Empty(await ClaimInNewScopeAsync(services, "worker-2", now));
+
+        var retriedMessage = Assert.Single(await ClaimInNewScopeAsync(
+            services,
+            "worker-2",
+            nextAttemptAtUtc));
+        Assert.Equal("worker-2", retriedMessage.ClaimedBy);
+        Assert.Equal(TinyOutboxMessageStatus.Processing, retriedMessage.Status);
+        Assert.Equal(1, retriedMessage.AttemptCount);
+        Assert.Equal("retry later", retriedMessage.LastError);
+    }
+
+    [SqlServerIntegrationFact]
+    public async Task Store_does_not_reclaim_terminal_failure()
+    {
+        await fixture.ResetSchemaAsync();
+        using var services = BuildServices();
+        var now = DateTimeOffset.UtcNow;
+
+        await PublishUserCreatedAsync(services, Guid.NewGuid());
+        var message = Assert.Single(await ClaimInNewScopeAsync(services, "worker-1", now));
+
+        using (var scope = services.CreateScope())
+        {
+            var store = scope.ServiceProvider.GetRequiredService<ITinyOutboxStore>();
+            await store.MarkFailedAsync(
+                message.Id,
+                "worker-1",
+                "permanent failure",
+                1,
+                nextAttemptAtUtc: null,
+                CancellationToken.None);
+        }
+
+        var claimedAfterLeaseExpired = await ClaimInNewScopeAsync(
+            services,
+            "worker-2",
+            now.AddHours(1));
+
+        Assert.Empty(claimedAfterLeaseExpired);
+    }
+
+    [SqlServerIntegrationFact]
     public async Task Store_reclaims_expired_processing_message()
     {
         await fixture.ResetSchemaAsync();
@@ -208,6 +273,34 @@ public sealed class EfCoreSqlServerRuntimeTests : IClassFixture<SqlServerFixture
         services.AddScoped<IEventConsumer<UserCreated>, RecordingConsumer>();
 
         return services.BuildServiceProvider();
+    }
+
+    private static async Task PublishUserCreatedAsync(
+        ServiceProvider services,
+        Guid userId)
+    {
+        using var scope = services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<TestDbContext>();
+        var publisher = scope.ServiceProvider.GetRequiredService<ITinyEventPublisher>();
+
+        await publisher.PublishAsync(new UserCreated(userId, "user@example.com"));
+        await dbContext.SaveChangesAsync();
+    }
+
+    private static async Task<IReadOnlyList<TinyOutboxMessage>> ClaimInNewScopeAsync(
+        ServiceProvider services,
+        string workerId,
+        DateTimeOffset now)
+    {
+        using var scope = services.CreateScope();
+        var store = scope.ServiceProvider.GetRequiredService<ITinyOutboxStore>();
+
+        return await store.ClaimPendingAsync(
+            maxCount: 1,
+            workerId: workerId,
+            now: now,
+            claimTimeout: TimeSpan.FromMinutes(5),
+            cancellationToken: CancellationToken.None);
     }
 
     private async Task<TinyOutboxMessageStatus> ReadStatusAsync()
