@@ -107,7 +107,11 @@ public sealed class AdoNetSqlServerRuntimeTests : IClassFixture<SqlServerFixture
             "worker-2",
             nextAttemptAtUtc);
 
-        Assert.Single(claimedWhenRetryIsDue);
+        var retriedMessage = Assert.Single(claimedWhenRetryIsDue);
+        Assert.Equal("worker-2", retriedMessage.ClaimedBy);
+        Assert.Equal(TinyOutboxMessageStatus.Processing, retriedMessage.Status);
+        Assert.Equal(1, retriedMessage.AttemptCount);
+        Assert.Equal("retry later", retriedMessage.LastError);
     }
 
     [SqlServerIntegrationFact]
