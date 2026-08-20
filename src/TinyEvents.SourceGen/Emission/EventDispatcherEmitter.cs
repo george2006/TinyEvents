@@ -11,8 +11,6 @@ internal static class EventDispatcherEmitter
     {
         writer.Write("global::Microsoft.Extensions.DependencyInjection.ServiceCollectionServiceExtensions.AddSingleton<global::TinyEvents.ITinyEventDispatcher>(services, new global::TinyEvents.TinyEventDispatcher<");
         writer.Write(dispatcher.EventTypeName);
-        writer.Write(">(");
-        writer.Write(StringLiteral.From(dispatcher.EventTypeDisplayName));
-        writer.WriteLine("));");
+        writer.WriteLine(">());");
     }
 }

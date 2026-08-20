@@ -51,15 +51,11 @@ public sealed class TinyEventPublisher : ITinyEventPublisher
         return new TinyOutboxMessage
         {
             Id = Guid.NewGuid(),
-            EventType = GetEventTypeName(eventType),
+            EventType = TinyEventTypeName.Get(eventType),
             Payload = serializer.Serialize(@event, eventType),
             Status = TinyOutboxMessageStatus.Pending,
             CreatedAtUtc = timeProvider.GetUtcNow()
         };
     }
 
-    private static string GetEventTypeName(Type eventType)
-    {
-        return eventType.FullName ?? eventType.Name;
-    }
 }

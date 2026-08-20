@@ -77,6 +77,19 @@ internal static class ConsumerDiscoveryAnalyzer
             return;
         }
 
+        if (IsGenericEventContract(eventType))
+        {
+            issues.Add(GenerationIssue.GenericEventContract(
+                implementationType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
+                eventType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)));
+            return;
+        }
+
         consumers.Add(ConsumerModelFactory.Create(implementationType, eventType));
+    }
+
+    private static bool IsGenericEventContract(ITypeSymbol eventType)
+    {
+        return eventType is INamedTypeSymbol { IsGenericType: true };
     }
 }

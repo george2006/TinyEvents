@@ -4,6 +4,8 @@ TinyEvents uses an incremental source generator to remove registration boilerpla
 
 Consumers are registered automatically through generated contributions. Application code defines `IEventConsumer<TEvent>` implementations; it does not normally add those consumers to DI by hand.
 
+Generic event contracts are rejected with `TEV002`. Nested non-generic contracts are supported. Durable event naming and namespace/type rename guidance are documented in [Event Contracts and Durable Names](event-contracts.md).
+
 The generator discovers concrete closed event consumers:
 
 ```csharp
@@ -32,7 +34,7 @@ The generated registration is equivalent to:
 ```csharp
 services.AddScoped<IEventConsumer<UserCreated>, SendWelcomeEmail>();
 services.AddSingleton<ITinyEventDispatcher>(
-    new TinyEventDispatcher<UserCreated>("MyApp.UserCreated"));
+    new TinyEventDispatcher<UserCreated>());
 ```
 
 The generated code is packaged as an `ITinyEventsContribution`. A module initializer calls:

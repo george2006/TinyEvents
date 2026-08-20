@@ -139,6 +139,39 @@ public sealed class TinyOutboxProcessorTests
     }
 
     [Fact]
+    public async Task Process_pending_async_resolves_an_explicit_previous_event_name()
+    {
+        const string previousEventName = "Previous.Namespace.UserCreated";
+        RecordingConsumer.Consumed.Clear();
+        var store = new InMemoryTinyOutboxStore();
+        var eventInstance = new UserCreated(Guid.NewGuid(), "user@example.com");
+        var serializer = new SystemTextJsonTinyEventSerializer();
+        await store.AddAsync(
+            NewPendingMessage(
+                previousEventName,
+                serializer.Serialize(eventInstance, typeof(UserCreated))),
+            CancellationToken.None);
+        var processor = BuildProcessor(
+            store,
+            configureOptions: options =>
+                options.AcceptPreviousEventName<UserCreated>(previousEventName));
+
+        await processor.ProcessPendingAsync();
+
+        Assert.Equal(TinyOutboxMessageStatus.Processed, Assert.Single(store.Snapshot()).Status);
+        Assert.Equal(eventInstance, Assert.Single(RecordingConsumer.Consumed));
+    }
+
+    [Fact]
+    public void Options_reject_an_empty_previous_event_name()
+    {
+        var options = new TinyEventsOptions();
+
+        Assert.Throws<ArgumentException>(() =>
+            options.AcceptPreviousEventName<UserCreated>(" "));
+    }
+
+    [Fact]
     public async Task Process_pending_async_invokes_multiple_consumers_for_same_event()
     {
         RecordingConsumer.Consumed.Clear();
@@ -456,20 +489,24 @@ public sealed class TinyOutboxProcessorTests
         string? workerId = "worker-1",
         int batchSize = 10,
         TimeSpan? claimTimeout = null,
-        ILogger<TinyOutboxProcessor>? logger = null)
+        ILogger<TinyOutboxProcessor>? logger = null,
+        Action<TinyEventsOptions>? configureOptions = null)
     {
         var services = new ServiceCollection();
 
-        services.AddSingleton<ITinyOutboxStore>(store);
-        services.AddSingleton(timeProvider ?? TimeProvider.System);
-        services.AddSingleton(new TinyEventsOptions
+        var options = new TinyEventsOptions
         {
             WorkerId = workerId,
             BatchSize = batchSize,
             MaxAttempts = 5,
             RetryDelay = TimeSpan.FromSeconds(30),
             ClaimTimeout = claimTimeout ?? TimeSpan.FromMinutes(5)
-        });
+        };
+        configureOptions?.Invoke(options);
+
+        services.AddSingleton<ITinyOutboxStore>(store);
+        services.AddSingleton(timeProvider ?? TimeProvider.System);
+        services.AddSingleton(options);
         services.AddSingleton<ITinyEventSerializer, SystemTextJsonTinyEventSerializer>();
         services.AddSingleton<ITinyEventDispatcher>(
             new TinyEventDispatcher<UserCreated>(typeof(UserCreated).FullName!));

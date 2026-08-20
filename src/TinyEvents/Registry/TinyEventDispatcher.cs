@@ -4,6 +4,11 @@ namespace TinyEvents;
 
 public sealed class TinyEventDispatcher<TEvent> : ITinyEventDispatcher
 {
+    public TinyEventDispatcher()
+        : this(TinyEventTypeName.Get(typeof(TEvent)))
+    {
+    }
+
     public TinyEventDispatcher(string eventTypeName)
     {
         if (string.IsNullOrWhiteSpace(eventTypeName))
