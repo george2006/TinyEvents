@@ -294,6 +294,7 @@ TinyEvents is intentionally small.
 - [Upgrading to 0.1.0-alpha.3](docs/upgrading-to-alpha-3.md)
 - [The Tiny Suite](docs/tiny-suite.md)
 - [Source Generator](docs/source-generator.md)
+- [Event Contracts and Durable Names](docs/event-contracts.md)
 - [Architecture](docs/architecture.md)
 - [Testing](docs/testing.md)
 - [Samples](samples/README.md)
