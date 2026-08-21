@@ -237,7 +237,13 @@ SQL Server samples default to `TINYEVENTS_SAMPLE_SQLSERVER`. PostgreSQL samples 
 
 ## Tiny suite
 
-TinyEvents is part of the same thinking as TinyDispatcher and TinyValidations.
+TinyEvents belongs to the Tiny suite. Each library owns one application-layer responsibility:
+
+- [TinyDispatcher](https://github.com/george2006/TinyDispatcher) owns command and query execution.
+- [TinyValidations](https://github.com/george2006/TinyValidations) owns application input validation.
+- [TinyEvents](https://github.com/george2006/TinyEvents) owns reliable application-event handling through the outbox pattern.
+
+The libraries can be adopted independently. Using one does not require referencing the other two.
 
 Together they can form a small application layer:
 
