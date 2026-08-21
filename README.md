@@ -12,6 +12,12 @@ In practice, TinyEvents gives you domain-event or application-event handlers wit
 >
 > `0.1.0-alpha.3` is the feature-complete final alpha. The next phase focuses on contract stabilization and production-readiness evidence before 1.0. Publishing to NuGet at this stage does not mean the library is stable for production systems.
 
+## Public Reliability Laboratory
+
+Want to see how TinyEvents is being hardened? The public [TinyEvents Dogfood laboratory](https://github.com/george2006/TinyEvents.DogFood) exercises worker crashes, competing workers, leases, database outages, retries, schema changes, and load against real infrastructure.
+
+The laboratory is intentionally a work in progress. Completed scenarios contain reproducible evidence; its public roadmap shows what still has to be proven before beta. Pending work is not presented as a product guarantee.
+
 ## Contents
 
 - [Why TinyEvents?](#why-tinyevents)
