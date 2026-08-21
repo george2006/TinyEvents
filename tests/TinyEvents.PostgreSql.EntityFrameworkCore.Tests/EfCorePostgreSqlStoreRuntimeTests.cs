@@ -39,6 +39,71 @@ public sealed class EfCorePostgreSqlStoreRuntimeTests
     }
 
     [PostgreSqlIntegrationFact]
+    public async Task Store_retries_failed_message_when_next_attempt_is_due()
+    {
+        await fixture.ResetSchemaAsync();
+        using var services = BuildServices();
+        var now = DateTimeOffset.UtcNow;
+        var nextAttemptAtUtc = now.AddMinutes(5);
+
+        await PublishUserCreatedAsync(services, Guid.NewGuid());
+        var message = Assert.Single(await ClaimInNewScopeAsync(services, "worker-1", now));
+
+        using (var scope = services.CreateScope())
+        {
+            var store = scope.ServiceProvider.GetRequiredService<ITinyOutboxStore>();
+            await store.MarkFailedAsync(
+                message.Id,
+                "worker-1",
+                "retry later",
+                1,
+                nextAttemptAtUtc,
+                CancellationToken.None);
+        }
+
+        Assert.Empty(await ClaimInNewScopeAsync(services, "worker-2", now));
+
+        var retriedMessage = Assert.Single(await ClaimInNewScopeAsync(
+            services,
+            "worker-2",
+            nextAttemptAtUtc));
+        Assert.Equal("worker-2", retriedMessage.ClaimedBy);
+        Assert.Equal(TinyOutboxMessageStatus.Processing, retriedMessage.Status);
+        Assert.Equal(1, retriedMessage.AttemptCount);
+        Assert.Equal("retry later", retriedMessage.LastError);
+    }
+
+    [PostgreSqlIntegrationFact]
+    public async Task Store_does_not_reclaim_terminal_failure()
+    {
+        await fixture.ResetSchemaAsync();
+        using var services = BuildServices();
+        var now = DateTimeOffset.UtcNow;
+
+        await PublishUserCreatedAsync(services, Guid.NewGuid());
+        var message = Assert.Single(await ClaimInNewScopeAsync(services, "worker-1", now));
+
+        using (var scope = services.CreateScope())
+        {
+            var store = scope.ServiceProvider.GetRequiredService<ITinyOutboxStore>();
+            await store.MarkFailedAsync(
+                message.Id,
+                "worker-1",
+                "permanent failure",
+                1,
+                nextAttemptAtUtc: null,
+                CancellationToken.None);
+        }
+
+        var claimedAfterLeaseExpired = await ClaimInNewScopeAsync(
+            services,
+            "worker-2",
+            now.AddHours(1));
+
+        Assert.Empty(claimedAfterLeaseExpired);
+    }
+
+    [PostgreSqlIntegrationFact]
     public async Task Store_claims_due_pending_message()
     {
         await fixture.ResetSchemaAsync();
@@ -75,20 +140,18 @@ public sealed class EfCorePostgreSqlStoreRuntimeTests
     public async Task Store_reclaims_expired_processing_message()
     {
         await fixture.ResetSchemaAsync();
-        var messageId = Guid.NewGuid();
-        await InsertOutboxMessageAsync(
-            messageId,
-            TinyOutboxMessageStatus.Processing,
-            workerId: "dead-worker",
-            claimedAtUtc: DateTimeOffset.UtcNow.AddMinutes(-10),
-            claimExpiresAtUtc: DateTimeOffset.UtcNow.AddMinutes(-1));
-        await using var dbContext = NewDbContext();
-        var store = NewStore(dbContext);
+        using var services = BuildServices();
+        var now = DateTimeOffset.UtcNow;
 
-        var claimed = await store.ClaimPendingAsync(1, "worker-2", DateTimeOffset.UtcNow, TimeSpan.FromMinutes(5), CancellationToken.None);
+        await PublishUserCreatedAsync(services, Guid.NewGuid());
+        Assert.Single(await ClaimInNewScopeAsync(services, "dead-worker", now));
+
+        var claimed = await ClaimInNewScopeAsync(
+            services,
+            "worker-2",
+            now.AddMinutes(5));
 
         var message = Assert.Single(claimed);
-        Assert.Equal(messageId, message.Id);
         Assert.Equal("worker-2", message.ClaimedBy);
         Assert.Equal(TinyOutboxMessageStatus.Processing, message.Status);
     }
@@ -97,37 +160,71 @@ public sealed class EfCorePostgreSqlStoreRuntimeTests
     public async Task Store_does_not_claim_active_processing_message()
     {
         await fixture.ResetSchemaAsync();
-        await InsertOutboxMessageAsync(
-            Guid.NewGuid(),
-            TinyOutboxMessageStatus.Processing,
-            workerId: "worker-1",
-            claimedAtUtc: DateTimeOffset.UtcNow,
-            claimExpiresAtUtc: DateTimeOffset.UtcNow.AddMinutes(5));
-        await using var dbContext = NewDbContext();
-        var store = NewStore(dbContext);
+        using var services = BuildServices();
+        var now = DateTimeOffset.UtcNow;
 
-        var claimed = await store.ClaimPendingAsync(1, "worker-2", DateTimeOffset.UtcNow, TimeSpan.FromMinutes(5), CancellationToken.None);
+        await PublishUserCreatedAsync(services, Guid.NewGuid());
+        Assert.Single(await ClaimInNewScopeAsync(services, "worker-1", now));
 
-        Assert.Empty(claimed);
+        var claimedBySecondWorker = await ClaimInNewScopeAsync(
+            services,
+            "worker-2",
+            now.AddMinutes(1));
+
+        Assert.Empty(claimedBySecondWorker);
+    }
+
+    [PostgreSqlIntegrationFact]
+    public async Task Competing_workers_claim_message_only_once()
+    {
+        await fixture.ResetSchemaAsync();
+        using var services = BuildServices();
+        var now = DateTimeOffset.UtcNow;
+
+        await PublishUserCreatedAsync(services, Guid.NewGuid());
+
+        var first = ClaimInNewScopeAsync(services, "worker-1", now);
+        var second = ClaimInNewScopeAsync(services, "worker-2", now);
+
+        var results = await Task.WhenAll(first, second);
+        var totalClaimed = results.Sum(result => result.Count);
+
+        Assert.Equal(1, totalClaimed);
     }
 
     [PostgreSqlIntegrationFact]
     public async Task Mark_processed_throws_when_message_is_owned_by_another_worker()
     {
         await fixture.ResetSchemaAsync();
-        var ownedId = Guid.NewGuid();
-        var otherId = Guid.NewGuid();
-        await InsertOutboxMessageAsync(ownedId, TinyOutboxMessageStatus.Processing, workerId: "worker-1");
-        await InsertOutboxMessageAsync(otherId, TinyOutboxMessageStatus.Processing, workerId: "worker-2");
-        await using var dbContext = NewDbContext();
-        var store = NewStore(dbContext);
+        using var services = BuildServices();
+        var now = DateTimeOffset.UtcNow;
 
-        await store.MarkProcessedAsync(ownedId, "worker-1", DateTimeOffset.UtcNow, CancellationToken.None);
+        await PublishUserCreatedAsync(services, Guid.NewGuid());
+        var message = Assert.Single(await ClaimInNewScopeAsync(services, "worker-1", now));
+
+        using var scope = services.CreateScope();
+        var store = scope.ServiceProvider.GetRequiredService<ITinyOutboxStore>();
+
         await Assert.ThrowsAnyAsync<InvalidOperationException>(
-            async () => await store.MarkProcessedAsync(otherId, "worker-1", DateTimeOffset.UtcNow, CancellationToken.None));
+            async () => await store.MarkProcessedAsync(
+                message.Id,
+                "worker-2",
+                now,
+                CancellationToken.None));
 
-        Assert.Equal(TinyOutboxMessageStatus.Processed, await ReadStatusAsync(ownedId));
-        Assert.Equal(TinyOutboxMessageStatus.Processing, await ReadStatusAsync(otherId));
+        Assert.Equal(
+            TinyOutboxMessageStatus.Processing,
+            await ReadStatusAsync(message.Id));
+
+        await store.MarkProcessedAsync(
+            message.Id,
+            "worker-1",
+            now,
+            CancellationToken.None);
+
+        Assert.Equal(
+            TinyOutboxMessageStatus.Processed,
+            await ReadStatusAsync(message.Id));
     }
 
     [PostgreSqlIntegrationFact]
@@ -166,6 +263,34 @@ public sealed class EfCorePostgreSqlStoreRuntimeTests
         services.AddScoped<IEventConsumer<UserCreated>, RecordingConsumer>();
 
         return services.BuildServiceProvider();
+    }
+
+    private static async Task PublishUserCreatedAsync(
+        ServiceProvider services,
+        Guid userId)
+    {
+        using var scope = services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<TestDbContext>();
+        var publisher = scope.ServiceProvider.GetRequiredService<ITinyEventPublisher>();
+
+        await publisher.PublishAsync(new UserCreated(userId));
+        await dbContext.SaveChangesAsync();
+    }
+
+    private static async Task<IReadOnlyList<TinyOutboxMessage>> ClaimInNewScopeAsync(
+        ServiceProvider services,
+        string workerId,
+        DateTimeOffset now)
+    {
+        using var scope = services.CreateScope();
+        var store = scope.ServiceProvider.GetRequiredService<ITinyOutboxStore>();
+
+        return await store.ClaimPendingAsync(
+            maxCount: 1,
+            workerId: workerId,
+            now: now,
+            claimTimeout: TimeSpan.FromMinutes(5),
+            cancellationToken: CancellationToken.None);
     }
 
     private TestDbContext NewDbContext()

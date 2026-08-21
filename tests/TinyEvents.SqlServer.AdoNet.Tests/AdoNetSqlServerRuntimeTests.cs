@@ -15,6 +15,31 @@ public sealed class AdoNetSqlServerRuntimeTests : IClassFixture<SqlServerFixture
     }
 
     [SqlServerIntegrationFact]
+    public async Task Processor_publishes_consumes_and_marks_message_processed()
+    {
+        RecordingConsumer.Consumed.Clear();
+        await fixture.ResetSchemaAsync();
+        using var services = BuildServices();
+        using var scope = services.CreateScope();
+        var session = scope.ServiceProvider.GetRequiredService<ApplicationDbSession>();
+        var publisher = scope.ServiceProvider.GetRequiredService<ITinyEventPublisher>();
+        var processor = scope.ServiceProvider.GetRequiredService<ITinyOutboxProcessor>();
+        var userId = Guid.NewGuid();
+
+        await session.ExecuteInTransactionAsync(async (_, _, cancellationToken) =>
+        {
+            await publisher.PublishAsync(
+                new UserCreated(userId, "user@example.com"),
+                cancellationToken);
+        });
+        await processor.ProcessPendingAsync();
+
+        var consumed = Assert.Single(RecordingConsumer.Consumed);
+        Assert.Equal(userId, consumed.UserId);
+        Assert.Equal(TinyOutboxMessageStatus.Processed, await ReadStatusAsync());
+    }
+
+    [SqlServerIntegrationFact]
     public async Task Application_transaction_commits_business_data_and_outbox_message_together()
     {
         await fixture.ResetSchemaAsync();
@@ -57,6 +82,116 @@ public sealed class AdoNetSqlServerRuntimeTests : IClassFixture<SqlServerFixture
     }
 
     [SqlServerIntegrationFact]
+    public async Task Store_does_not_claim_message_before_its_next_attempt()
+    {
+        await fixture.ResetSchemaAsync();
+        using var services = BuildServices();
+        var now = DateTimeOffset.UtcNow;
+        await AddPendingMessageAsync(services, now);
+        var message = Assert.Single(await ClaimInNewScopeAsync(services, "worker-1", now));
+        using (var scope = services.CreateScope())
+        {
+            var store = scope.ServiceProvider.GetRequiredService<ITinyOutboxStore>();
+            await store.MarkFailedAsync(
+                message.Id,
+                "worker-1",
+                "retry later",
+                1,
+                now.AddMinutes(5),
+                CancellationToken.None);
+        }
+
+        var claimedBeforeRetry = await ClaimInNewScopeAsync(services, "worker-2", now);
+
+        Assert.Empty(claimedBeforeRetry);
+    }
+
+    [SqlServerIntegrationFact]
+    public async Task Store_claims_message_when_its_next_attempt_is_due()
+    {
+        await fixture.ResetSchemaAsync();
+        using var services = BuildServices();
+        var now = DateTimeOffset.UtcNow;
+        var nextAttemptAtUtc = now.AddMinutes(5);
+        await AddPendingMessageAsync(services, now);
+        var message = Assert.Single(await ClaimInNewScopeAsync(services, "worker-1", now));
+        using (var scope = services.CreateScope())
+        {
+            var store = scope.ServiceProvider.GetRequiredService<ITinyOutboxStore>();
+            await store.MarkFailedAsync(
+                message.Id,
+                "worker-1",
+                "retry later",
+                1,
+                nextAttemptAtUtc,
+                CancellationToken.None);
+        }
+
+        var claimedWhenRetryIsDue = await ClaimInNewScopeAsync(
+            services,
+            "worker-2",
+            nextAttemptAtUtc);
+
+        var retriedMessage = Assert.Single(claimedWhenRetryIsDue);
+        Assert.Equal("worker-2", retriedMessage.ClaimedBy);
+        Assert.Equal(TinyOutboxMessageStatus.Processing, retriedMessage.Status);
+        Assert.Equal(1, retriedMessage.AttemptCount);
+        Assert.Equal("retry later", retriedMessage.LastError);
+    }
+
+    [SqlServerIntegrationFact]
+    public async Task Store_rejects_completion_from_worker_that_does_not_own_lease()
+    {
+        await fixture.ResetSchemaAsync();
+        using var services = BuildServices();
+        var now = DateTimeOffset.UtcNow;
+        await AddPendingMessageAsync(services, now);
+        var message = Assert.Single(await ClaimInNewScopeAsync(services, "worker-1", now));
+        using var scope = services.CreateScope();
+        var store = scope.ServiceProvider.GetRequiredService<ITinyOutboxStore>();
+
+        await Assert.ThrowsAnyAsync<InvalidOperationException>(async () =>
+            await store.MarkProcessedAsync(
+                message.Id,
+                "worker-2",
+                now,
+                CancellationToken.None));
+        await store.MarkProcessedAsync(
+            message.Id,
+            "worker-1",
+            now,
+            CancellationToken.None);
+    }
+
+    [SqlServerIntegrationFact]
+    public async Task Store_does_not_reclaim_terminal_failure()
+    {
+        await fixture.ResetSchemaAsync();
+        using var services = BuildServices();
+        var now = DateTimeOffset.UtcNow;
+        await AddPendingMessageAsync(services, now);
+        var message = Assert.Single(await ClaimInNewScopeAsync(services, "worker-1", now));
+        using (var scope = services.CreateScope())
+        {
+            var store = scope.ServiceProvider.GetRequiredService<ITinyOutboxStore>();
+            await store.MarkFailedAsync(
+                message.Id,
+                "worker-1",
+                "permanent failure",
+                1,
+                nextAttemptAtUtc: null,
+                CancellationToken.None);
+        }
+
+        var claimedAfterLeaseExpired = await ClaimInNewScopeAsync(
+            services,
+            "worker-2",
+            now.AddHours(1));
+
+        Assert.Empty(claimedAfterLeaseExpired);
+    }
+
+    [SqlServerIntegrationFact]
     public async Task Competing_workers_claim_message_only_once()
     {
         await fixture.ResetSchemaAsync();
@@ -74,37 +209,39 @@ public sealed class AdoNetSqlServerRuntimeTests : IClassFixture<SqlServerFixture
     }
 
     [SqlServerIntegrationFact]
+    public async Task Store_does_not_reclaim_message_with_active_lease()
+    {
+        await fixture.ResetSchemaAsync();
+        using var services = BuildServices();
+        var now = DateTimeOffset.UtcNow;
+        await AddPendingMessageAsync(services, now);
+        Assert.Single(await ClaimInNewScopeAsync(services, "worker-1", now));
+
+        var claimedBySecondWorker = await ClaimInNewScopeAsync(
+            services,
+            "worker-2",
+            now.AddMinutes(1));
+
+        Assert.Empty(claimedBySecondWorker);
+    }
+
+    [SqlServerIntegrationFact]
     public async Task Store_reclaims_expired_processing_message()
     {
         await fixture.ResetSchemaAsync();
-        await InsertOutboxMessageAsync(
-            Guid.NewGuid(),
-            TinyOutboxMessageStatus.Processing,
-            workerId: "dead-worker",
-            claimExpiresAtUtc: DateTimeOffset.UtcNow.AddSeconds(-1));
-        var services = BuildServices();
+        using var services = BuildServices();
+        var now = DateTimeOffset.UtcNow;
+        await AddPendingMessageAsync(services, now);
+        Assert.Single(await ClaimInNewScopeAsync(services, "dead-worker", now));
 
-        var claimed = await ClaimInNewScopeAsync(services, "worker-2", DateTimeOffset.UtcNow);
+        var claimed = await ClaimInNewScopeAsync(
+            services,
+            "worker-2",
+            now.AddMinutes(5));
 
         var message = Assert.Single(claimed);
         Assert.Equal("worker-2", message.ClaimedBy);
         Assert.Equal(TinyOutboxMessageStatus.Processing, message.Status);
-    }
-
-    [SqlServerIntegrationFact]
-    public async Task Store_does_not_claim_active_processing_message()
-    {
-        await fixture.ResetSchemaAsync();
-        await InsertOutboxMessageAsync(
-            Guid.NewGuid(),
-            TinyOutboxMessageStatus.Processing,
-            workerId: "worker-1",
-            claimExpiresAtUtc: DateTimeOffset.UtcNow.AddMinutes(5));
-        var services = BuildServices();
-
-        var claimed = await ClaimInNewScopeAsync(services, "worker-2", DateTimeOffset.UtcNow);
-
-        Assert.Empty(claimed);
     }
 
     private ServiceProvider BuildServices()
@@ -128,6 +265,8 @@ public sealed class AdoNetSqlServerRuntimeTests : IClassFixture<SqlServerFixture
                 return connection;
             });
         });
+        services.AddSingleton<ITinyEventDispatcher>(new TinyEventDispatcher<UserCreated>());
+        services.AddScoped<IEventConsumer<UserCreated>, RecordingConsumer>();
 
         return services.BuildServiceProvider();
     }
@@ -146,6 +285,28 @@ public sealed class AdoNetSqlServerRuntimeTests : IClassFixture<SqlServerFixture
             now: now,
             claimTimeout: TimeSpan.FromMinutes(5),
             cancellationToken: CancellationToken.None);
+    }
+
+    private static async Task AddPendingMessageAsync(
+        ServiceProvider services,
+        DateTimeOffset createdAtUtc)
+    {
+        var message = new TinyOutboxMessage
+        {
+            Id = Guid.NewGuid(),
+            EventType = "TinyEvents.Tests.Event",
+            Payload = "{}",
+            Status = TinyOutboxMessageStatus.Pending,
+            CreatedAtUtc = createdAtUtc
+        };
+        using var scope = services.CreateScope();
+        var session = scope.ServiceProvider.GetRequiredService<ApplicationDbSession>();
+        var writer = scope.ServiceProvider.GetRequiredService<ITinyOutboxWriter>();
+
+        await session.ExecuteInTransactionAsync(async (_, _, cancellationToken) =>
+        {
+            await writer.AddAsync(message, cancellationToken);
+        });
     }
 
     private async Task InsertUserAsync(
@@ -210,6 +371,16 @@ public sealed class AdoNetSqlServerRuntimeTests : IClassFixture<SqlServerFixture
         await command.ExecuteNonQueryAsync();
     }
 
+    private async Task<TinyOutboxMessageStatus> ReadStatusAsync()
+    {
+        await using var connection = new SqlConnection(fixture.ConnectionString);
+        await connection.OpenAsync();
+        await using var command = connection.CreateCommand();
+        command.CommandText = "SELECT Status FROM dbo.TinyOutbox;";
+        var result = await command.ExecuteScalarAsync();
+        return (TinyOutboxMessageStatus)Convert.ToInt32(result);
+    }
+
     private async Task<int> CountAsync(string tableName)
     {
         await using var connection = new SqlConnection(fixture.ConnectionString);
@@ -232,6 +403,19 @@ public sealed class AdoNetSqlServerRuntimeTests : IClassFixture<SqlServerFixture
     }
 
     private sealed record UserCreated(Guid UserId, string Email);
+
+    private sealed class RecordingConsumer : IEventConsumer<UserCreated>
+    {
+        public static List<UserCreated> Consumed { get; } = new List<UserCreated>();
+
+        public ValueTask ConsumeAsync(
+            UserCreated @event,
+            CancellationToken cancellationToken)
+        {
+            Consumed.Add(@event);
+            return ValueTask.CompletedTask;
+        }
+    }
 
     private sealed class ApplicationDbSession
     {
