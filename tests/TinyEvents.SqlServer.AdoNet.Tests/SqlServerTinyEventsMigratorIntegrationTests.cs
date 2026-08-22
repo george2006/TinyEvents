@@ -35,19 +35,25 @@ public sealed class SqlServerTinyEventsMigratorIntegrationTests : IClassFixture<
         await migrator.MigrateAsync(CancellationToken.None);
 
         var appliedMigrations = await ReadHistoryAsync(schema);
-        var migration = Assert.Single(appliedMigrations);
-        Assert.Equal(1, migration.Version);
-        Assert.Equal("001_CreateTinyOutbox", migration.Name);
-        Assert.Equal(appliedAtUtc, migration.AppliedAtUtc);
+        Assert.Equal([1L, 2L], appliedMigrations.Select(migration => migration.Version));
+        Assert.All(
+            appliedMigrations,
+            migration => Assert.Equal(appliedAtUtc, migration.AppliedAtUtc));
         Assert.True(await TableExistsAsync(schema, "Events"));
+        Assert.Equal(4, await SecondaryIndexCountAsync(schema, "Events"));
         Assert.Equal(
-            [1400, 1401, 1403, 1400, 1402, 1403],
+            [1400, 1401, 1401, 1403, 1400, 1402, 1403],
             logger.Entries.Select(entry => entry.EventId.Id));
-        var appliedEntry = Assert.Single(
-            logger.Entries,
-            entry => entry.EventId.Id == 1401);
-        Assert.Equal("sqlserver", appliedEntry.Properties["Provider"]);
-        Assert.Equal(false, appliedEntry.Properties["IsBaseline"]);
+        var appliedEntries = logger.Entries
+            .Where(entry => entry.EventId.Id == 1401)
+            .ToArray();
+        Assert.Equal(2, appliedEntries.Length);
+        Assert.All(
+            appliedEntries,
+            entry => Assert.Equal("sqlserver", entry.Properties["Provider"]));
+        Assert.All(
+            appliedEntries,
+            entry => Assert.Equal(false, entry.Properties["IsBaseline"]));
     }
 
     [SqlServerIntegrationFact]
@@ -56,13 +62,7 @@ public sealed class SqlServerTinyEventsMigratorIntegrationTests : IClassFixture<
         const string schema = "migrator_alpha";
         await ResetSchemaAsync(schema);
         await CreateSchemaAsync(schema);
-        await ExecuteAsync(
-            $"""
-            CREATE TABLE [{schema}].[Events]
-            (
-                [Id] uniqueidentifier NOT NULL
-            );
-            """);
+        await CreateCompatibleOutboxWithoutIndexesAsync(schema);
         var logger = new RecordingLogger();
         var migrator = Migrator(
             schema,
@@ -71,14 +71,16 @@ public sealed class SqlServerTinyEventsMigratorIntegrationTests : IClassFixture<
 
         await migrator.MigrateAsync(CancellationToken.None);
 
-        var appliedMigration = Assert.Single(await ReadHistoryAsync(schema));
+        var appliedMigrations = await ReadHistoryAsync(schema);
         var expectedMigration = SqlServerMigration001CreateOutbox.Create(
             SqlServerMigrationTableIdentity.Parse($"{schema}.Events"));
-        Assert.Equal(expectedMigration.Checksum, appliedMigration.Checksum);
-        Assert.Equal(0, await SecondaryIndexCountAsync(schema, "Events"));
+        Assert.Equal([1L, 2L], appliedMigrations.Select(migration => migration.Version));
+        Assert.Equal(expectedMigration.Checksum, appliedMigrations[0].Checksum);
+        Assert.Equal(1, await SecondaryIndexCountAsync(schema, "Events"));
         var baselineEntry = Assert.Single(
             logger.Entries,
-            entry => entry.EventId.Id == 1401);
+            entry => entry.EventId.Id == 1401
+                && Equals(entry.Properties["IsBaseline"], true));
         Assert.Equal(true, baselineEntry.Properties["IsBaseline"]);
     }
 
@@ -100,8 +102,10 @@ public sealed class SqlServerTinyEventsMigratorIntegrationTests : IClassFixture<
 
         await migrator.MigrateAsync(CancellationToken.None);
 
-        Assert.Single(await ReadHistoryAsync(schema));
-        Assert.Equal(3, await SecondaryIndexCountAsync(schema, "Events"));
+        Assert.Equal(
+            [1L, 2L],
+            (await ReadHistoryAsync(schema)).Select(migration => migration.Version));
+        Assert.Equal(4, await SecondaryIndexCountAsync(schema, "Events"));
     }
 
     [SqlServerIntegrationFact]
@@ -119,7 +123,7 @@ public sealed class SqlServerTinyEventsMigratorIntegrationTests : IClassFixture<
 
         Assert.Contains("SQL Server", exception.Message);
         Assert.Contains($"{schema}.Events", exception.Message);
-        Assert.Contains("version 1", exception.Message);
+        Assert.Contains("version 2", exception.Message);
         Assert.Contains("does not exist", exception.Message);
     }
 
@@ -210,7 +214,9 @@ public sealed class SqlServerTinyEventsMigratorIntegrationTests : IClassFixture<
             firstMigrator.MigrateAsync(CancellationToken.None),
             secondMigrator.MigrateAsync(CancellationToken.None));
 
-        Assert.Single(await ReadHistoryAsync(schema));
+        Assert.Equal(
+            [1L, 2L],
+            (await ReadHistoryAsync(schema)).Select(migration => migration.Version));
         Assert.True(await TableExistsAsync(schema, "Events"));
     }
 
@@ -240,7 +246,9 @@ public sealed class SqlServerTinyEventsMigratorIntegrationTests : IClassFixture<
         Assert.Equal(1, factoryCalls);
         Assert.NotNull(migrationConnection);
         Assert.Equal(System.Data.ConnectionState.Closed, migrationConnection.State);
-        Assert.Single(await ReadHistoryAsync(schema));
+        Assert.Equal(
+            [1L, 2L],
+            (await ReadHistoryAsync(schema)).Select(migration => migration.Version));
     }
 
     private SqlServerTinyEventsMigrator Migrator(

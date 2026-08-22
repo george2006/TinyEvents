@@ -240,6 +240,34 @@ public sealed class EfCoreSqlServerRuntimeTests : IClassFixture<SqlServerFixture
     }
 
     [SqlServerIntegrationFact]
+    public async Task Cleanup_deletes_expired_processed_message_through_EF_store()
+    {
+        await fixture.ResetSchemaAsync();
+        using var services = BuildServices();
+        var cutoffUtc = DateTimeOffset.UtcNow;
+        await PublishUserCreatedAsync(services, Guid.NewGuid());
+        var message = Assert.Single(
+            await ClaimInNewScopeAsync(services, "worker-1", cutoffUtc));
+        using var scope = services.CreateScope();
+        var store = scope.ServiceProvider.GetRequiredService<ITinyOutboxStore>();
+        var cleanupStore =
+            scope.ServiceProvider.GetRequiredService<ITinyOutboxCleanupStore>();
+        await store.MarkProcessedAsync(
+            message.Id,
+            "worker-1",
+            cutoffUtc.AddMinutes(-1),
+            CancellationToken.None);
+
+        var deletedCount = await cleanupStore.DeleteProcessedBeforeAsync(
+            cutoffUtc,
+            maxCount: 1,
+            CancellationToken.None);
+
+        Assert.Equal(1, deletedCount);
+        Assert.Equal(0, await CountOutboxMessagesAsync());
+    }
+
+    [SqlServerIntegrationFact]
     public async Task EF_registration_migrates_and_closes_the_scoped_DbContext_connection()
     {
         const string schema = "migrator_ef_adapter";
@@ -279,7 +307,7 @@ public sealed class EfCoreSqlServerRuntimeTests : IClassFixture<SqlServerFixture
         await using var verificationCommand = verificationConnection.CreateCommand();
         verificationCommand.CommandText =
             $"SELECT COUNT(*) FROM [{schema}].[EventsMigrations];";
-        Assert.Equal(1, Convert.ToInt32(await verificationCommand.ExecuteScalarAsync()));
+        Assert.Equal(2, Convert.ToInt32(await verificationCommand.ExecuteScalarAsync()));
     }
 
     private ServiceProvider BuildServices()
@@ -333,6 +361,15 @@ public sealed class EfCoreSqlServerRuntimeTests : IClassFixture<SqlServerFixture
         command.CommandText = "SELECT Status FROM dbo.TinyOutbox;";
         var result = await command.ExecuteScalarAsync();
         return (TinyOutboxMessageStatus)Convert.ToInt32(result);
+    }
+
+    private async Task<int> CountOutboxMessagesAsync()
+    {
+        await using var connection = new SqlConnection(fixture.ConnectionString);
+        await connection.OpenAsync();
+        await using var command = connection.CreateCommand();
+        command.CommandText = "SELECT COUNT(*) FROM dbo.TinyOutbox;";
+        return Convert.ToInt32(await command.ExecuteScalarAsync());
     }
 
     private static TinyOutboxMessage NewMessage()

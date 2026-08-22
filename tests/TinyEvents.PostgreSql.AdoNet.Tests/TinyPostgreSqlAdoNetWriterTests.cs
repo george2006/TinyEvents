@@ -79,6 +79,8 @@ public sealed class TinyPostgreSqlAdoNetWriterTests
             provider.GetRequiredService<ITinyOutboxWriter>());
         Assert.IsType<TinyPostgreSqlAdoNetOutboxStore>(
             provider.GetRequiredService<ITinyOutboxStore>());
+        Assert.IsType<TinyPostgreSqlAdoNetOutboxStore>(
+            provider.GetRequiredService<ITinyOutboxCleanupStore>());
         Assert.IsType<TinyPostgreSqlAdoNetWorkerConnectionFactory>(
             provider.GetRequiredService<ITinyPostgreSqlAdoNetWorkerConnectionFactory>());
     }

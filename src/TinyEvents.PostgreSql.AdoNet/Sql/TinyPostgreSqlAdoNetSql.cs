@@ -132,4 +132,29 @@ internal static class TinyPostgreSqlAdoNetSql
                 AND "Status" = @ProcessingStatus;
             """;
     }
+
+    public static string DeleteProcessedBefore(TinyPostgreSqlAdoNetTableName tableName)
+    {
+        if (tableName is null)
+        {
+            throw new ArgumentNullException(nameof(tableName));
+        }
+
+        return $"""
+            WITH cleanup_batch AS
+            (
+                SELECT "Id"
+                FROM {tableName.ToPostgreSqlName()}
+                WHERE
+                    "Status" = @ProcessedStatus
+                    AND "ProcessedAtUtc" < @CutoffUtc
+                ORDER BY "ProcessedAtUtc", "Id"
+                FOR UPDATE SKIP LOCKED
+                LIMIT @BatchSize
+            )
+            DELETE FROM {tableName.ToPostgreSqlName()} AS outbox
+            USING cleanup_batch
+            WHERE outbox."Id" = cleanup_batch."Id";
+            """;
+    }
 }

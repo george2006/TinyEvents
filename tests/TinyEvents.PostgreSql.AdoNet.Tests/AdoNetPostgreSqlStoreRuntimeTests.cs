@@ -152,6 +152,63 @@ public sealed class AdoNetPostgreSqlStoreRuntimeTests
         Assert.NotNull(row.NextAttemptAtUtc);
     }
 
+    [PostgreSqlIntegrationFact]
+    public async Task Cleanup_deletes_only_processed_messages_before_cutoff_in_bounded_batches()
+    {
+        await fixture.ResetSchemaAsync();
+        var cutoffUtc = DateTimeOffset.UtcNow;
+        var firstExpiredId = Guid.NewGuid();
+        var secondExpiredId = Guid.NewGuid();
+        var boundaryId = Guid.NewGuid();
+        var recentId = Guid.NewGuid();
+        var failedId = Guid.NewGuid();
+        var pendingId = Guid.NewGuid();
+        var processingId = Guid.NewGuid();
+        await InsertOutboxMessageAsync(
+            firstExpiredId,
+            TinyOutboxMessageStatus.Processed,
+            processedAtUtc: cutoffUtc.AddMinutes(-2));
+        await InsertOutboxMessageAsync(
+            secondExpiredId,
+            TinyOutboxMessageStatus.Processed,
+            processedAtUtc: cutoffUtc.AddMinutes(-1));
+        await InsertOutboxMessageAsync(
+            boundaryId,
+            TinyOutboxMessageStatus.Processed,
+            processedAtUtc: cutoffUtc);
+        await InsertOutboxMessageAsync(
+            recentId,
+            TinyOutboxMessageStatus.Processed,
+            processedAtUtc: cutoffUtc.AddMinutes(1));
+        await InsertOutboxMessageAsync(failedId, TinyOutboxMessageStatus.Failed);
+        await InsertOutboxMessageAsync(pendingId);
+        await InsertOutboxMessageAsync(
+            processingId,
+            TinyOutboxMessageStatus.Processing,
+            workerId: "worker-1",
+            claimExpiresAtUtc: cutoffUtc.AddMinutes(-1));
+        var cleanupStore = NewStore();
+
+        var firstDeletedCount = await cleanupStore.DeleteProcessedBeforeAsync(
+            cutoffUtc,
+            maxCount: 1,
+            CancellationToken.None);
+        var secondDeletedCount = await cleanupStore.DeleteProcessedBeforeAsync(
+            cutoffUtc,
+            maxCount: 10,
+            CancellationToken.None);
+
+        Assert.Equal(1, firstDeletedCount);
+        Assert.Equal(1, secondDeletedCount);
+        Assert.False(await ExistsAsync(firstExpiredId));
+        Assert.False(await ExistsAsync(secondExpiredId));
+        Assert.True(await ExistsAsync(boundaryId));
+        Assert.True(await ExistsAsync(recentId));
+        Assert.True(await ExistsAsync(failedId));
+        Assert.True(await ExistsAsync(pendingId));
+        Assert.True(await ExistsAsync(processingId));
+    }
+
     private TinyPostgreSqlAdoNetOutboxStore NewStore()
     {
         var options = new TinyEventsPostgreSqlAdoNetOptions();
@@ -173,7 +230,8 @@ public sealed class AdoNetPostgreSqlStoreRuntimeTests
         string? workerId = null,
         DateTimeOffset? claimedAtUtc = null,
         DateTimeOffset? claimExpiresAtUtc = null,
-        DateTimeOffset? nextAttemptAtUtc = null)
+        DateTimeOffset? nextAttemptAtUtc = null,
+        DateTimeOffset? processedAtUtc = null)
     {
         await using var connection = new NpgsqlConnection(fixture.ConnectionString);
         await connection.OpenAsync();
@@ -190,7 +248,8 @@ public sealed class AdoNetPostgreSqlStoreRuntimeTests
                 "ClaimedAtUtc",
                 "ClaimExpiresAtUtc",
                 "CreatedAtUtc",
-                "NextAttemptAtUtc"
+                "NextAttemptAtUtc",
+                "ProcessedAtUtc"
             )
             VALUES
             (
@@ -203,7 +262,8 @@ public sealed class AdoNetPostgreSqlStoreRuntimeTests
                 @ClaimedAtUtc,
                 @ClaimExpiresAtUtc,
                 @CreatedAtUtc,
-                @NextAttemptAtUtc
+                @NextAttemptAtUtc,
+                @ProcessedAtUtc
             );
             """;
         AddParameter(command, "@Id", messageId);
@@ -216,7 +276,19 @@ public sealed class AdoNetPostgreSqlStoreRuntimeTests
         AddParameter(command, "@ClaimExpiresAtUtc", claimExpiresAtUtc);
         AddParameter(command, "@CreatedAtUtc", DateTimeOffset.UtcNow);
         AddParameter(command, "@NextAttemptAtUtc", nextAttemptAtUtc);
+        AddParameter(command, "@ProcessedAtUtc", processedAtUtc);
         await command.ExecuteNonQueryAsync();
+    }
+
+    private async Task<bool> ExistsAsync(Guid messageId)
+    {
+        await using var connection = new NpgsqlConnection(fixture.ConnectionString);
+        await connection.OpenAsync();
+        await using var command = connection.CreateCommand();
+        command.CommandText = """SELECT COUNT(*) FROM "TinyOutbox" WHERE "Id" = @Id;""";
+        AddParameter(command, "@Id", messageId);
+        var result = await command.ExecuteScalarAsync();
+        return Convert.ToInt32(result) == 1;
     }
 
     private async Task<TinyOutboxMessageStatus> ReadStatusAsync(Guid messageId)

@@ -16,7 +16,9 @@ public static class TinyEventsWorkerServiceCollectionExtensions
         }
 
         var workerOptions = ConfigureOptions(services, configure);
+        services.TryAddScoped<TinyOutboxCleanup>();
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, TinyEventsBackgroundService>());
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, TinyEventsCleanupBackgroundService>());
         services.ConfigureTinyEventsForWorker(workerOptions);
 
         return services;

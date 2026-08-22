@@ -27,6 +27,10 @@ public sealed class TinyEventsWorkerTests
             services,
             descriptor => descriptor.ServiceType == typeof(IHostedService)
                 && descriptor.ImplementationType == typeof(TinyEventsBackgroundService));
+        Assert.Contains(
+            services,
+            descriptor => descriptor.ServiceType == typeof(IHostedService)
+                && descriptor.ImplementationType == typeof(TinyEventsCleanupBackgroundService));
     }
 
     [Fact]
@@ -50,6 +54,10 @@ public sealed class TinyEventsWorkerTests
         Assert.Equal(12, coreOptions.BatchSize);
         Assert.Equal(TimeSpan.FromSeconds(45), coreOptions.ClaimTimeout);
         Assert.Equal(TimeSpan.FromMilliseconds(10), workerOptions.PollingInterval);
+        Assert.True(workerOptions.CleanupEnabled);
+        Assert.Equal(TimeSpan.FromHours(1), workerOptions.ProcessedRetention);
+        Assert.Equal(1_000, workerOptions.CleanupBatchSize);
+        Assert.Equal(TimeSpan.FromSeconds(1), workerOptions.CleanupInterval);
     }
 
     [Fact]
@@ -209,6 +217,45 @@ public sealed class TinyEventsWorkerTests
         var workerOptions = provider.GetRequiredService<TinyEventsWorkerOptions>();
 
         Assert.Equal(TimeSpan.Zero, workerOptions.PollingInterval);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void Add_tiny_events_worker_rejects_non_positive_cleanup_batch_size(
+        int batchSize)
+    {
+        var services = new ServiceCollection();
+
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            services.AddTinyEventsWorker(options =>
+                options.CleanupBatchSize = batchSize));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void Add_tiny_events_worker_rejects_non_positive_cleanup_interval(
+        int milliseconds)
+    {
+        var services = new ServiceCollection();
+
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            services.AddTinyEventsWorker(options =>
+                options.CleanupInterval = TimeSpan.FromMilliseconds(milliseconds)));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void Add_tiny_events_worker_rejects_non_positive_processed_retention(
+        int milliseconds)
+    {
+        var services = new ServiceCollection();
+
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            services.AddTinyEventsWorker(options =>
+                options.ProcessedRetention = TimeSpan.FromMilliseconds(milliseconds)));
     }
 
     [Fact]

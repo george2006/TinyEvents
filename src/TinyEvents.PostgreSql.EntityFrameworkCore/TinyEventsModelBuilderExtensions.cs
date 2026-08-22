@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using TinyEvents.Migrations.PostgreSql;
 
 namespace TinyEvents.PostgreSql.EntityFrameworkCore;
 
@@ -14,6 +15,7 @@ public static class TinyEventsModelBuilderExtensions
         }
 
         var parsedTableName = TinyPostgreSqlEfCoreTableName.Parse(tableName);
+        var migrationTableIdentity = PostgreSqlMigrationTableIdentity.Parse(tableName);
 
         modelBuilder.Entity<TinyOutboxMessage>(entity =>
         {
@@ -42,6 +44,13 @@ public static class TinyEventsModelBuilderExtensions
                 message.ClaimedBy,
                 message.Status
             });
+
+            entity.HasIndex(message => new
+            {
+                message.Status,
+                message.ProcessedAtUtc,
+                message.Id
+            }).HasDatabaseName(migrationTableIdentity.ProcessedCleanupIndex);
         });
 
         return modelBuilder;

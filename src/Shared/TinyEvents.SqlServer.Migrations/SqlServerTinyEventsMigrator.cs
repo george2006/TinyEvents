@@ -42,7 +42,8 @@ internal sealed class SqlServerTinyEventsMigrator : ITinyEventsMigrator
         this.logger = logger ?? NullLogger.Instance;
         this.catalog = catalog ?? new TinyEventsMigrationCatalog(
         [
-            SqlServerMigration001CreateOutbox.Create(tableIdentity)
+            SqlServerMigration001CreateOutbox.Create(tableIdentity),
+            SqlServerMigration002AddProcessedCleanupIndex.Create(tableIdentity)
         ]);
     }
 

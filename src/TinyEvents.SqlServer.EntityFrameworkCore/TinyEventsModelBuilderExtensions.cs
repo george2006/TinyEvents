@@ -46,6 +46,13 @@ public static class TinyEventsModelBuilderExtensions
                 message.ClaimedBy,
                 message.Status
             }).HasDatabaseName(migrationTableIdentity.ClaimedByIndex);
+
+            entity.HasIndex(message => new
+            {
+                message.Status,
+                message.ProcessedAtUtc,
+                message.Id
+            }).HasDatabaseName(migrationTableIdentity.ProcessedCleanupIndex);
         });
 
         return modelBuilder;

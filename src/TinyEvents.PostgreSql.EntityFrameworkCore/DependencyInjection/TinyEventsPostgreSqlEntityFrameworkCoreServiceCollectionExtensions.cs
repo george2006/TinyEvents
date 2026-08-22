@@ -43,6 +43,7 @@ public static class TinyEventsPostgreSqlEntityFrameworkCoreServiceCollectionExte
             serviceProvider.GetRequiredService<PostgreSqlTinyEventsMigrator>());
         services.Replace(ServiceDescriptor.Scoped<ITinyOutboxWriter, TinyPostgreSqlEfCoreOutboxWriter<TDbContext>>());
         services.Replace(ServiceDescriptor.Scoped<ITinyOutboxStore, TinyPostgreSqlEfCoreOutboxStore<TDbContext>>());
+        services.Replace(ServiceDescriptor.Scoped<ITinyOutboxCleanupStore, TinyPostgreSqlEfCoreOutboxStore<TDbContext>>());
 
         return services;
     }

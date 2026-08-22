@@ -89,6 +89,23 @@ public sealed class TinyPostgreSqlEfCoreModelBuilderTests
             index => HasProperties(index, nameof(TinyOutboxMessage.ClaimedBy), nameof(TinyOutboxMessage.Status)));
     }
 
+    [Fact]
+    public void Model_builder_extension_adds_processed_cleanup_index()
+    {
+        using var dbContext = NewTestDbContext();
+
+        var entity = dbContext.Model.FindEntityType(typeof(TinyOutboxMessage));
+
+        Assert.NotNull(entity);
+        Assert.Contains(
+            entity.GetIndexes(),
+            index => HasProperties(
+                index,
+                nameof(TinyOutboxMessage.Status),
+                nameof(TinyOutboxMessage.ProcessedAtUtc),
+                nameof(TinyOutboxMessage.Id)));
+    }
+
     private static TestDbContext NewTestDbContext()
     {
         var options = new DbContextOptionsBuilder<TestDbContext>()

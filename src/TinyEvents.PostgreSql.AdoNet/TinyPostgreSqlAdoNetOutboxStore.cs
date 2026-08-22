@@ -2,7 +2,9 @@ using System.Data.Common;
 
 namespace TinyEvents.PostgreSql.AdoNet;
 
-internal sealed class TinyPostgreSqlAdoNetOutboxStore : ITinyOutboxStore
+internal sealed class TinyPostgreSqlAdoNetOutboxStore :
+    ITinyOutboxStore,
+    ITinyOutboxCleanupStore
 {
     private readonly ITinyPostgreSqlAdoNetWorkerConnectionFactory connectionFactory;
     private readonly TinyPostgreSqlAdoNetTableName tableName;
@@ -109,6 +111,32 @@ internal sealed class TinyPostgreSqlAdoNetOutboxStore : ITinyOutboxStore
 
         var affectedRows = await command.ExecuteNonQueryAsync(cancellationToken);
         ThrowIfLeaseWasLost(affectedRows, messageId, workerId, "failed");
+    }
+
+    public async ValueTask<int> DeleteProcessedBeforeAsync(
+        DateTimeOffset cutoffUtc,
+        int maxCount,
+        CancellationToken cancellationToken)
+    {
+        if (maxCount <= 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(maxCount),
+                "Maximum cleanup count must be greater than zero.");
+        }
+
+        await using var connection = await CreateOpenConnectionAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandText = TinyPostgreSqlAdoNetSql.DeleteProcessedBefore(tableName);
+
+        TinyPostgreSqlAdoNetCommandParameters.Add(command, "@BatchSize", maxCount);
+        TinyPostgreSqlAdoNetCommandParameters.Add(command, "@CutoffUtc", cutoffUtc);
+        TinyPostgreSqlAdoNetCommandParameters.Add(
+            command,
+            "@ProcessedStatus",
+            (int)TinyOutboxMessageStatus.Processed);
+
+        return await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
     private async ValueTask<DbConnection> CreateOpenConnectionAsync(CancellationToken cancellationToken)

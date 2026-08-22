@@ -128,4 +128,25 @@ internal static class TinySqlServerAdoNetSql
                 AND Status = @ProcessingStatus;
             """;
     }
+
+    public static string DeleteProcessedBefore(TinySqlServerAdoNetTableName tableName)
+    {
+        if (tableName is null)
+        {
+            throw new ArgumentNullException(nameof(tableName));
+        }
+
+        return $"""
+            WITH cleanupBatch AS
+            (
+                SELECT TOP (@BatchSize) *
+                FROM {tableName.ToSqlServerName()} WITH (UPDLOCK, READPAST, ROWLOCK)
+                WHERE
+                    Status = @ProcessedStatus
+                    AND ProcessedAtUtc < @CutoffUtc
+                ORDER BY ProcessedAtUtc, Id
+            )
+            DELETE FROM cleanupBatch;
+            """;
+    }
 }

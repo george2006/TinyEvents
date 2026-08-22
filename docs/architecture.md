@@ -210,6 +210,24 @@ Provider claiming must be atomic. Query-then-update claiming is not acceptable f
 
 Provider completion and failure updates must validate affected row counts. A mark operation that updates no rows means the worker no longer owns a processing lease for that message.
 
+Processed-message retention uses a separate storage contract because cleanup is
+not part of claiming or lease ownership:
+
+```csharp
+public interface ITinyOutboxCleanupStore
+{
+    ValueTask<int> DeleteProcessedBeforeAsync(
+        DateTimeOffset cutoffUtc,
+        int maxCount,
+        CancellationToken cancellationToken);
+}
+```
+
+The command must delete at most `maxCount` messages, must use the exclusive
+`ProcessedAtUtc < cutoffUtc` boundary, and must never delete another status.
+Provider implementations make selection and deletion one atomic database
+statement so independent cleanup workers can run concurrently.
+
 New database providers must implement atomic claiming safely for their database engine. Query-then-update is not acceptable for multi-worker processing.
 
 ## Bootstrap

@@ -10,6 +10,18 @@ namespace TinyEvents.SqlServer.AdoNet.Tests;
 public sealed class TinySqlServerAdoNetProviderTests
 {
     [Fact]
+    public void UseSqlServerAdoNetOutbox_registers_cleanup_store()
+    {
+        using var provider = BuildProvider(options =>
+            options.UseWorkerConnectionFactory((_, _) =>
+                new ValueTask<DbConnection>(new RecordingConnection())));
+        using var scope = provider.CreateScope();
+
+        Assert.IsType<TinySqlServerAdoNetOutboxStore>(
+            scope.ServiceProvider.GetRequiredService<ITinyOutboxCleanupStore>());
+    }
+
+    [Fact]
     public async Task UseSqlServerAdoNetOutbox_accepts_current_transaction_delegate()
     {
         var connection = new RecordingConnection();

@@ -37,14 +37,16 @@ public sealed class SqlServerMigration001CreateOutboxTests
     }
 
     [Fact]
-    public void Public_schema_helper_delegates_to_migration_001()
+    public void Public_schema_helper_returns_the_current_schema()
     {
         var identity = SqlServerMigrationTableIdentity.Parse("app.MyOutbox");
-        var migration = SqlServerMigration001CreateOutbox.Create(identity);
+        var createOutbox = SqlServerMigration001CreateOutbox.Create(identity);
+        var addCleanupIndex = SqlServerMigration002AddProcessedCleanupIndex.Create(identity);
 
         var helperSql = TinySqlServerAdoNetSchema.CreateOutboxSql("app.MyOutbox");
 
-        Assert.Equal(migration.Sql, helperSql);
+        Assert.Contains(createOutbox.Sql, helperSql);
+        Assert.Contains(addCleanupIndex.Sql, helperSql);
     }
 
     [Fact]

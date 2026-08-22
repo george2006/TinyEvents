@@ -37,13 +37,15 @@ public sealed class PostgreSqlTinyEventsMigratorIntegrationTests
         await migrator.MigrateAsync(CancellationToken.None);
         await migrator.MigrateAsync(CancellationToken.None);
 
-        var applied = Assert.Single(await ReadHistoryAsync(schema));
-        Assert.Equal(1, applied.Version);
-        Assert.Equal("001_CreateTinyOutbox", applied.Name);
-        Assert.Equal(appliedAtUtc, applied.AppliedAtUtc);
+        var applied = await ReadHistoryAsync(schema);
+        Assert.Equal([1L, 2L], applied.Select(migration => migration.Version));
+        Assert.All(
+            applied,
+            migration => Assert.Equal(appliedAtUtc, migration.AppliedAtUtc));
         Assert.True(await TableExistsAsync(schema, "Events"));
+        Assert.Equal(4, await SecondaryIndexCountAsync(schema, "Events"));
         Assert.Equal(
-            [1400, 1401, 1403, 1400, 1402, 1403],
+            [1400, 1401, 1401, 1403, 1400, 1402, 1403],
             logger.Entries.Select(entry => entry.EventId.Id));
         Assert.All(
             logger.Entries,
@@ -58,18 +60,18 @@ public sealed class PostgreSqlTinyEventsMigratorIntegrationTests
         const string schema = "MigratorAlpha";
         await ResetSchemaAsync(schema);
         await ExecuteAsync($"CREATE SCHEMA \"{schema}\";");
-        await ExecuteAsync(
-            $"CREATE TABLE \"{schema}\".\"Events\" (\"Id\" uuid NOT NULL);");
+        await CreateCompatibleOutboxWithoutIndexesAsync(schema);
         var migrator =
             Migrator(schema, new FixedTimeProvider(DateTimeOffset.UnixEpoch));
 
         await migrator.MigrateAsync(CancellationToken.None);
 
-        var applied = Assert.Single(await ReadHistoryAsync(schema));
+        var applied = await ReadHistoryAsync(schema);
         var expected = PostgreSqlMigration001CreateOutbox.Create(
             PostgreSqlMigrationTableIdentity.Parse($"{schema}.Events"));
-        Assert.Equal(expected.Checksum, applied.Checksum);
-        Assert.Equal(0, await SecondaryIndexCountAsync(schema, "Events"));
+        Assert.Equal([1L, 2L], applied.Select(migration => migration.Version));
+        Assert.Equal(expected.Checksum, applied[0].Checksum);
+        Assert.Equal(1, await SecondaryIndexCountAsync(schema, "Events"));
     }
 
     [PostgreSqlIntegrationFact]
@@ -93,8 +95,10 @@ public sealed class PostgreSqlTinyEventsMigratorIntegrationTests
                 new FixedTimeProvider(DateTimeOffset.UnixEpoch))
             .MigrateAsync(CancellationToken.None);
 
-        Assert.Single(await ReadHistoryAsync(schema));
-        Assert.Equal(3, await SecondaryIndexCountAsync(schema, "Events"));
+        Assert.Equal(
+            [1L, 2L],
+            (await ReadHistoryAsync(schema)).Select(migration => migration.Version));
+        Assert.Equal(4, await SecondaryIndexCountAsync(schema, "Events"));
     }
 
     [PostgreSqlIntegrationFact]
@@ -112,7 +116,7 @@ public sealed class PostgreSqlTinyEventsMigratorIntegrationTests
 
         Assert.Contains("PostgreSQL", exception.Message);
         Assert.Contains($"{schema}.Events", exception.Message);
-        Assert.Contains("version 1", exception.Message);
+        Assert.Contains("version 2", exception.Message);
         Assert.Contains("does not exist", exception.Message);
     }
 
@@ -200,7 +204,9 @@ public sealed class PostgreSqlTinyEventsMigratorIntegrationTests
             first.MigrateAsync(CancellationToken.None),
             second.MigrateAsync(CancellationToken.None));
 
-        Assert.Single(await ReadHistoryAsync(schema));
+        Assert.Equal(
+            [1L, 2L],
+            (await ReadHistoryAsync(schema)).Select(migration => migration.Version));
         Assert.True(await TableExistsAsync(schema, "Events"));
     }
 
@@ -234,7 +240,9 @@ public sealed class PostgreSqlTinyEventsMigratorIntegrationTests
         Assert.Equal(
             System.Data.ConnectionState.Closed,
             migrationConnection.State);
-        Assert.Single(await ReadHistoryAsync(schema));
+        Assert.Equal(
+            [1L, 2L],
+            (await ReadHistoryAsync(schema)).Select(migration => migration.Version));
     }
 
     private PostgreSqlTinyEventsMigrator Migrator(
@@ -345,7 +353,8 @@ public sealed class PostgreSqlTinyEventsMigratorIntegrationTests
               (
                   @pending,
                   @expired,
-                  @claimedBy
+                  @claimedBy,
+                  @processedCleanup
               );
             """;
         command.Parameters.AddWithValue("@schema", schema);
@@ -355,6 +364,9 @@ public sealed class PostgreSqlTinyEventsMigratorIntegrationTests
             "@expired",
             $"IX_{table}_ExpiredProcessing");
         command.Parameters.AddWithValue("@claimedBy", $"IX_{table}_ClaimedBy");
+        command.Parameters.AddWithValue(
+            "@processedCleanup",
+            $"IX_{table}_ProcessedCleanup");
         return Convert.ToInt32(await command.ExecuteScalarAsync());
     }
 

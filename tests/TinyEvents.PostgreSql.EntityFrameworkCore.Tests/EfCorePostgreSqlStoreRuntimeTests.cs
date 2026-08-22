@@ -246,6 +246,34 @@ public sealed class EfCorePostgreSqlStoreRuntimeTests
         Assert.NotNull(row.NextAttemptAtUtc);
     }
 
+    [PostgreSqlIntegrationFact]
+    public async Task Cleanup_deletes_expired_processed_message_through_EF_store()
+    {
+        await fixture.ResetSchemaAsync();
+        using var services = BuildServices();
+        var cutoffUtc = DateTimeOffset.UtcNow;
+        await PublishUserCreatedAsync(services, Guid.NewGuid());
+        var message = Assert.Single(
+            await ClaimInNewScopeAsync(services, "worker-1", cutoffUtc));
+        using var scope = services.CreateScope();
+        var store = scope.ServiceProvider.GetRequiredService<ITinyOutboxStore>();
+        var cleanupStore =
+            scope.ServiceProvider.GetRequiredService<ITinyOutboxCleanupStore>();
+        await store.MarkProcessedAsync(
+            message.Id,
+            "worker-1",
+            cutoffUtc.AddMinutes(-1),
+            CancellationToken.None);
+
+        var deletedCount = await cleanupStore.DeleteProcessedBeforeAsync(
+            cutoffUtc,
+            maxCount: 1,
+            CancellationToken.None);
+
+        Assert.Equal(1, deletedCount);
+        Assert.Equal(0, await CountOutboxMessagesAsync());
+    }
+
     private ServiceProvider BuildServices()
     {
         var services = new ServiceCollection();
@@ -349,7 +377,7 @@ public sealed class EfCorePostgreSqlStoreRuntimeTests
         verificationCommand.CommandText =
             $"SELECT COUNT(*) FROM \"{schema}\".\"EventsMigrations\";";
         Assert.Equal(
-            1L,
+            2L,
             Assert.IsType<long>(
                 await verificationCommand.ExecuteScalarAsync()));
     }
@@ -425,6 +453,15 @@ public sealed class EfCorePostgreSqlStoreRuntimeTests
         command.CommandText = """SELECT "Status" FROM "TinyOutbox";""";
         var result = await command.ExecuteScalarAsync();
         return (TinyOutboxMessageStatus)Convert.ToInt32(result);
+    }
+
+    private async Task<int> CountOutboxMessagesAsync()
+    {
+        await using var connection = new NpgsqlConnection(fixture.ConnectionString);
+        await connection.OpenAsync();
+        await using var command = connection.CreateCommand();
+        command.CommandText = """SELECT COUNT(*) FROM "TinyOutbox";""";
+        return Convert.ToInt32(await command.ExecuteScalarAsync());
     }
 
     private async Task<FailureRow> ReadFailureAsync(Guid messageId)
