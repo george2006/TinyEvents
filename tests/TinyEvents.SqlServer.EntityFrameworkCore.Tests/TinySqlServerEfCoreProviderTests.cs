@@ -59,6 +59,9 @@ public sealed class TinySqlServerEfCoreProviderTests
         Assert.Contains(
             entity.GetIndexes(),
             index => index.GetDatabaseName() == "IX_MyOutbox_ClaimedBy");
+        Assert.Contains(
+            entity.GetIndexes(),
+            index => index.GetDatabaseName() == "IX_MyOutbox_ProcessedCleanup");
     }
 
     [Fact]
@@ -101,6 +104,23 @@ public sealed class TinySqlServerEfCoreProviderTests
     }
 
     [Fact]
+    public void EF_model_builder_adds_processed_cleanup_index()
+    {
+        using var dbContext = NewTestDbContext();
+
+        var entity = dbContext.Model.FindEntityType(typeof(TinyOutboxMessage));
+
+        Assert.NotNull(entity);
+        Assert.Contains(
+            entity.GetIndexes(),
+            index => HasProperties(
+                index,
+                nameof(TinyOutboxMessage.Status),
+                nameof(TinyOutboxMessage.ProcessedAtUtc),
+                nameof(TinyOutboxMessage.Id)));
+    }
+
+    [Fact]
     public void EF_model_builder_limits_event_type_length()
     {
         using var dbContext = NewTestDbContext();
@@ -134,6 +154,10 @@ public sealed class TinySqlServerEfCoreProviderTests
         Assert.Contains(
             services,
             descriptor => descriptor.ServiceType == typeof(ITinyOutboxStore)
+                && descriptor.ImplementationType == typeof(TinySqlServerEfCoreOutboxStore<TestDbContext>));
+        Assert.Contains(
+            services,
+            descriptor => descriptor.ServiceType == typeof(ITinyOutboxCleanupStore)
                 && descriptor.ImplementationType == typeof(TinySqlServerEfCoreOutboxStore<TestDbContext>));
     }
 

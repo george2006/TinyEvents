@@ -43,6 +43,7 @@ public static class TinyEventsSqlServerEntityFrameworkCoreServiceCollectionExten
             serviceProvider.GetRequiredService<SqlServerTinyEventsMigrator>());
         services.Replace(ServiceDescriptor.Scoped<ITinyOutboxWriter, TinySqlServerEfCoreOutboxWriter<TDbContext>>());
         services.Replace(ServiceDescriptor.Scoped<ITinyOutboxStore, TinySqlServerEfCoreOutboxStore<TDbContext>>());
+        services.Replace(ServiceDescriptor.Scoped<ITinyOutboxCleanupStore, TinySqlServerEfCoreOutboxStore<TDbContext>>());
 
         return services;
     }

@@ -17,6 +17,11 @@ TinyEvents does not run migrations during service registration or worker startup
 
 Built-in migrations are currently forward-only. TinyEvents does not apply down migrations or repair schema drift.
 
+The current schema version is `2`:
+
+- `001_CreateTinyOutbox` creates the outbox and processing indexes.
+- `002_AddProcessedCleanupIndex` adds the ordered index used by processed-message cleanup.
+
 ## Outbox Table
 
 The outbox message shape is:
@@ -97,6 +102,7 @@ The SQL helper and packaged script remain available as compatibility assets:
 
 ```text
 schema/sqlserver/001_CreateTinyOutbox.sql
+schema/sqlserver/002_AddProcessedCleanupIndex.sql
 ```
 
 The built-in migration implementation, not the packaged script, is authoritative for migration planning and execution.
@@ -121,6 +127,7 @@ The SQL helper and packaged script remain available as compatibility assets:
 
 ```text
 schema/postgresql/001_CreateTinyOutbox.sql
+schema/postgresql/002_AddProcessedCleanupIndex.sql
 ```
 
 The built-in migration implementation, not the packaged script, is authoritative for migration planning and execution.

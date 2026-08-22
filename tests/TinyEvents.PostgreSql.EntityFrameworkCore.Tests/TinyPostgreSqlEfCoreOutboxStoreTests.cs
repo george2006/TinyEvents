@@ -23,6 +23,7 @@ public sealed class TinyPostgreSqlEfCoreOutboxStoreTests
 
         AssertService<ITinyOutboxWriter, TinyPostgreSqlEfCoreOutboxWriter<TestDbContext>>(services);
         AssertService<ITinyOutboxStore, TinyPostgreSqlEfCoreOutboxStore<TestDbContext>>(services);
+        AssertService<ITinyOutboxCleanupStore, TinyPostgreSqlEfCoreOutboxStore<TestDbContext>>(services);
     }
 
     [Fact]

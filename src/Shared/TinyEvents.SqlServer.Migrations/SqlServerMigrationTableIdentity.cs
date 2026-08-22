@@ -13,6 +13,7 @@ internal sealed class SqlServerMigrationTableIdentity
         PendingIndex = "IX_" + outboxTable + "_Pending";
         ExpiredProcessingIndex = "IX_" + outboxTable + "_ExpiredProcessing";
         ClaimedByIndex = "IX_" + outboxTable + "_ClaimedBy";
+        ProcessedCleanupIndex = "IX_" + outboxTable + "_ProcessedCleanup";
         HistoryPrimaryKey = "PK_" + HistoryTable;
 
         ValidateIdentifierLength(HistoryTable, "derived migration-history table");
@@ -20,6 +21,7 @@ internal sealed class SqlServerMigrationTableIdentity
         ValidateIdentifierLength(PendingIndex, "derived pending index");
         ValidateIdentifierLength(ExpiredProcessingIndex, "derived expired-processing index");
         ValidateIdentifierLength(ClaimedByIndex, "derived claimed-by index");
+        ValidateIdentifierLength(ProcessedCleanupIndex, "derived processed-cleanup index");
         ValidateIdentifierLength(HistoryPrimaryKey, "derived migration-history primary key");
     }
 
@@ -37,6 +39,8 @@ internal sealed class SqlServerMigrationTableIdentity
 
     internal string ClaimedByIndex { get; }
 
+    internal string ProcessedCleanupIndex { get; }
+
     internal string HistoryPrimaryKey { get; }
 
     internal string QuotedSchema => Quote(Schema);
@@ -52,6 +56,8 @@ internal sealed class SqlServerMigrationTableIdentity
     internal string QuotedExpiredProcessingIndex => Quote(ExpiredProcessingIndex);
 
     internal string QuotedClaimedByIndex => Quote(ClaimedByIndex);
+
+    internal string QuotedProcessedCleanupIndex => Quote(ProcessedCleanupIndex);
 
     internal string QuotedHistoryPrimaryKey => Quote(HistoryPrimaryKey);
 

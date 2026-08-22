@@ -42,7 +42,8 @@ internal sealed class PostgreSqlTinyEventsMigrator : ITinyEventsMigrator
         this.logger = logger ?? NullLogger.Instance;
         this.catalog = catalog ?? new TinyEventsMigrationCatalog(
         [
-            PostgreSqlMigration001CreateOutbox.Create(tableIdentity)
+            PostgreSqlMigration001CreateOutbox.Create(tableIdentity),
+            PostgreSqlMigration002AddProcessedCleanupIndex.Create(tableIdentity)
         ]);
     }
 

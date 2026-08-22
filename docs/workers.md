@@ -69,10 +69,15 @@ services.AddTinyEventsWorker(options =>
     options.BatchSize = 50;
     options.PollingInterval = TimeSpan.FromSeconds(5);
     options.ClaimTimeout = TimeSpan.FromMinutes(5);
+    options.CleanupEnabled = true;
+    options.ProcessedRetention = TimeSpan.FromHours(1);
+    options.CleanupBatchSize = 1_000;
+    options.CleanupInterval = TimeSpan.FromSeconds(1);
 });
 ```
 
-The hosted worker:
+The package registers independent processing and cleanup hosted services. The
+processing service:
 
 - registers an `IHostedService`
 - creates a scope per processing iteration
@@ -81,6 +86,11 @@ The hosted worker:
 - continues polling after non-cancellation processing failures
 - waits `PollingInterval`
 - stops claiming new work when cancellation is requested
+
+The cleanup service removes only processed messages older than
+`ProcessedRetention`, in batches no larger than `CleanupBatchSize`. Cleanup
+failures do not stop processing. See [Retention and Cleanup](retention-and-cleanup.md)
+for the exact boundary, provider concurrency behavior, and storage guidance.
 
 `AddTinyEventsWorker(...)` also configures the core worker options used by `ITinyOutboxProcessor`, including `WorkerId`, `BatchSize`, and `ClaimTimeout`.
 
@@ -118,6 +128,10 @@ Runtime events have stable identifiers:
 | 1100 | `WorkerIterationFailed` | Warning | An iteration failed and the worker will retry. |
 | 1101 | `WorkerRecovered` | Information | An iteration succeeded after one or more consecutive failures. |
 | 1104 | `RepeatedWorkerFailures` | Error | A repeated-failure threshold was reached and operator attention is required. |
+| 1110 | `CleanupBatchDeleted` | Debug | A bounded processed-message batch was deleted. |
+| 1111 | `CleanupIterationFailed` | Warning | A cleanup iteration failed and will be retried. |
+| 1112 | `RepeatedCleanupFailures` | Error | Cleanup reached a repeated-failure threshold. |
+| 1113 | `CleanupRecovered` | Information | Cleanup succeeded after one or more failures. |
 | 1202 | `EventProcessingFailed` | Warning | A message failed and another attempt is scheduled. |
 | 1204 | `EventRetriesExhausted` | Error | A message reached `MaxAttempts` and no retry remains. |
 | 1300 | `LeaseLost` | Warning | The worker no longer owns the message lease. |

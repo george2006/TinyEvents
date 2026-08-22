@@ -5,7 +5,9 @@ using Microsoft.EntityFrameworkCore.Storage;
 
 namespace TinyEvents.SqlServer.EntityFrameworkCore;
 
-internal sealed class TinySqlServerEfCoreOutboxStore<TDbContext> : ITinyOutboxStore
+internal sealed class TinySqlServerEfCoreOutboxStore<TDbContext> :
+    ITinyOutboxStore,
+    ITinyOutboxCleanupStore
     where TDbContext : DbContext
 {
     private const string SqlServerProviderName = "Microsoft.EntityFrameworkCore.SqlServer";
@@ -126,6 +128,28 @@ internal sealed class TinySqlServerEfCoreOutboxStore<TDbContext> : ITinyOutboxSt
 
         var affectedRows = await command.ExecuteNonQueryAsync(cancellationToken);
         ThrowIfLeaseWasLost(affectedRows, messageId, workerId, "failed");
+    }
+
+    public async ValueTask<int> DeleteProcessedBeforeAsync(
+        DateTimeOffset cutoffUtc,
+        int maxCount,
+        CancellationToken cancellationToken)
+    {
+        if (maxCount <= 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(maxCount),
+                "Maximum cleanup count must be greater than zero.");
+        }
+
+        await using var command = await CreateCommandAsync(cancellationToken);
+        command.CommandText = TinySqlServerEfCoreSql.DeleteProcessedBefore(tableName);
+
+        AddParameter(command, "@BatchSize", maxCount);
+        AddParameter(command, "@CutoffUtc", cutoffUtc);
+        AddParameter(command, "@ProcessedStatus", (int)TinyOutboxMessageStatus.Processed);
+
+        return await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
     private async ValueTask<DbCommand> CreateCommandAsync(CancellationToken cancellationToken)

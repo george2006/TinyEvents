@@ -12,6 +12,7 @@ TinyEvents is an outbox-first event library. The docs are organized around how u
   - [EF Core](postgresql/ef-core.md)
   - [ADO.NET](postgresql/ado-net.md)
 - [Workers and Leases](workers.md)
+- [Retention and Cleanup](retention-and-cleanup.md)
 - [Schema and Migrations](schema-and-migrations.md)
 - [Upgrading to 0.1.0-alpha.3](upgrading-to-alpha-3.md)
 - [The Tiny Suite](tiny-suite.md)

@@ -47,16 +47,19 @@ public sealed class PostgreSqlMigration001CreateOutboxTests
     }
 
     [Fact]
-    public void Public_schema_helper_delegates_to_migration_001()
+    public void Public_schema_helper_returns_the_current_schema()
     {
         var identity =
             PostgreSqlMigrationTableIdentity.Parse("app.MyOutbox");
-        var migration = PostgreSqlMigration001CreateOutbox.Create(identity);
+        var createOutbox = PostgreSqlMigration001CreateOutbox.Create(identity);
+        var addCleanupIndex =
+            PostgreSqlMigration002AddProcessedCleanupIndex.Create(identity);
 
         var helperSql =
             TinyPostgreSqlAdoNetSchema.CreateOutboxSql("app.MyOutbox");
 
-        Assert.Equal(migration.Sql, helperSql);
+        Assert.Contains(createOutbox.Sql, helperSql);
+        Assert.Contains(addCleanupIndex.Sql, helperSql);
     }
 
     [Fact]

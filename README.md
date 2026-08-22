@@ -25,6 +25,7 @@ The laboratory is intentionally a work in progress. Completed scenarios contain 
 - [Publishing and consuming](#publishing-and-consuming)
 - [Providers](#providers)
 - [Workers and leases](#workers-and-leases)
+- [Retention and cleanup](#retention-and-cleanup)
 - [Schema and migrations](#schema-and-migrations)
 - [Run the samples](#run-the-samples)
 - [Tiny suite](#tiny-suite)
@@ -179,6 +180,16 @@ When a worker claims a message:
 If a worker crashes, no cleanup is required. The message remains `Processing` until the claim expires. Another worker can reclaim it after expiration.
 
 Consumers must be idempotent. TinyEvents guarantees at-least-once delivery, not exactly-once side effects.
+
+## Retention and cleanup
+
+The hosted worker removes processed outbox messages after one hour by default,
+using bounded provider-specific delete batches. Pending, processing, and failed
+messages are never removed automatically in v1.
+
+Cleanup is configurable and runs independently from event processing. See
+[Retention and Cleanup](docs/retention-and-cleanup.md) for exact eligibility,
+concurrency behavior, migration requirements, and storage-budget guidance.
 
 ## Schema and migrations
 

@@ -5,7 +5,12 @@ public sealed class TinyEventsWorkerOptions
     private int batchSize = 50;
     private TimeSpan pollingInterval = TimeSpan.FromSeconds(5);
     private TimeSpan claimTimeout = TimeSpan.FromMinutes(5);
+    private TimeSpan processedRetention = TimeSpan.FromHours(1);
+    private int cleanupBatchSize = 1_000;
+    private TimeSpan cleanupInterval = TimeSpan.FromSeconds(1);
     private string? workerId;
+
+    public bool CleanupEnabled { get; set; } = true;
 
     public string? WorkerId
     {
@@ -76,6 +81,66 @@ public sealed class TinyEventsWorkerOptions
             }
 
             claimTimeout = value;
+        }
+    }
+
+    public TimeSpan ProcessedRetention
+    {
+        get
+        {
+            return processedRetention;
+        }
+
+        set
+        {
+            if (value <= TimeSpan.Zero)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(value),
+                    "Processed retention must be greater than zero.");
+            }
+
+            processedRetention = value;
+        }
+    }
+
+    public int CleanupBatchSize
+    {
+        get
+        {
+            return cleanupBatchSize;
+        }
+
+        set
+        {
+            if (value <= 0)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(value),
+                    "Cleanup batch size must be greater than zero.");
+            }
+
+            cleanupBatchSize = value;
+        }
+    }
+
+    public TimeSpan CleanupInterval
+    {
+        get
+        {
+            return cleanupInterval;
+        }
+
+        set
+        {
+            if (value <= TimeSpan.Zero)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(value),
+                    "Cleanup interval must be greater than zero.");
+            }
+
+            cleanupInterval = value;
         }
     }
 }

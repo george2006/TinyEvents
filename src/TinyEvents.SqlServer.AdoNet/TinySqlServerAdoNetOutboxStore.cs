@@ -3,7 +3,9 @@ using System.Data.Common;
 
 namespace TinyEvents.SqlServer.AdoNet;
 
-internal sealed class TinySqlServerAdoNetOutboxStore : ITinyOutboxStore
+internal sealed class TinySqlServerAdoNetOutboxStore :
+    ITinyOutboxStore,
+    ITinyOutboxCleanupStore
 {
     private readonly TinyEventsSqlServerAdoNetOptions options;
     private readonly ITinySqlServerAdoNetWorkerConnectionFactory connectionFactory;
@@ -112,6 +114,32 @@ internal sealed class TinySqlServerAdoNetOutboxStore : ITinyOutboxStore
 
         var affectedRows = await command.ExecuteNonQueryAsync(cancellationToken);
         ThrowIfLeaseWasLost(affectedRows, messageId, workerId, "failed");
+    }
+
+    public async ValueTask<int> DeleteProcessedBeforeAsync(
+        DateTimeOffset cutoffUtc,
+        int maxCount,
+        CancellationToken cancellationToken)
+    {
+        if (maxCount <= 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(maxCount),
+                "Maximum cleanup count must be greater than zero.");
+        }
+
+        await using var connection = await CreateOpenConnectionAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandText = TinySqlServerAdoNetSql.DeleteProcessedBefore(tableName);
+
+        TinySqlServerAdoNetCommandParameters.Add(command, "@BatchSize", maxCount);
+        TinySqlServerAdoNetCommandParameters.Add(command, "@CutoffUtc", cutoffUtc);
+        TinySqlServerAdoNetCommandParameters.Add(
+            command,
+            "@ProcessedStatus",
+            (int)TinyOutboxMessageStatus.Processed);
+
+        return await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
     private async ValueTask<DbConnection> CreateOpenConnectionAsync(CancellationToken cancellationToken)

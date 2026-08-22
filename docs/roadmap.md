@@ -26,6 +26,7 @@ The beta milestone stabilizes the contracts established by the final alpha:
 - verify package metadata, dependency alignment, and clean-consumer installation
 - tighten diagnostics, examples, deployment guidance, and upgrade documentation
 - measure representative processing, claiming, and migration behavior under load
+- validate bounded processed-message cleanup under concurrent publication and processing
 
 ## 1.0.0
 
@@ -39,3 +40,4 @@ The 1.0 release requires evidence that the stabilized contracts are ready for pr
 - security, SQL-safety, logging-safety, and operational reviews have no release blockers
 - installation, migration, deployment, recovery, and troubleshooting guidance is complete
 - no known correctness issue remains in the supported provider matrix
+- processed outbox growth is bounded by an evidence-backed retention policy
