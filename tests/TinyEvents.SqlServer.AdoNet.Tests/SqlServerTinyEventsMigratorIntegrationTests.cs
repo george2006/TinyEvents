@@ -105,6 +105,25 @@ public sealed class SqlServerTinyEventsMigratorIntegrationTests : IClassFixture<
     }
 
     [SqlServerIntegrationFact]
+    public async Task Current_history_without_outbox_is_rejected_as_inconsistent()
+    {
+        const string schema = "migrator_missing_outbox";
+        await ResetSchemaAsync(schema);
+        var migrator =
+            Migrator(schema, new FixedTimeProvider(DateTimeOffset.UnixEpoch));
+        await migrator.MigrateAsync(CancellationToken.None);
+        await ExecuteAsync($"DROP TABLE [{schema}].[Events];");
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => migrator.MigrateAsync(CancellationToken.None));
+
+        Assert.Contains("SQL Server", exception.Message);
+        Assert.Contains($"{schema}.Events", exception.Message);
+        Assert.Contains("version 1", exception.Message);
+        Assert.Contains("does not exist", exception.Message);
+    }
+
+    [SqlServerIntegrationFact]
     public async Task Failed_later_migration_preserves_earlier_commit_and_rolls_back_its_SQL()
     {
         const string schema = "migrator_atomic";
