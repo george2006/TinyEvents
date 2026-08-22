@@ -98,6 +98,25 @@ public sealed class PostgreSqlTinyEventsMigratorIntegrationTests
     }
 
     [PostgreSqlIntegrationFact]
+    public async Task Current_history_without_outbox_is_rejected_as_inconsistent()
+    {
+        const string schema = "MigratorMissingOutbox";
+        await ResetSchemaAsync(schema);
+        var migrator =
+            Migrator(schema, new FixedTimeProvider(DateTimeOffset.UnixEpoch));
+        await migrator.MigrateAsync(CancellationToken.None);
+        await ExecuteAsync($"DROP TABLE \"{schema}\".\"Events\";");
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => migrator.MigrateAsync(CancellationToken.None));
+
+        Assert.Contains("PostgreSQL", exception.Message);
+        Assert.Contains($"{schema}.Events", exception.Message);
+        Assert.Contains("version 1", exception.Message);
+        Assert.Contains("does not exist", exception.Message);
+    }
+
+    [PostgreSqlIntegrationFact]
     public async Task Failed_later_migration_preserves_prior_commit_and_rolls_back()
     {
         const string schema = "MigratorAtomic";

@@ -117,17 +117,6 @@ internal sealed class PostgreSqlTinyEventsMigrator : ITinyEventsMigrator
                 var plan = new TinyEventsMigrationPlanner()
                     .CreatePlan(catalog, appliedMigrations);
 
-                if (plan.IsCurrent)
-                {
-                    TinyEventsMigrationLog.SchemaCurrent(
-                        logger,
-                        provider,
-                        tableIdentity.Schema,
-                        tableIdentity.OutboxTable,
-                        plan.CurrentVersion,
-                        plan.TargetVersion);
-                }
-
                 foreach (var migration in plan.PendingMigrations)
                 {
                     await ApplyMigrationAsync(
@@ -150,6 +139,17 @@ internal sealed class PostgreSqlTinyEventsMigrator : ITinyEventsMigrator
                     connection,
                     history,
                     cancellationToken);
+
+                if (plan.IsCurrent)
+                {
+                    TinyEventsMigrationLog.SchemaCurrent(
+                        logger,
+                        provider,
+                        tableIdentity.Schema,
+                        tableIdentity.OutboxTable,
+                        plan.CurrentVersion,
+                        plan.TargetVersion);
+                }
             }
             finally
             {
@@ -264,6 +264,19 @@ internal sealed class PostgreSqlTinyEventsMigrator : ITinyEventsMigrator
                 $"PostgreSQL migration completed at version " +
                 $"{finalPlan.CurrentVersion}, but provider version " +
                 $"{finalPlan.TargetVersion} is required.");
+        }
+
+        var outboxTableExists = await history.OutboxTableExistsAsync(
+            connection,
+            cancellationToken);
+
+        if (!outboxTableExists)
+        {
+            throw new InvalidOperationException(
+                $"PostgreSQL migration history is current at version " +
+                $"{finalPlan.CurrentVersion}, but outbox table " +
+                $"'{tableIdentity.Schema}.{tableIdentity.OutboxTable}' does not exist. " +
+                "The schema is inconsistent.");
         }
     }
 }
