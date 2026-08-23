@@ -1,6 +1,5 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using TinyEvents.PostgreSql.EntityFrameworkCore;
 using TinyEvents.Worker;
 
@@ -38,7 +37,7 @@ public static class PostgreSqlEfCorePackageSmoke
         PackageSmokeAssertions.RequireService(scope.ServiceProvider.GetRequiredService<ITinyOutboxProcessor>());
         PackageSmokeAssertions.RequireService(scope.ServiceProvider.GetRequiredService<ITinyOutboxWriter>());
         PackageSmokeAssertions.RequireService(scope.ServiceProvider.GetRequiredService<ITinyOutboxStore>());
-        PackageSmokeAssertions.RequireService(provider.GetServices<IHostedService>().Single());
+        PackageSmokeAssertions.RequireWorkerHostedServices(provider);
         PackageSmokeAssertions.RequireService(scope.ServiceProvider.GetServices<IEventConsumer<PostgreSqlEfCoreSmokeEvent>>().Single());
 
         await publisher.PublishAsync(new PostgreSqlEfCoreSmokeEvent(Guid.NewGuid()));

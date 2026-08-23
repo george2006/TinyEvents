@@ -1,3 +1,7 @@
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using TinyEvents.Worker;
+
 namespace TinyEvents.PackageSmoke;
 
 internal static class PackageSmokeAssertions
@@ -16,5 +20,16 @@ internal static class PackageSmokeAssertions
         {
             throw new InvalidOperationException("Expected package service registration was missing.");
         }
+    }
+
+    public static void RequireWorkerHostedServices(IServiceProvider provider)
+    {
+        var hostedServices = provider.GetServices<IHostedService>().ToArray();
+        var processingServices = hostedServices
+            .OfType<TinyEventsBackgroundService>()
+            .ToArray();
+
+        RequireCondition(hostedServices.Length == 2);
+        RequireCondition(processingServices.Length == 1);
     }
 }

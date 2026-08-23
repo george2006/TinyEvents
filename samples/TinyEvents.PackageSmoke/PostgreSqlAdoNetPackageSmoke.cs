@@ -1,6 +1,5 @@
 using System.Data.Common;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using Npgsql;
 using TinyEvents.PostgreSql.AdoNet;
 using TinyEvents.Worker;
@@ -49,7 +48,7 @@ public static class PostgreSqlAdoNetPackageSmoke
 
         PackageSmokeAssertions.RequireService(scope.ServiceProvider.GetRequiredService<ITinyOutboxWriter>());
         PackageSmokeAssertions.RequireService(scope.ServiceProvider.GetRequiredService<ITinyOutboxStore>());
-        PackageSmokeAssertions.RequireService(provider.GetServices<IHostedService>().Single());
+        PackageSmokeAssertions.RequireWorkerHostedServices(provider);
         PackageSmokeAssertions.RequireService(scope.ServiceProvider.GetServices<IEventConsumer<PostgreSqlAdoNetSmokeEvent>>().Single());
 
         await publisher.PublishAsync(new PostgreSqlAdoNetSmokeEvent(Guid.NewGuid()));
