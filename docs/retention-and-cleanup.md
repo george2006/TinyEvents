@@ -7,11 +7,9 @@ TinyEvents automatically removes processed outbox messages after a configurable
 retention period. Cleanup keeps the operational outbox bounded without turning
 it into an audit or observability store.
 
-## Candidate Default Policy
+## Default Policy
 
-The hosted worker currently uses the following candidate defaults for the next
-release. Beta load hardening will determine whether these values are accepted
-or changed before publication:
+The following defaults are accepted for the next release:
 
 ```csharp
 services.AddTinyEventsWorker(options =>
@@ -62,6 +60,29 @@ Retention is time-based, not byte-based. Database engine, payload size, indexes,
 write rate, and failure rate all affect storage. TinyEvents does not promise a
 universal database-size ceiling.
 
+The beta laboratory measured processed rows containing 1 KB of deterministic,
+compression-resistant content at approximately 4,515 bytes per row on SQL
+Server and 1,951 bytes per row on PostgreSQL. Applying those local measurements
+to the one-hour default produces this planning model:
+
+```text
+retained rows = processed messages/second * retention seconds
+processed storage = retained rows * measured processed bytes/row
+```
+
+| Sustained processed rate | Rows retained | SQL Server | PostgreSQL |
+|---:|---:|---:|---:|
+| 200 messages/s | 720,000 | 3.25 GB | 1.40 GB |
+| 400 messages/s | 1,440,000 | 6.50 GB | 2.81 GB |
+| 800 messages/s | 2,880,000 | 13.00 GB | 5.62 GB |
+
+These decimal-GB projections cover only the measured outbox table and indexes.
+They are not database-size guarantees: real event metadata and payloads may be
+larger, database allocation is engine-specific, and pending, processing, and
+failed rows sit outside the processed-retention window. Measure the real
+application before choosing its budget. Lower `ProcessedRetention` when the
+modeled window is larger than the available budget.
+
 Choose retention and batch settings from measured workload evidence. The
 configured cleanup capacity is approximately:
 
@@ -69,9 +90,23 @@ configured cleanup capacity is approximately:
 CleanupBatchSize / CleanupInterval
 ```
 
-For example, the candidate defaults can attempt one batch of 1,000 rows each
-second. Real capacity must still be verified against the application's database
-and concurrent workload.
+The accepted defaults can attempt one batch of 1,000 rows each second from each
+application instance. Four-process beta runs deleted between 2,170 and 3,910
+eligible rows per second while active work continued. At 200 and 400 requests
+per second, cleanup-enabled publishing throughput remained within 0.2% of the
+cleanup-disabled baseline on both providers. PostgreSQL also sustained 800;
+the local SQL Server environment did not sustain 800 with or without cleanup,
+and cleanup increased latency while the database caught up with 50,000 expired
+rows.
+
+That catch-up result is why the defaults remain configurable. Reducing
+`CleanupBatchSize` or increasing `CleanupInterval` reduces cleanup pressure but
+also lowers cleanup capacity. Keep the configured capacity above the expected
+processed-message rate, and validate it against the application's database.
+
+The public [TinyEvents Dogfood laboratory](https://github.com/george2006/TinyEvents.DogFood)
+contains the executable storage and cleanup-under-load contracts behind these
+measurements.
 
 ## Schema Requirement
 

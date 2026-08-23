@@ -47,7 +47,7 @@ Empty worker ids are rejected.
 
 > **Release status:** Processed-message cleanup is implemented for the next
 > TinyEvents release. It is not included in the latest published NuGet packages
-> yet. Its current settings are candidate defaults pending beta hardening.
+> yet. Its defaults have passed the cleanup behavior and active-load gates.
 
 Install:
 
@@ -80,8 +80,9 @@ services.AddTinyEventsWorker(options =>
 });
 ```
 
-The cleanup values shown above are the current candidates for the next release,
-not yet accepted production defaults.
+The cleanup values shown above are the accepted defaults for the next release.
+They remain configurable because payload size, processed rate, retention needs,
+and available database capacity differ between applications.
 
 The package registers independent processing and cleanup hosted services. The
 processing service:
