@@ -61,6 +61,49 @@ public sealed class TinyEventsWorkerTests
     }
 
     [Fact]
+    public void Disabled_cleanup_does_not_require_custom_provider_cleanup_support()
+    {
+        var services = new ServiceCollection();
+        var storage = new CustomOutboxStorage();
+        services.AddSingleton<ITinyOutboxStore>(storage);
+        services.AddSingleton<ITinyOutboxWriter>(storage);
+        services.AddTinyEventsWorker(options => options.CleanupEnabled = false);
+
+        using var provider = services.BuildServiceProvider(new ServiceProviderOptions
+        {
+            ValidateOnBuild = true,
+            ValidateScopes = true
+        });
+    }
+
+    [Fact]
+    public async Task Enabled_cleanup_requires_custom_provider_cleanup_support()
+    {
+        var services = new ServiceCollection();
+        var storage = new CustomOutboxStorage();
+        services.AddSingleton<ITinyOutboxStore>(storage);
+        services.AddSingleton<ITinyOutboxWriter>(storage);
+        services.AddTinyEventsWorker();
+        using var provider = services.BuildServiceProvider(new ServiceProviderOptions
+        {
+            ValidateOnBuild = true,
+            ValidateScopes = true
+        });
+        var cleanupService = provider
+            .GetServices<IHostedService>()
+            .OfType<TinyEventsCleanupBackgroundService>()
+            .Single();
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            cleanupService.StartAsync(CancellationToken.None));
+
+        Assert.Contains(
+            nameof(ITinyOutboxCleanupStore),
+            exception.Message,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Worker_options_apply_when_worker_registered_before_core()
     {
         var services = new ServiceCollection();
@@ -464,6 +507,47 @@ public sealed class TinyEventsWorkerTests
         public ValueTask ProcessPendingAsync(CancellationToken cancellationToken = default)
         {
             CallCount++;
+            return ValueTask.CompletedTask;
+        }
+    }
+
+    private sealed class CustomOutboxStorage : ITinyOutboxStore, ITinyOutboxWriter
+    {
+        public ValueTask AddAsync(
+            TinyOutboxMessage message,
+            CancellationToken cancellationToken)
+        {
+            return ValueTask.CompletedTask;
+        }
+
+        public ValueTask<IReadOnlyList<TinyOutboxMessage>> ClaimPendingAsync(
+            int maxCount,
+            string workerId,
+            DateTimeOffset now,
+            TimeSpan claimTimeout,
+            CancellationToken cancellationToken)
+        {
+            return ValueTask.FromResult<IReadOnlyList<TinyOutboxMessage>>(
+                Array.Empty<TinyOutboxMessage>());
+        }
+
+        public ValueTask MarkProcessedAsync(
+            Guid messageId,
+            string workerId,
+            DateTimeOffset processedAtUtc,
+            CancellationToken cancellationToken)
+        {
+            return ValueTask.CompletedTask;
+        }
+
+        public ValueTask MarkFailedAsync(
+            Guid messageId,
+            string workerId,
+            string error,
+            int attemptCount,
+            DateTimeOffset? nextAttemptAtUtc,
+            CancellationToken cancellationToken)
+        {
             return ValueTask.CompletedTask;
         }
     }
