@@ -16,12 +16,21 @@ public static class TinyEventsWorkerServiceCollectionExtensions
         }
 
         var workerOptions = ConfigureOptions(services, configure);
-        services.TryAddScoped<TinyOutboxCleanup>();
+        services.TryAddScoped(CreateOutboxCleanup);
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, TinyEventsBackgroundService>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, TinyEventsCleanupBackgroundService>());
         services.ConfigureTinyEventsForWorker(workerOptions);
 
         return services;
+    }
+
+    private static TinyOutboxCleanup CreateOutboxCleanup(
+        IServiceProvider serviceProvider)
+    {
+        return new TinyOutboxCleanup(
+            serviceProvider.GetRequiredService<ITinyOutboxCleanupStore>(),
+            serviceProvider.GetRequiredService<TinyEventsWorkerOptions>(),
+            serviceProvider.GetRequiredService<TimeProvider>());
     }
 
     private static TinyEventsWorkerOptions ConfigureOptions(
