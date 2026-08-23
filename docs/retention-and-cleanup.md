@@ -7,9 +7,11 @@ TinyEvents automatically removes processed outbox messages after a configurable
 retention period. Cleanup keeps the operational outbox bounded without turning
 it into an audit or observability store.
 
-## Default Policy
+## Candidate Default Policy
 
-The hosted worker defaults are:
+The hosted worker currently uses the following candidate defaults for the next
+release. Beta load hardening will determine whether these values are accepted
+or changed before publication:
 
 ```csharp
 services.AddTinyEventsWorker(options =>
@@ -67,9 +69,9 @@ configured cleanup capacity is approximately:
 CleanupBatchSize / CleanupInterval
 ```
 
-For example, the defaults can attempt one batch of 1,000 rows each second. Real
-capacity must still be verified against the application's database and
-concurrent workload.
+For example, the candidate defaults can attempt one batch of 1,000 rows each
+second. Real capacity must still be verified against the application's database
+and concurrent workload.
 
 ## Schema Requirement
 

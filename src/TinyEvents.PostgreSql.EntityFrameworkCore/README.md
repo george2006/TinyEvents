@@ -83,6 +83,11 @@ await host.RunAsync();
 
 The migrator borrows the scoped `AppDbContext` connection, opens and closes it only when needed, and never disposes the context or its connection. The default history table is `public.TinyOutboxMigrations`; custom outbox names derive their history table in the same schema.
 
+Processed-message cleanup is implemented for the next release and is not in the
+latest published packages. That release adds migration
+`002_AddProcessedCleanupIndex`; `MigrateTinyEventsAsync` applies it as a normal
+forward-only migration when it is not already recorded.
+
 TinyEvents never applies migrations automatically during service registration or worker startup.
 
 ## More Documentation
@@ -91,3 +96,4 @@ TinyEvents never applies migrations automatically during service registration or
 - EF Core provider guide: https://github.com/george2006/TinyEvents/blob/main/docs/postgresql/ef-core.md
 - Worker guide: https://github.com/george2006/TinyEvents/blob/main/docs/workers.md
 - Schema and migrations: https://github.com/george2006/TinyEvents/blob/main/docs/schema-and-migrations.md
+- Retention and cleanup: https://github.com/george2006/TinyEvents/blob/main/docs/retention-and-cleanup.md

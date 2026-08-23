@@ -45,6 +45,10 @@ Empty worker ids are rejected.
 
 ## Hosted Worker
 
+> **Release status:** Processed-message cleanup is implemented for the next
+> TinyEvents release. It is not included in the latest published NuGet packages
+> yet. Its current settings are candidate defaults pending beta hardening.
+
 Install:
 
 ```bash
@@ -75,6 +79,9 @@ services.AddTinyEventsWorker(options =>
     options.CleanupInterval = TimeSpan.FromSeconds(1);
 });
 ```
+
+The cleanup values shown above are the current candidates for the next release,
+not yet accepted production defaults.
 
 The package registers independent processing and cleanup hosted services. The
 processing service:

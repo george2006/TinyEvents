@@ -65,6 +65,11 @@ The migrator uses `UseWorkerConnectionFactory(...)` to create a dedicated connec
 
 The default tables are `public.TinyOutbox` and `public.TinyOutboxMigrations`. A custom outbox such as `app.MyOutbox` uses `app.MyOutboxMigrations`.
 
+Processed-message cleanup is implemented for the next release and is not in the
+latest published packages. That release adds migration
+`002_AddProcessedCleanupIndex`; `MigrateTinyEventsAsync` applies it as a normal
+forward-only migration when it is not already recorded.
+
 The SQL helper remains available as a compatibility asset:
 
 ```csharp
@@ -91,3 +96,4 @@ TinyEvents never applies migrations automatically during service registration or
 - ADO.NET provider guide: https://github.com/george2006/TinyEvents/blob/main/docs/postgresql/ado-net.md
 - Worker guide: https://github.com/george2006/TinyEvents/blob/main/docs/workers.md
 - Schema and migrations: https://github.com/george2006/TinyEvents/blob/main/docs/schema-and-migrations.md
+- Retention and cleanup: https://github.com/george2006/TinyEvents/blob/main/docs/retention-and-cleanup.md

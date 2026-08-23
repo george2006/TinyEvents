@@ -186,9 +186,11 @@ Consumers must be idempotent. TinyEvents guarantees at-least-once delivery, not 
 > **Release status:** This capability is implemented for the next TinyEvents
 > release. It is not included in the latest published NuGet packages yet.
 
-The hosted worker removes processed outbox messages after one hour by default,
-using bounded provider-specific delete batches. Pending, processing, and failed
-messages are never removed automatically in v1.
+The hosted worker removes processed outbox messages after a configurable
+retention period, using bounded provider-specific delete batches. The current
+candidate default for the next release is one hour and remains subject to beta
+hardening. Pending, processing, and failed messages are never removed
+automatically in v1.
 
 Cleanup is configurable and runs independently from event processing. See
 [Retention and Cleanup](docs/retention-and-cleanup.md) for exact eligibility,
