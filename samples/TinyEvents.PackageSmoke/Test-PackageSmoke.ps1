@@ -19,6 +19,44 @@ function Invoke-Native {
     }
 }
 
+function Read-PackageManifest {
+    param(
+        $Archive,
+        [string]$PackageId
+    )
+
+    $manifestEntries = @($Archive.Entries | Where-Object {
+        $_.FullName.EndsWith(".nuspec", [StringComparison]::OrdinalIgnoreCase)
+    })
+
+    if ($manifestEntries.Count -ne 1) {
+        throw "Package $PackageId must contain exactly one manifest."
+    }
+
+    $reader = [System.IO.StreamReader]::new($manifestEntries[0].Open())
+
+    try {
+        [xml]$manifest = $reader.ReadToEnd()
+        $metadata = $manifest.package.metadata
+
+        return [pscustomobject]@{
+            Id = [string]$metadata.id
+            Authors = [string]$metadata.authors
+            License = [string]$metadata.license.'#text'
+            LicenseType = [string]$metadata.license.type
+            ProjectUrl = [string]$metadata.projectUrl
+            RepositoryUrl = [string]$metadata.repository.url
+            RepositoryType = [string]$metadata.repository.type
+            Readme = [string]$metadata.readme
+            Description = [string]$metadata.description
+            Tags = [string]$metadata.tags
+        }
+    }
+    finally {
+        $reader.Dispose()
+    }
+}
+
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..\..")
 $solution = Join-Path $repoRoot "TinyEvents.sln"
 $sampleProject = Join-Path $repoRoot "samples\TinyEvents.PackageSmoke\TinyEvents.PackageSmoke.csproj"
@@ -76,6 +114,16 @@ $expectedPackageIds = @(
     "TinyEvents.PostgreSql.EntityFrameworkCore"
 )
 
+$expectedSharedMetadata = [ordered]@{
+    Authors = "Jorge Durban Antunano"
+    License = "MIT"
+    LicenseType = "expression"
+    ProjectUrl = "https://github.com/george2006/TinyEvents"
+    RepositoryUrl = "https://github.com/george2006/TinyEvents"
+    RepositoryType = "git"
+    Readme = "README.md"
+}
+
 $packageFiles = @(Get-ChildItem -LiteralPath $packagesDirectory -Filter "*.nupkg" -File |
     Where-Object { -not $_.Name.EndsWith(".snupkg", [StringComparison]::OrdinalIgnoreCase) })
 
@@ -98,6 +146,36 @@ foreach ($packageId in $expectedPackageIds) {
     $archive = [System.IO.Compression.ZipFile]::OpenRead($packageFile.FullName)
 
     try {
+        $manifest = Read-PackageManifest -Archive $archive -PackageId $packageId
+
+        if ($manifest.Id -ne $packageId) {
+            throw "Package $packageId contains manifest identity $($manifest.Id)."
+        }
+
+        foreach ($expectedMetadata in $expectedSharedMetadata.GetEnumerator()) {
+            $actualValue = $manifest.($expectedMetadata.Key)
+
+            if ($actualValue -ne $expectedMetadata.Value) {
+                throw "Package $packageId has invalid $($expectedMetadata.Key) metadata: $actualValue"
+            }
+        }
+
+        if ([string]::IsNullOrWhiteSpace($manifest.Description)) {
+            throw "Package $packageId must contain a description."
+        }
+
+        if ([string]::IsNullOrWhiteSpace($manifest.Tags)) {
+            throw "Package $packageId must contain tags."
+        }
+
+        $containsReadme = $archive.Entries | Where-Object {
+            $_.FullName.Equals($manifest.Readme, [StringComparison]::OrdinalIgnoreCase)
+        }
+
+        if ($null -eq $containsReadme) {
+            throw "Package $packageId does not contain its declared README."
+        }
+
         $unexpectedMigrationAssembly = $archive.Entries | Where-Object {
             $_.FullName -match '(^|/)TinyEvents\..*Migrations\.dll$'
         }
@@ -122,7 +200,7 @@ foreach ($packageId in $expectedPackageIds) {
     }
 }
 
-Write-Host "Verified the existing package set and in-package provider assemblies."
+Write-Host "Verified package manifests, package contents, and in-package provider assemblies."
 
 @"
 <?xml version="1.0" encoding="utf-8"?>
