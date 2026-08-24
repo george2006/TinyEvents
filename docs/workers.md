@@ -225,7 +225,9 @@ If the missing dispatcher is caused by startup or registration order, the messag
 
 TinyEvents v1 does not implement claim renewal or heartbeat.
 
-Set `ClaimTimeout` longer than the expected maximum consumer processing time:
+`ClaimTimeout` starts when the batch is claimed. Messages in that batch are
+processed sequentially, so the lease must cover the worst-case time for the
+complete batch, including every consumer and completion update:
 
 ```csharp
 services.AddTinyEventsWorker(options =>
@@ -234,7 +236,18 @@ services.AddTinyEventsWorker(options =>
 });
 ```
 
-If a consumer runs longer than `ClaimTimeout`, another worker may reclaim and process the same message.
+If the batch remains active beyond `ClaimTimeout`, another worker may reclaim a
+later message before the original worker reaches or completes it. Increase the
+timeout or reduce `BatchSize` when the complete worst-case batch cannot finish
+inside the lease.
+
+## Multiple Consumers And Retry
+
+TinyEvents records completion for the event, not independently for each
+consumer. Consumers execute sequentially. If an earlier consumer succeeds and a
+later consumer fails, the message remains incomplete and its next attempt
+invokes every consumer again. Consumer order is not a public coordination
+contract; each consumer must tolerate repeated invocation.
 
 ## Delivery Guarantee
 
@@ -248,5 +261,6 @@ TinyEvents does not provide:
 
 - exactly-once side effects
 - global duplicate prevention after crash/retry scenarios
+- per-consumer durable completion checkpoints
 
 Consumers must be idempotent.

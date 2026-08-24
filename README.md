@@ -25,6 +25,7 @@ The laboratory is intentionally a work in progress. Completed scenarios contain 
 - [Publishing and consuming](#publishing-and-consuming)
 - [Providers](#providers)
 - [Workers and leases](#workers-and-leases)
+- [Reliability contract](#reliability-contract)
 - [Retention and cleanup](#retention-and-cleanup)
 - [Schema and migrations](#schema-and-migrations)
 - [Run the samples](#run-the-samples)
@@ -181,6 +182,48 @@ If a worker crashes, no cleanup is required. The message remains `Processing` un
 
 Consumers must be idempotent. TinyEvents guarantees at-least-once delivery, not exactly-once side effects.
 
+## Reliability contract
+
+The beta contract is deliberately narrower than “events never fail” or
+“exactly once.” TinyEvents demonstrates these guarantees against SQL Server and
+PostgreSQL:
+
+- business state and its outbox message commit or roll back in the same
+  application-owned transaction;
+- an active claim is not stolen before its database-authoritative lease expires;
+- retry eligibility, attempt count, and terminal errors survive worker restart;
+- workers recover from process and database interruption using durable state;
+- malformed or unknown messages fail independently without blocking valid work;
+- concurrent forward migrations serialize and inconsistent schema state is
+  rejected;
+- cleanup deletes only eligible processed rows in bounded atomic batches.
+
+TinyEvents does not guarantee:
+
+- exactly-once consumer side effects;
+- a known client-side outcome when the database commits but its acknowledgement
+  is lost;
+- exclusive processing after `ClaimTimeout` expires;
+- a durable checkpoint for each consumer attached to one event;
+- automatic inference or replay after an event type or namespace rename;
+- a universal throughput, latency, or database-size ceiling.
+
+Applications therefore own these responsibilities:
+
+- make repeated consumer effects safe;
+- size `ClaimTimeout` for the worst-case sequential time of the complete claimed
+  batch, including completion persistence, or reduce `BatchSize`;
+- keep manually configured worker IDs unique across active processes;
+- deploy explicit previous-name mappings before renaming durable event contracts;
+- monitor terminal failed rows and handle them through an explicit operational
+  procedure;
+- reconcile an ambiguous business commit before retrying it blindly;
+- validate connection pools, retention, and cleanup settings against the real
+  workload.
+
+Every boundary above has a reproducible scenario in the public
+[beta findings index](https://github.com/george2006/TinyEvents.DogFood/blob/main/docs/findings-index.md).
+
 ## Retention and cleanup
 
 > **Release status:** This capability is implemented for the next TinyEvents
@@ -323,9 +366,10 @@ TinyEvents is an alpha.
 - SQL Server and PostgreSQL are the current real database targets.
 - Providers use database-specific atomic claiming.
 - There is no claim heartbeat or renewal in v1.
-- Long-running consumers must use a long enough `ClaimTimeout`.
+- `ClaimTimeout` covers the complete claimed batch, not one consumer call.
 - Built-in migrations are forward-only; down migrations and schema repair are not provided.
 - Exactly-once side effects are not guaranteed.
+- Failed rows are preserved and require an explicit operational procedure.
 - Native ASP.NET convenience integration is intentionally not the first layer; the samples use minimal APIs directly.
 
 See [Roadmap](docs/roadmap.md) for planned hardening.
