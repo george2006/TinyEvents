@@ -1,43 +1,40 @@
-# Roadmap
+# TinyEvents Product Roadmap
 
-TinyEvents is moving from feature completion into contract stabilization and production-readiness validation.
+This roadmap describes product direction without delivery dates. Scope may
+change as each capability is designed and validated.
 
-## 0.1.0-alpha.3
+## V1 Evolution
 
-The final alpha establishes the complete initial product shape:
+### Failed Messages and Replay
 
-- provider-agnostic transactional outbox publishing and processing
-- generated consumer registration and event dispatch without runtime scanning
-- SQL Server and PostgreSQL providers for ADO.NET and EF Core
-- lease-based multi-worker claiming and at-least-once delivery
-- resilient worker failure handling, startup validation, and structured logging
-- explicit forward-only built-in migrations with history, locking, and existing-alpha baselining
-- one coordinated six-package release train
-- real-database, package-consumer, and published-alpha upgrade tests
+Inspect terminally failed messages and replay one message or a bounded
+selection after the underlying problem has been corrected. Replay preserves the
+existing at-least-once delivery contract.
 
-## 0.1.0-beta.1
+### Worker Registry
 
-The beta milestone stabilizes the contracts established by the final alpha:
+Maintain a durable view of the worker instances participating in event
+processing, including their identity, version, capacity, and lifecycle state.
 
-- review and freeze the intended public API surface
-- freeze migration identifiers, history shape, checksum behavior, and logging event IDs
-- stabilize worker failure, retry, recovery, and cancellation behavior
-- establish automated public API and package compatibility checks
-- verify package metadata, dependency alignment, and clean-consumer installation
-- tighten diagnostics, examples, deployment guidance, and upgrade documentation
-- measure representative processing, claiming, and migration behavior under load
-- validate bounded processed-message cleanup under concurrent publication and processing
+### Worker Heartbeats
 
-## 1.0.0
+Detect active, stale, and stopped workers through database-authoritative
+liveness information.
 
-The 1.0 release requires evidence that the stabilized contracts are ready for production use:
+### Processing Progress
 
-- SQL Server and PostgreSQL runtime suites pass with no skipped database tests
-- concurrent claiming and migration behavior remains deterministic
-- supported upgrade paths are repeatable from published packages
-- package contents, dependencies, and public APIs pass compatibility gates
-- failure, cancellation, retry, lease-loss, and recovery behavior is documented and tested
-- security, SQL-safety, logging-safety, and operational reviews have no release blockers
-- installation, migration, deployment, recovery, and troubleshooting guidance is complete
-- no known correctness issue remains in the supported provider matrix
-- processed outbox growth is bounded by an evidence-backed retention policy
+Expose the work currently owned by each worker and support long-running
+processing without unnecessary redelivery.
+
+## V2 Evolution
+
+### Durable Consumer Checkpoints
+
+Record completion independently for every consumer attached to an event so a
+later consumer failure does not require repeating consumers already completed.
+
+### Duplicate-Resistant Processing
+
+Reduce avoidable duplicate invocations through stronger ownership and durable
+progress while keeping external side effects under an honest at-least-once
+contract.
