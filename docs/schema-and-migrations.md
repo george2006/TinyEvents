@@ -142,6 +142,26 @@ The first built-in migration has a deliberately narrow baseline rule for databas
 
 Before upgrading, applications with manually altered schemas must confirm that their existing outbox table matches the expected provider shape. TinyEvents will not infer compatibility or repair drift.
 
+## Rolling Upgrades
+
+The demonstrated rolling-upgrade path for the current additive migration is:
+
+1. Keep the previous-version workers running against their current schema.
+2. Start the current version and let it apply its pending migration.
+3. Let the already-running previous-version workers and current-version workers
+   process the same outbox during the transition.
+4. Replace the remaining previous-version workers with the current version.
+
+An already-running previous-version worker does not execute migration planning
+again, and the current additive schema remains compatible with its runtime SQL.
+An older binary that starts or restarts after the database has advanced fails
+fast when it sees a migration version newer than its own catalog. Restart that
+instance with the current version instead of bypassing the migration check.
+
+This is a demonstrated path for the documented adjacent versions and additive
+migration. It is not a general guarantee that arbitrary TinyEvents versions can
+run together.
+
 ## Migration Logging
 
 Migration execution uses stable `Microsoft.Extensions.Logging` events:

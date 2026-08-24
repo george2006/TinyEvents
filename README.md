@@ -196,6 +196,8 @@ PostgreSQL:
 - malformed or unknown messages fail independently without blocking valid work;
 - concurrent forward migrations serialize and inconsistent schema state is
   rejected;
+- already-running previous-version workers remain compatible while the current
+  additive migration is applied and current-version workers join them;
 - cleanup deletes only eligible processed rows in bounded atomic batches.
 
 TinyEvents does not guarantee:
@@ -206,6 +208,8 @@ TinyEvents does not guarantee:
 - exclusive processing after `ClaimTimeout` expires;
 - a durable checkpoint for each consumer attached to one event;
 - automatic inference or replay after an event type or namespace rename;
+- startup of an older binary after the database has advanced beyond that
+  binary's migration catalog;
 - a universal throughput, latency, or database-size ceiling.
 
 Applications therefore own these responsibilities:
@@ -215,6 +219,8 @@ Applications therefore own these responsibilities:
   batch, including completion persistence, or reduce `BatchSize`;
 - keep manually configured worker IDs unique across active processes;
 - deploy explicit previous-name mappings before renaming durable event contracts;
+- replace previous-version instances with the current version during a rolling
+  upgrade; do not restart an older binary after the schema has advanced;
 - monitor terminal failed rows and handle them through an explicit operational
   procedure;
 - reconcile an ambiguous business commit before retrying it blindly;
@@ -253,6 +259,12 @@ await host.RunAsync();
 The same entry point works with ASP.NET Core, worker-only hosts, console applications, and test hosts. It creates its own dependency-injection scope and applies only migrations that are absent from the provider-specific history table.
 
 TinyEvents never migrates automatically during service registration or worker startup. Applications choose when migration execution is safe.
+
+The demonstrated rolling-upgrade path keeps existing previous-version workers
+running, starts the current version to apply its additive migration, and then
+replaces the previous-version workers. An older binary started after the schema
+has advanced fails fast because it cannot prove compatibility with migrations it
+does not know. See the upgrade guidance for the exact boundary.
 
 The default outbox tables are `dbo.TinyOutbox` on SQL Server and `public.TinyOutbox` on PostgreSQL. Their history tables are `dbo.TinyOutboxMigrations` and `public.TinyOutboxMigrations`. Custom outbox names derive the history name in the same schema.
 
