@@ -74,6 +74,7 @@ $nugetConfig = Join-Path $artifactRoot "NuGet.config"
 
 New-Item -ItemType Directory -Force -Path $packagesDirectory | Out-Null
 New-Item -ItemType Directory -Force -Path $packageCacheDirectory | Out-Null
+$env:NUGET_PACKAGES = $packageCacheDirectory
 
 $projects = @(
     "src\TinyEvents\TinyEvents.csproj",
@@ -87,6 +88,16 @@ $projects = @(
 Write-Host "Building TinyEvents release train..."
 Invoke-Native "dotnet" @("restore", $solution)
 Invoke-Native "dotnet" @("build", $solution, "-c", "Release", "--no-restore")
+
+Write-Host "Restoring package validation baselines..."
+Invoke-Native "dotnet" @(
+    "restore",
+    $sampleProject,
+    "--source",
+    "https://api.nuget.org/v3/index.json",
+    "--no-cache",
+    "--force",
+    "/p:TinyEventsPackageVersion=$baselinePackageVersion")
 
 Write-Host "Packing TinyEvents release train as $PackageVersion..."
 foreach ($project in $projects) {
@@ -214,7 +225,6 @@ Write-Host "Verified package manifests, package contents, and in-package provide
 "@ | Set-Content -Path $nugetConfig -Encoding UTF8
 
 Write-Host "Restoring package smoke sample from local TinyEvents packages..."
-$env:NUGET_PACKAGES = $packageCacheDirectory
 Invoke-Native "dotnet" @(
     "restore",
     $sampleProject,
