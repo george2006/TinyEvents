@@ -23,6 +23,7 @@ $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..\..")
 $solution = Join-Path $repoRoot "TinyEvents.sln"
 $sampleProject = Join-Path $repoRoot "samples\TinyEvents.PackageSmoke\TinyEvents.PackageSmoke.csproj"
 $composeFile = Join-Path $repoRoot "samples\TinyEvents.PackageSmoke\docker-compose.yml"
+$baselinePackageVersion = "0.1.0-alpha.3"
 
 if ([string]::IsNullOrWhiteSpace($PackageVersion)) {
     $PackageVersion = "0.1.0-local.$(Get-Date -Format 'yyyyMMddHHmmss')"
@@ -61,7 +62,9 @@ foreach ($project in $projects) {
         "-o",
         $packagesDirectory,
         "/p:PackageVersion=$PackageVersion",
-        "/p:Version=$PackageVersion")
+        "/p:Version=$PackageVersion",
+        "/p:EnablePackageValidation=true",
+        "/p:PackageValidationBaselineVersion=$baselinePackageVersion")
 }
 
 $expectedPackageIds = @(
