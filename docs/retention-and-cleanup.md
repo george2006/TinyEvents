@@ -1,6 +1,6 @@
 # Retention and Cleanup
 
-> **Release status:** This capability is included in `0.1.0-beta.1`.
+> **Release status:** This capability is included in `1.0.0-beta.1`.
 
 TinyEvents automatically removes processed outbox messages after a configurable
 retention period. Cleanup keeps the operational outbox bounded without turning

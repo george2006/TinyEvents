@@ -16,8 +16,8 @@ PostgreSQL worker claiming uses `FOR UPDATE SKIP LOCKED`.
 ## Install
 
 ```bash
-dotnet add package TinyEvents --version 0.1.0-beta.1
-dotnet add package TinyEvents.PostgreSql.AdoNet --version 0.1.0-beta.1
+dotnet add package TinyEvents --version 1.0.0-beta.1
+dotnet add package TinyEvents.PostgreSql.AdoNet --version 1.0.0-beta.1
 ```
 
 ## Register
@@ -65,7 +65,7 @@ The migrator uses `UseWorkerConnectionFactory(...)` to create a dedicated connec
 
 The default tables are `public.TinyOutbox` and `public.TinyOutboxMigrations`. A custom outbox such as `app.MyOutbox` uses `app.MyOutboxMigrations`.
 
-Processed-message cleanup is included in `0.1.0-beta.1`. Migration
+Processed-message cleanup is included in `1.0.0-beta.1`. Migration
 `002_AddProcessedCleanupIndex` adds its ordered lookup;
 `MigrateTinyEventsAsync` applies it as a normal forward-only migration when it
 is not already recorded.

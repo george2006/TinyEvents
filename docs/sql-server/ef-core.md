@@ -5,8 +5,8 @@
 ## Install
 
 ```bash
-dotnet add package TinyEvents --version 0.1.0-beta.1
-dotnet add package TinyEvents.SqlServer.EntityFrameworkCore --version 0.1.0-beta.1
+dotnet add package TinyEvents --version 1.0.0-beta.1
+dotnet add package TinyEvents.SqlServer.EntityFrameworkCore --version 1.0.0-beta.1
 ```
 
 ## Register

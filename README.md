@@ -6,13 +6,13 @@ It helps application code publish durable events without turning `PublishAsync` 
 
 In practice, TinyEvents gives you domain-event or application-event handlers with the reliability guarantees of the outbox pattern. The outbox message is the durable record of the event to handle; your `IEventConsumer<TEvent>` remains the handler. You get reliable event handling without requiring a message bus, broker, or separate async messaging platform.
 
-> Status: `0.1.0-beta.1` / beta.
+> Status: `1.0.0-beta.1` / beta.
 >
 > The beta is ready for evaluation and controlled production trials by teams
 > that accept pre-1.0 API evolution and the documented at-least-once delivery
 > boundaries.
 >
-> `0.1.0-beta.1` is the first evidence-backed beta. It is not the stable 1.0
+> `1.0.0-beta.1` is the first evidence-backed beta. It is not the stable 1.0
 > contract, and applications should upgrade the complete TinyEvents package
 > train together.
 
@@ -63,9 +63,9 @@ That means TinyEvents sits in the space between plain in-process event handlers 
 Install the beta packages:
 
 ```bash
-dotnet add package TinyEvents --version 0.1.0-beta.1
-dotnet add package TinyEvents.SqlServer.EntityFrameworkCore --version 0.1.0-beta.1
-dotnet add package TinyEvents.Worker --version 0.1.0-beta.1
+dotnet add package TinyEvents --version 1.0.0-beta.1
+dotnet add package TinyEvents.SqlServer.EntityFrameworkCore --version 1.0.0-beta.1
+dotnet add package TinyEvents.Worker --version 1.0.0-beta.1
 ```
 
 Provider packages are database-specific. Use `TinyEvents.SqlServer.*` for SQL Server or `TinyEvents.PostgreSql.*` for PostgreSQL.
@@ -257,7 +257,7 @@ Every boundary above has a reproducible scenario in the public
 ## Retention and cleanup
 
 > **Release status:** Processed-message cleanup is included in
-> `0.1.0-beta.1`.
+> `1.0.0-beta.1`.
 
 The hosted worker removes processed outbox messages after a configurable
 retention period, using bounded provider-specific delete batches. The accepted
@@ -389,7 +389,7 @@ TinyEvents is intentionally small.
 - [Workers and Leases](docs/workers.md)
 - [Schema and Migrations](docs/schema-and-migrations.md)
 - [Upgrading to 0.1.0-alpha.3](docs/upgrading-to-alpha-3.md)
-- [Upgrading to 0.1.0-beta.1](docs/upgrading-to-beta-1.md)
+- [Upgrading to 1.0.0-beta.1](docs/upgrading-to-beta-1.md)
 - [The Tiny Suite](docs/tiny-suite.md)
 - [Source Generator](docs/source-generator.md)
 - [Event Contracts and Durable Names](docs/event-contracts.md)

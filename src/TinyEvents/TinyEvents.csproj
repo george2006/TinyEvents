@@ -21,7 +21,7 @@
   </ItemGroup>
   <PropertyGroup>
     <PackageReleaseNotes>
-      TinyEvents 0.1.0-beta.1
+      TinyEvents 1.0.0-beta.1
 
       Added
       - Explicit previous event-name mappings for durable namespace and type renames.

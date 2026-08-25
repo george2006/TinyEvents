@@ -23,7 +23,7 @@
   </ItemGroup>
   <PropertyGroup>
     <PackageReleaseNotes>
-      TinyEvents.PostgreSql.AdoNet 0.1.0-beta.1
+      TinyEvents.PostgreSql.AdoNet 1.0.0-beta.1
 
       Added
       - Bounded atomic cleanup of eligible processed messages.

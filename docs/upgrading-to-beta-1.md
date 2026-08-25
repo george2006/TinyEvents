@@ -1,7 +1,7 @@
-# Upgrading To 0.1.0-beta.1
+# Upgrading To 1.0.0-beta.1
 
 This guide covers upgrading an application and database from TinyEvents
-`0.1.0-alpha.3` to `0.1.0-beta.1`.
+`0.1.0-alpha.3` to `1.0.0-beta.1`.
 
 The beta adds bounded processed-message cleanup, durable event-name aliases,
 stronger schema validation, and the reliability evidence gathered against SQL
@@ -13,9 +13,9 @@ Keep every TinyEvents package used by an application on the same version. For
 example:
 
 ```bash
-dotnet add package TinyEvents --version 0.1.0-beta.1
-dotnet add package TinyEvents.SqlServer.EntityFrameworkCore --version 0.1.0-beta.1
-dotnet add package TinyEvents.Worker --version 0.1.0-beta.1
+dotnet add package TinyEvents --version 1.0.0-beta.1
+dotnet add package TinyEvents.SqlServer.EntityFrameworkCore --version 1.0.0-beta.1
+dotnet add package TinyEvents.Worker --version 1.0.0-beta.1
 ```
 
 Use the matching SQL Server or PostgreSQL provider and the matching EF Core or
@@ -23,7 +23,7 @@ ADO.NET integration for the application.
 
 ## Review Cleanup Before Starting The Beta Worker
 
-`0.1.0-beta.1` enables bounded cleanup of processed messages by default:
+`1.0.0-beta.1` enables bounded cleanup of processed messages by default:
 
 ```csharp
 builder.Services.AddTinyEventsWorker(options =>
@@ -95,7 +95,7 @@ supported; source-generator diagnostic `TEV002` reports them during compilation.
 
 ## Verify The Upgrade
 
-1. Confirm all TinyEvents package references resolve to `0.1.0-beta.1`.
+1. Confirm all TinyEvents package references resolve to `1.0.0-beta.1`.
 2. Back up the database according to the application's normal deployment policy.
 3. Run `MigrateTinyEventsAsync` and confirm migration `002` is recorded once.
 4. Start the host and verify publishing and worker processing.

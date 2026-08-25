@@ -22,7 +22,7 @@
   </ItemGroup>
   <PropertyGroup>
     <PackageReleaseNotes>
-      TinyEvents.PostgreSql.EntityFrameworkCore 0.1.0-beta.1
+      TinyEvents.PostgreSql.EntityFrameworkCore 1.0.0-beta.1
 
       Added
       - Bounded atomic cleanup of eligible processed messages.

@@ -46,14 +46,14 @@ Empty worker ids are rejected.
 ## Hosted Worker
 
 > **Release status:** Processed-message cleanup is included in
-> `0.1.0-beta.1`. Its defaults passed the cleanup behavior and active-load
+> `1.0.0-beta.1`. Its defaults passed the cleanup behavior and active-load
 > gates.
 
 Install:
 
 ```bash
-dotnet add package TinyEvents --version 0.1.0-beta.1
-dotnet add package TinyEvents.Worker --version 0.1.0-beta.1
+dotnet add package TinyEvents --version 1.0.0-beta.1
+dotnet add package TinyEvents.Worker --version 1.0.0-beta.1
 ```
 
 `TinyEvents.Worker` contains the hosted-service integration. You still need one outbox provider package, such as:
