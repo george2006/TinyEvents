@@ -17,8 +17,8 @@ PostgreSQL worker claiming uses `FOR UPDATE SKIP LOCKED`.
 ## Install
 
 ```bash
-dotnet add package TinyEvents --version 0.1.0-alpha.3
-dotnet add package TinyEvents.PostgreSql.EntityFrameworkCore --version 0.1.0-alpha.3
+dotnet add package TinyEvents --version 0.1.0-beta.1
+dotnet add package TinyEvents.PostgreSql.EntityFrameworkCore --version 0.1.0-beta.1
 ```
 
 ## Register
@@ -83,10 +83,10 @@ await host.RunAsync();
 
 The migrator borrows the scoped `AppDbContext` connection, opens and closes it only when needed, and never disposes the context or its connection. The default history table is `public.TinyOutboxMigrations`; custom outbox names derive their history table in the same schema.
 
-Processed-message cleanup is implemented for the next release and is not in the
-latest published packages. That release adds migration
-`002_AddProcessedCleanupIndex`; `MigrateTinyEventsAsync` applies it as a normal
-forward-only migration when it is not already recorded.
+Processed-message cleanup is included in `0.1.0-beta.1`. Migration
+`002_AddProcessedCleanupIndex` adds its ordered lookup;
+`MigrateTinyEventsAsync` applies it as a normal forward-only migration when it
+is not already recorded.
 
 TinyEvents never applies migrations automatically during service registration or worker startup.
 

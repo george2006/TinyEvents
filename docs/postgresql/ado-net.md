@@ -5,8 +5,8 @@
 ## Install
 
 ```bash
-dotnet add package TinyEvents --version 0.1.0-alpha.3
-dotnet add package TinyEvents.PostgreSql.AdoNet --version 0.1.0-alpha.3
+dotnet add package TinyEvents --version 0.1.0-beta.1
+dotnet add package TinyEvents.PostgreSql.AdoNet --version 0.1.0-beta.1
 ```
 
 ## Register

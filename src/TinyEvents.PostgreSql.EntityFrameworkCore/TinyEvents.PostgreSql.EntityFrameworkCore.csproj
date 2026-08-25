@@ -22,21 +22,19 @@
   </ItemGroup>
   <PropertyGroup>
     <PackageReleaseNotes>
-      TinyEvents.PostgreSql.EntityFrameworkCore 0.1.0-alpha.3
+      TinyEvents.PostgreSql.EntityFrameworkCore 0.1.0-beta.1
 
       Added
-      - Forward-only built-in PostgreSQL migrations with strict history and checksums.
-      - Session-scoped advisory locking, timeout, cancellation, and concurrency safety.
-      - Existing alpha outbox baselining without recreating the table.
-      - Structured migration logging and public MigrateTinyEventsAsync support.
+      - Bounded atomic cleanup of eligible processed messages.
+      - Migration 002_AddProcessedCleanupIndex for ordered cleanup lookups.
 
-      Ownership
-      - Migration execution borrows the scoped DbContext connection and preserves its ownership and open state.
-      - Publishing still commits business data and outbox messages through caller-owned SaveChangesAsync.
+      Hardened
+      - PostgreSQL processing, retries, lease recovery, cleanup, migrations, and rolling upgrades against a real database.
+      - Current migration history now rejects a missing outbox table instead of accepting inconsistent schema state.
 
       Compatibility
-      - Early alpha / active development.
-      - Upgrade every TinyEvents package in the application to alpha.3 together.
+      - Evidence-backed pre-1.0 beta with caller-owned SaveChangesAsync publishing.
+      - Upgrade every TinyEvents package in the application to beta.1 together.
     </PackageReleaseNotes>
   </PropertyGroup>
 </Project>

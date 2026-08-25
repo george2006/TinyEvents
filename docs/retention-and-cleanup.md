@@ -1,7 +1,6 @@
 # Retention and Cleanup
 
-> **Release status:** This capability is implemented for the next TinyEvents
-> release. It is not included in the latest published NuGet packages yet.
+> **Release status:** This capability is included in `0.1.0-beta.1`.
 
 TinyEvents automatically removes processed outbox messages after a configurable
 retention period. Cleanup keeps the operational outbox bounded without turning
@@ -9,7 +8,7 @@ it into an audit or observability store.
 
 ## Default Policy
 
-The following defaults are accepted for the next release:
+The following defaults are accepted for the beta:
 
 ```csharp
 services.AddTinyEventsWorker(options =>

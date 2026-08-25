@@ -15,12 +15,12 @@ Think of consumers as domain-event or application-event handlers with outbox rel
 
 ## Install
 
-Install the alpha packages:
+Install the beta packages:
 
 ```bash
-dotnet add package TinyEvents --version 0.1.0-alpha.3
-dotnet add package TinyEvents.SqlServer.EntityFrameworkCore --version 0.1.0-alpha.3
-dotnet add package TinyEvents.Worker --version 0.1.0-alpha.3
+dotnet add package TinyEvents --version 0.1.0-beta.1
+dotnet add package TinyEvents.SqlServer.EntityFrameworkCore --version 0.1.0-beta.1
+dotnet add package TinyEvents.Worker --version 0.1.0-beta.1
 ```
 
 TinyEvents core is provider-agnostic. Provider packages are database-specific:
@@ -53,6 +53,11 @@ builder.Services.AddTinyEventsWorker(options =>
     options.BatchSize = 50;
     options.PollingInterval = TimeSpan.FromSeconds(5);
     options.ClaimTimeout = TimeSpan.FromMinutes(5);
+
+    options.CleanupEnabled = true;
+    options.ProcessedRetention = TimeSpan.FromHours(1);
+    options.CleanupBatchSize = 1_000;
+    options.CleanupInterval = TimeSpan.FromSeconds(1);
 });
 ```
 
@@ -69,6 +74,16 @@ builder.Services.UsePostgreSqlEntityFrameworkCoreOutbox<AppDbContext>();
 ```
 
 Register exactly one TinyEvents database provider in an application.
+
+`AddTinyEventsWorker(...)` registers two independent hosted services. The
+processing service claims and dispatches outbox messages. The cleanup service
+removes only eligible processed rows. Both begin when the host runs; registration
+does not start either service.
+
+The cleanup settings above are the beta defaults. Set `CleanupEnabled = false`
+when the application deliberately owns retention or while a custom provider does
+not implement cleanup. See [Retention and Cleanup](retention-and-cleanup.md) before
+changing retention, batch size, or cleanup frequency for production.
 
 ## Map The Outbox
 
@@ -175,10 +190,17 @@ builder.Services.AddTinyEventsWorker(options =>
     options.BatchSize = 50;
     options.PollingInterval = TimeSpan.FromSeconds(5);
     options.ClaimTimeout = TimeSpan.FromMinutes(5);
+
+    options.CleanupEnabled = true;
+    options.ProcessedRetention = TimeSpan.FromHours(1);
+    options.CleanupBatchSize = 1_000;
+    options.CleanupInterval = TimeSpan.FromSeconds(1);
 });
 ```
 
 Workers use lease-based claiming. If a worker crashes, claimed messages become claimable again after `ClaimTimeout`.
+Cleanup runs on its own schedule and a cleanup failure does not stop event
+processing.
 
 ## Next
 
