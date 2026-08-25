@@ -21,22 +21,20 @@
   </ItemGroup>
   <PropertyGroup>
     <PackageReleaseNotes>
-      TinyEvents 0.1.0-alpha.3
+      TinyEvents 1.0.0-beta.1
 
       Added
-      - Public MigrateTinyEventsAsync entry point and scoped migrator contract.
-      - Generated event dispatchers that avoid runtime reflection and assembly scanning.
-      - Structured, secret-safe outbox processing and migration logging.
-      - Explicit database-provider registration exclusivity and option validation.
+      - Explicit previous event-name mappings for durable namespace and type renames.
+      - Cleanup storage contract used by the hosted cleanup service.
+      - TEV002 compile-time diagnostic for unsupported generic event contracts.
 
       Hardened
-      - Cancellation boundaries, retry persistence, lease-loss detection, and failure classification.
-      - Multi-assembly generated consumer registration and package boundaries.
+      - Durable event identity, generated dispatch, retry, lease, and failure behavior.
+      - Package API, manifest, isolated restore, and runtime compatibility gates.
 
       Compatibility
-      - Early alpha / active development.
-      - APIs may change before 1.0.
-      - Upgrade every TinyEvents package in the application to alpha.3 together.
+      - Evidence-backed pre-1.0 beta with documented at-least-once boundaries.
+      - Upgrade every TinyEvents package in the application to beta.1 together.
     </PackageReleaseNotes>
   </PropertyGroup>
 </Project>

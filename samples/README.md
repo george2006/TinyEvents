@@ -2,6 +2,12 @@
 
 The app samples are split by database family and provider style.
 
+Each sample bootstraps a disposable business schema for local use, applies the
+TinyEvents migrations explicitly, and then starts the processing and cleanup
+hosted services. Production applications should manage their business schema
+through their normal deployment process and retain the same
+`Build -> MigrateTinyEventsAsync -> RunAsync` ordering.
+
 ## Prerequisites
 
 - .NET 8 SDK
@@ -42,7 +48,11 @@ Runs from local project references and demonstrates SQL Server EF Core publishin
 dotnet run --project samples/TinyEvents.Sample.EfCore
 ```
 
-The EF Core sample creates its complete demo schema with `Database.EnsureCreatedAsync()` so the local sample remains disposable and self-contained. This is sample bootstrap code, not production deployment guidance. Applications should explicitly call `MigrateTinyEventsAsync` for the TinyEvents schema.
+The EF Core sample uses `Database.EnsureCreatedAsync()` to bootstrap its
+disposable demo schema, including the initial outbox. It then calls
+`MigrateTinyEventsAsync`, which records the existing outbox baseline and applies
+pending migrations, before `RunAsync`. The registered TinyEvents worker
+processes messages automatically and runs bounded processed-message cleanup.
 
 ### SQL Server ADO.NET
 
@@ -52,7 +62,10 @@ Runs from local project references and demonstrates SQL Server application-owned
 dotnet run --project samples/TinyEvents.Sample.AdoNet
 ```
 
-The ADO.NET sample creates the demo `Users` and `TinyOutbox` tables together so the local sample remains disposable and self-contained. This is sample bootstrap code, not production deployment guidance. Applications should explicitly call `MigrateTinyEventsAsync` for the TinyEvents schema.
+The ADO.NET sample creates its disposable demo tables, calls
+`MigrateTinyEventsAsync`, and only then runs the host. The registered TinyEvents
+worker processes messages automatically and runs bounded processed-message
+cleanup.
 
 ### PostgreSQL EF Core
 
@@ -62,7 +75,10 @@ Runs from local project references and demonstrates PostgreSQL EF Core publishin
 dotnet run --project samples/TinyEvents.Sample.PostgreSql.EfCore
 ```
 
-The PostgreSQL EF Core sample creates its complete demo schema with `Database.EnsureCreatedAsync()` so the local sample remains disposable and self-contained. This is sample bootstrap code, not production deployment guidance. Applications should explicitly call `MigrateTinyEventsAsync` for the TinyEvents schema.
+The PostgreSQL EF Core sample uses `Database.EnsureCreatedAsync()` to bootstrap
+its disposable demo schema, including the initial outbox. It then records that
+baseline and applies pending TinyEvents migrations before running the host. The
+registered worker processes messages and cleanup automatically.
 
 ### PostgreSQL ADO.NET
 
@@ -72,7 +88,9 @@ Runs from local project references and demonstrates PostgreSQL application-owned
 dotnet run --project samples/TinyEvents.Sample.PostgreSql.AdoNet
 ```
 
-The PostgreSQL ADO.NET sample creates the demo `Users` and `TinyOutbox` tables together so the local sample remains disposable and self-contained. This is sample bootstrap code, not production deployment guidance. Applications should explicitly call `MigrateTinyEventsAsync` for the TinyEvents schema.
+The PostgreSQL ADO.NET sample creates its disposable demo tables, migrates
+TinyEvents, and only then runs the host. The registered worker processes
+messages and cleanup automatically.
 
 ## 3. Try The Endpoints
 
@@ -86,13 +104,8 @@ Invoke-RestMethod `
   -Body '{"email":"ada@example.com"}'
 ```
 
-Process one outbox batch:
-
-```powershell
-Invoke-RestMethod -Method Post -Uri http://localhost:5000/outbox/process
-```
-
-Read the consumer log:
+The hosted worker claims and processes the outbox message automatically. Read
+the consumer log after the next polling iteration:
 
 ```powershell
 Invoke-RestMethod -Method Get -Uri http://localhost:5000/welcome-emails

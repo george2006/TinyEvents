@@ -45,15 +45,15 @@ Empty worker ids are rejected.
 
 ## Hosted Worker
 
-> **Release status:** Processed-message cleanup is implemented for the next
-> TinyEvents release. It is not included in the latest published NuGet packages
-> yet. Its defaults have passed the cleanup behavior and active-load gates.
+> **Release status:** Processed-message cleanup is included in
+> `1.0.0-beta.1`. Its defaults passed the cleanup behavior and active-load
+> gates.
 
 Install:
 
 ```bash
-dotnet add package TinyEvents --version 0.1.0-alpha.3
-dotnet add package TinyEvents.Worker --version 0.1.0-alpha.3
+dotnet add package TinyEvents --version 1.0.0-beta.1
+dotnet add package TinyEvents.Worker --version 1.0.0-beta.1
 ```
 
 `TinyEvents.Worker` contains the hosted-service integration. You still need one outbox provider package, such as:
@@ -80,7 +80,7 @@ services.AddTinyEventsWorker(options =>
 });
 ```
 
-The cleanup values shown above are the accepted defaults for the next release.
+The cleanup values shown above are the accepted beta defaults.
 They remain configurable because payload size, processed rate, retention needs,
 and available database capacity differ between applications.
 

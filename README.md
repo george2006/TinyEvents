@@ -6,17 +6,23 @@ It helps application code publish durable events without turning `PublishAsync` 
 
 In practice, TinyEvents gives you domain-event or application-event handlers with the reliability guarantees of the outbox pattern. The outbox message is the durable record of the event to handle; your `IEventConsumer<TEvent>` remains the handler. You get reliable event handling without requiring a message bus, broker, or separate async messaging platform.
 
-> Status: `0.1.0-alpha.3` / active development.
+> Status: `1.0.0-beta.1` / beta.
 >
-> TinyEvents is not production-ready yet. Development is ongoing, the API surface may change before 1.0, and the current release is meant for experimentation, feedback, and integration work.
+> The beta is ready for evaluation and controlled production trials by teams
+> that accept pre-1.0 API evolution and the documented at-least-once delivery
+> boundaries.
 >
-> `0.1.0-alpha.3` is the feature-complete final alpha. The next phase focuses on contract stabilization and production-readiness evidence before 1.0. Publishing to NuGet at this stage does not mean the library is stable for production systems.
+> `1.0.0-beta.1` is the first evidence-backed beta. It is not the stable 1.0
+> contract, and applications should upgrade the complete TinyEvents package
+> train together.
 
 ## Public Reliability Laboratory
 
-Want to see how TinyEvents is being hardened? The public [TinyEvents Dogfood laboratory](https://github.com/george2006/TinyEvents.DogFood) exercises worker crashes, competing workers, leases, database outages, retries, schema changes, and load against real infrastructure.
+Want to see how TinyEvents earned its beta? The public [TinyEvents Dogfood laboratory](https://github.com/george2006/TinyEvents.DogFood) exercises worker crashes, competing workers, leases, database outages, retries, schema changes, and load against real infrastructure.
 
-The laboratory is intentionally a work in progress. Completed scenarios contain reproducible evidence; its public roadmap shows what still has to be proven before beta. Pending work is not presented as a product guarantee.
+The completed beta gate passed all 36 mandatory suites and all 543 product
+tests. The laboratory publishes its reproducible scenarios, findings, measured
+limits, and accepted product boundaries.
 
 ## Contents
 
@@ -33,7 +39,7 @@ The laboratory is intentionally a work in progress. Completed scenarios contain 
 - [Design principles](#design-principles)
 - [Documentation](#documentation)
 - [Current limitations](#current-limitations)
-- [Why publish an alpha?](#why-publish-an-alpha)
+- [Why publish a beta?](#why-publish-a-beta)
 
 ## Why TinyEvents?
 
@@ -54,12 +60,12 @@ That means TinyEvents sits in the space between plain in-process event handlers 
 
 ## Quick start
 
-Install the alpha packages:
+Install the beta packages:
 
 ```bash
-dotnet add package TinyEvents --version 0.1.0-alpha.3
-dotnet add package TinyEvents.SqlServer.EntityFrameworkCore --version 0.1.0-alpha.3
-dotnet add package TinyEvents.Worker --version 0.1.0-alpha.3
+dotnet add package TinyEvents --version 1.0.0-beta.1
+dotnet add package TinyEvents.SqlServer.EntityFrameworkCore --version 1.0.0-beta.1
+dotnet add package TinyEvents.Worker --version 1.0.0-beta.1
 ```
 
 Provider packages are database-specific. Use `TinyEvents.SqlServer.*` for SQL Server or `TinyEvents.PostgreSql.*` for PostgreSQL.
@@ -69,20 +75,38 @@ Register TinyEvents and the SQL Server EF Core provider:
 ```csharp
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using TinyEvents;
 using TinyEvents.SqlServer.EntityFrameworkCore;
+using TinyEvents.Worker;
 
-var services = new ServiceCollection();
+var builder = Host.CreateApplicationBuilder(args);
 
-services.AddDbContext<AppDbContext>(options =>
+builder.Services.AddDbContext<AppDbContext>(options =>
 {
     options.UseSqlServer(connectionString);
 });
 
-services.UseSqlServerEntityFrameworkCoreOutbox<AppDbContext>();
+builder.Services.UseSqlServerEntityFrameworkCoreOutbox<AppDbContext>();
+builder.Services.AddTinyEventsWorker(options =>
+{
+    options.BatchSize = 50;
+    options.PollingInterval = TimeSpan.FromSeconds(5);
+    options.ClaimTimeout = TimeSpan.FromMinutes(5);
+
+    options.CleanupEnabled = true;
+    options.ProcessedRetention = TimeSpan.FromHours(1);
+    options.CleanupBatchSize = 1_000;
+    options.CleanupInterval = TimeSpan.FromSeconds(1);
+});
 ```
 
 Provider registration also applies generated TinyEvents contributions. If a referenced assembly contains concrete `IEventConsumer<TEvent>` implementations, the generator contributes the consumer registrations automatically.
+
+`AddTinyEventsWorker(...)` registers two independent hosted services: one claims
+and processes outbox messages, while the other removes eligible processed rows.
+Both start when the host runs. Apply the TinyEvents migrations before calling
+`RunAsync` so neither service reaches an outdated schema.
 
 Map the outbox entity in your `DbContext`:
 
@@ -154,7 +178,7 @@ No runtime assembly scanning is required, and normal consumers do not need manua
 
 ## Providers
 
-TinyEvents core is provider-agnostic. The current alpha includes SQL Server and PostgreSQL provider packages:
+TinyEvents core is provider-agnostic. The current beta includes SQL Server and PostgreSQL provider packages:
 
 - `TinyEvents.SqlServer.EntityFrameworkCore`
 - `TinyEvents.SqlServer.AdoNet`
@@ -232,18 +256,20 @@ Every boundary above has a reproducible scenario in the public
 
 ## Retention and cleanup
 
-> **Release status:** This capability is implemented for the next TinyEvents
-> release. It is not included in the latest published NuGet packages yet.
+> **Release status:** Processed-message cleanup is included in
+> `1.0.0-beta.1`.
 
 The hosted worker removes processed outbox messages after a configurable
 retention period, using bounded provider-specific delete batches. The accepted
-default for the next release retains processed messages for one hour and
+default retains processed messages for one hour and
 attempts one batch of up to 1,000 rows each second. Pending, processing, and
 failed messages are never removed automatically in v1.
 
 Cleanup is configurable and runs independently from event processing. See
 [Retention and Cleanup](docs/retention-and-cleanup.md) for exact eligibility,
 concurrency behavior, migration requirements, and storage-budget guidance.
+Set `CleanupEnabled = false` when the application deliberately owns retention
+or while a custom provider does not implement `ITinyOutboxCleanupStore`.
 
 ## Schema and migrations
 
@@ -363,6 +389,7 @@ TinyEvents is intentionally small.
 - [Workers and Leases](docs/workers.md)
 - [Schema and Migrations](docs/schema-and-migrations.md)
 - [Upgrading to 0.1.0-alpha.3](docs/upgrading-to-alpha-3.md)
+- [Upgrading to 1.0.0-beta.1](docs/upgrading-to-beta-1.md)
 - [The Tiny Suite](docs/tiny-suite.md)
 - [Source Generator](docs/source-generator.md)
 - [Event Contracts and Durable Names](docs/event-contracts.md)
@@ -373,7 +400,7 @@ TinyEvents is intentionally small.
 
 ## Current limitations
 
-TinyEvents is an alpha.
+TinyEvents is a pre-1.0 beta.
 
 - SQL Server and PostgreSQL are the current real database targets.
 - Providers use database-specific atomic claiming.
@@ -384,19 +411,23 @@ TinyEvents is an alpha.
 - Failed rows are preserved and require an explicit operational procedure.
 - Native ASP.NET convenience integration is intentionally not the first layer; the samples use minimal APIs directly.
 
-See [Roadmap](docs/roadmap.md) for planned hardening.
+See the [Product Roadmap](docs/roadmap.md) for future capabilities.
 
-## Why publish an alpha?
+## Why publish a beta?
 
-TinyEvents is published as a real package train so package boundaries, database behavior, and upgrade compatibility are exercised outside project-reference builds.
+TinyEvents is published as a coordinated package train so package boundaries,
+database behavior, and upgrade compatibility remain testable outside
+project-reference builds.
 
-The final alpha validates:
+The first beta is backed by executable evidence for:
 
-- package boundaries
-- generated registrations
-- SQL Server and PostgreSQL provider behavior
-- worker processing
-- sample application ergonomics
-- how TinyDispatcher, TinyValidations, and TinyEvents fit together as an application layer
+- transactional publishing and durable worker recovery;
+- competing workers, retries, lease loss, and database outages;
+- SQL Server and PostgreSQL provider parity;
+- migrations from the published alpha and rolling deployment;
+- bounded cleanup, storage behavior, and representative load;
+- isolated restore and runtime use of all six packages.
 
-Use the alpha to evaluate the design, exercise upgrades, and give feedback. The beta phase will focus on stabilizing public, package, database, and operational contracts before 1.0.
+Use the beta to evaluate TinyEvents in realistic applications and provide
+feedback before the 1.0 contract is frozen. The exact guarantees and limitations
+remain documented in the [Reliability contract](#reliability-contract).

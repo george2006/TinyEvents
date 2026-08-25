@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using TinyEvents;
 using TinyEvents.SqlServer.EntityFrameworkCore;
 using TinyEvents.Sample.EfCore;
+using TinyEvents.Worker;
 
 var connectionString = SampleSettings.GetConnectionString(args);
 
@@ -14,6 +15,13 @@ builder.Services.AddDbContext<SampleDbContext>(options =>
     options.UseSqlServer(connectionString);
 });
 builder.Services.UseSqlServerEntityFrameworkCoreOutbox<SampleDbContext>();
+builder.Services.AddTinyEventsWorker(options =>
+{
+    options.CleanupEnabled = true;
+    options.ProcessedRetention = TimeSpan.FromHours(1);
+    options.CleanupBatchSize = 1_000;
+    options.CleanupInterval = TimeSpan.FromSeconds(1);
+});
 
 var app = builder.Build();
 
@@ -23,6 +31,8 @@ using (var scope = app.Services.CreateScope())
     await dbContext.Database.EnsureCreatedAsync();
 }
 
+await app.Services.MigrateTinyEventsAsync();
+
 app.MapPost("/users", async (
     RegisterUserRequest request,
     UserRegistrationUseCase users,
@@ -30,14 +40,6 @@ app.MapPost("/users", async (
 {
     var result = await users.RegisterAsync(request.Email, cancellationToken);
     return Results.Created($"/users/{result.UserId}", result);
-});
-
-app.MapPost("/outbox/process", async (
-    ITinyOutboxProcessor processor,
-    CancellationToken cancellationToken) =>
-{
-    await processor.ProcessPendingAsync(cancellationToken);
-    return Results.Accepted();
 });
 
 app.MapGet("/welcome-emails", (WelcomeEmailLog log) =>

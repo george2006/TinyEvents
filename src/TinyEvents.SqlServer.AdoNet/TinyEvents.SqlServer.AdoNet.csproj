@@ -20,22 +20,19 @@
   </ItemGroup>
   <PropertyGroup>
     <PackageReleaseNotes>
-      TinyEvents.SqlServer.AdoNet 0.1.0-alpha.3
+      TinyEvents.SqlServer.AdoNet 1.0.0-beta.1
 
       Added
-      - Forward-only built-in SQL Server migrations with strict history and checksums.
-      - Session-scoped migration locking, timeout, cancellation, and concurrency safety.
-      - Existing alpha outbox baselining without recreating the table.
-      - Structured migration logging and public MigrateTinyEventsAsync support.
+      - Bounded atomic cleanup of eligible processed messages.
+      - Migration 002_AddProcessedCleanupIndex for ordered cleanup lookups.
 
-      Ownership
-      - Migration execution reuses UseWorkerConnectionFactory and disposes its dedicated connection.
-      - Application publishing connections and transactions remain caller-owned.
+      Hardened
+      - SQL Server processing, retries, lease recovery, cleanup, migrations, and rolling upgrades against a real database.
+      - Current migration history now rejects a missing outbox table instead of accepting inconsistent schema state.
 
       Compatibility
-      - Early alpha / active development.
-      - APIs may change before 1.0.
-      - Upgrade every TinyEvents package in the application to alpha.3 together.
+      - Evidence-backed pre-1.0 beta with application-owned publishing transactions.
+      - Upgrade every TinyEvents package in the application to beta.1 together.
     </PackageReleaseNotes>
   </PropertyGroup>
 </Project>

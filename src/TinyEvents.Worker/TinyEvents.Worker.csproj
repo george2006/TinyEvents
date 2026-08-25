@@ -17,21 +17,20 @@
   </ItemGroup>
   <PropertyGroup>
     <PackageReleaseNotes>
-      TinyEvents.Worker 0.1.0-alpha.3
+      TinyEvents.Worker 1.0.0-beta.1
 
       Added
-      - Startup validation for the generated dispatcher graph and provider-specific dependencies.
-      - Structured worker failure, recovery, retry-exhaustion, and lease-loss logging.
-      - Configurable, validated worker polling, batching, claim, and retry options.
+      - Independent hosted cleanup service for bounded processed-message retention.
+      - Configurable cleanup enablement, retention, batch size, and interval.
 
       Hardened
-      - Iteration failures no longer terminate the hosted worker.
-      - Cancellation remains distinct from operational failure and retry behavior.
+      - Cleanup failures remain isolated from event processing.
+      - Worker and cleanup options validate their active capabilities without blocking custom providers that disable cleanup.
+      - Package smoke tests exercise both hosted services through public registration.
 
       Compatibility
-      - Early alpha / active development.
-      - APIs may change before 1.0.
-      - Requires a matching alpha.3 TinyEvents core and exactly one database provider.
+      - Evidence-backed pre-1.0 beta with documented at-least-once boundaries.
+      - Requires matching beta.1 TinyEvents core and database provider packages.
     </PackageReleaseNotes>
   </PropertyGroup>
 </Project>

@@ -7,8 +7,8 @@ This package is for applications that own their ADO.NET connection and transacti
 ## Install
 
 ```bash
-dotnet add package TinyEvents --version 0.1.0-alpha.3
-dotnet add package TinyEvents.SqlServer.AdoNet --version 0.1.0-alpha.3
+dotnet add package TinyEvents --version 1.0.0-beta.1
+dotnet add package TinyEvents.SqlServer.AdoNet --version 1.0.0-beta.1
 ```
 
 ## Register
@@ -62,10 +62,10 @@ The migrator uses `UseWorkerConnectionFactory(...)` to create a dedicated connec
 
 The default tables are `dbo.TinyOutbox` and `dbo.TinyOutboxMigrations`. A custom outbox such as `app.MyOutbox` uses `app.MyOutboxMigrations`.
 
-Processed-message cleanup is implemented for the next release and is not in the
-latest published packages. That release adds migration
-`002_AddProcessedCleanupIndex`; `MigrateTinyEventsAsync` applies it as a normal
-forward-only migration when it is not already recorded.
+Processed-message cleanup is included in `1.0.0-beta.1`. Migration
+`002_AddProcessedCleanupIndex` adds its ordered lookup;
+`MigrateTinyEventsAsync` applies it as a normal forward-only migration when it
+is not already recorded.
 
 The SQL helper remains available as a compatibility asset:
 

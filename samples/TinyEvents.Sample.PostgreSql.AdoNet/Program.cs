@@ -5,6 +5,7 @@ using TinyEvents.Sample.PostgreSql.AdoNet.Consumers;
 using TinyEvents.Sample.PostgreSql.AdoNet.Contracts;
 using TinyEvents.Sample.PostgreSql.AdoNet.Infrastructure;
 using TinyEvents.Sample.PostgreSql.AdoNet.UseCases;
+using TinyEvents.Worker;
 
 var connectionString = SampleSettings.GetConnectionString(args);
 
@@ -43,8 +44,17 @@ builder.Services.UsePostgreSqlAdoNetOutbox(options =>
         return connection;
     });
 });
+builder.Services.AddTinyEventsWorker(options =>
+{
+    options.CleanupEnabled = true;
+    options.ProcessedRetention = TimeSpan.FromHours(1);
+    options.CleanupBatchSize = 1_000;
+    options.CleanupInterval = TimeSpan.FromSeconds(1);
+});
 
 var app = builder.Build();
+
+await app.Services.MigrateTinyEventsAsync();
 
 app.MapPost("/users", async (
     RegisterUserRequest request,
@@ -53,14 +63,6 @@ app.MapPost("/users", async (
 {
     var result = await users.RegisterAsync(request.Email, cancellationToken);
     return Results.Created($"/users/{result.UserId}", result);
-});
-
-app.MapPost("/outbox/process", async (
-    ITinyOutboxProcessor processor,
-    CancellationToken cancellationToken) =>
-{
-    await processor.ProcessPendingAsync(cancellationToken);
-    return Results.Accepted();
 });
 
 app.MapGet("/welcome-emails", (WelcomeEmailLog log) =>
