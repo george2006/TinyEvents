@@ -1,5 +1,7 @@
 # TinyEvents
 
+[Support the Tiny suite on Buy Me a Coffee](https://buymeacoffee.com/durbich) to help fund testing and ongoing maintenance.
+
 TinyEvents is a small outbox-first application-event library for .NET.
 
 It helps application code publish durable events without turning `PublishAsync` into inline consumer dispatch. Events are stored in an outbox first. Workers claim and process them later.
