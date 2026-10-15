@@ -1,6 +1,6 @@
 # TinyEvents — estado operativo de un outbox
 
-15 octubre 2026 · **TE1a aprobado por Jorge; proveedores aún sin implementar.**
+15 octubre 2026 · **TE1a commiteado; TE1b aprobado por Jorge. Siguiente: TE1c.**
 Base inspeccionada: `9c92375` (código de `1.0.0-beta.1`).
 Consumidor inicial: [Feelings Operations](../Feelings/OPERATIONS-READINESS-PLAN.md).
 Guías locales consultadas: TinyEvents-Coding-Guide.md y docs/way-of-working.md (no versionadas).
@@ -170,6 +170,28 @@ habitual registrará el reader scoped. Jorge aprueba TE1a y autoriza commit y co
 - **No objetivos:** otros proveedores, HTTP, métricas históricas, cambios al procesador.
 - **Decisiones:** forma SQL/aislamiento explícitos; no reabrir contrato sin evidencia.
 
+Implementado para revisión: una sentencia SELECT con subconsultas de agregados por estado;
+lectura bajo la transacción/aislamiento vigente del DbContext. TimeProvider captura una hora
+para la observación y el límite de leases expirados. No modifica mensajes ni índices.
+Registro scoped directo dentro de UsePostgreSqlEntityFrameworkCoreOutbox, sin configuración nueva.
+
+Evidencia TE1b: 7 tests de PostgreSQL real (fixture existente con postgres:16-alpine) y 2 tests
+de registro scoped/cancelación. Verifican estados, retries futuros, leases a ambos lados del
+límite, ausencia de mutaciones, éxito purgado, transacción abierta, tabla/esquema personalizados,
+errores de BD y cancelación previa sin abrir conexión. Los 9 nuevos pasan; la suite completa
+del provider pasa 76/76, sin omitidos. Compilación Release sin warnings.
+
+Comandos ejecutados con `TINYEVENTS_RUN_POSTGRESQL_TESTS=true`:
+
+```powershell
+dotnet test tests/TinyEvents.PostgreSql.EntityFrameworkCore.Tests/TinyEvents.PostgreSql.EntityFrameworkCore.Tests.csproj --configuration Release --no-restore --filter 'FullyQualifiedName~EfCorePostgreSqlStatusRuntimeTests|FullyQualifiedName~Status_reader|FullyQualifiedName~Cancelled_status' --verbosity minimal
+dotnet test tests/TinyEvents.PostgreSql.EntityFrameworkCore.Tests/TinyEvents.PostgreSql.EntityFrameworkCore.Tests.csproj --configuration Release --no-build --no-restore --verbosity minimal
+```
+
+No ejecutadas las suites de otros providers; no se han modificado. Medición de carga e índices
+pendiente de TE1c. Ajustes de estilo alineados con el provider y 9/9 casos nuevos
+reverificados después del ajuste. Jorge aprueba TE1b y continuar.
+
 ### TE1c — coste e índice si procede
 
 - **Objetivo:** demostrar que la consulta no perjudica materialmente al consumidor.
@@ -231,7 +253,8 @@ exclusión de procesos que la librería no proporciona. Auth pertenece completam
 | Slice | Estado | Commit / evidencia |
 | --- | --- | --- |
 | TE0 | Aceptado para empezar | Instrucción de Jorge, 15 octubre 2026 |
-| TE1a | Aprobado por Jorge | Compilación Release y 4/4 casos de edad del snapshot pasan tras ajuste |
-| TE1b / TE1c | No iniciado | — |
+| TE1a | Aprobado y commiteado | `b598465`; compilación Release y 4/4 casos de edad del snapshot |
+| TE1b | Aprobado por Jorge | 9 casos nuevos; provider PostgreSQL EF Core 76/76; 9/9 tras ajuste de estilo |
+| TE1c | No iniciado | Medir antes de decidir migración 003 |
 | TE2a / TE2b / TE2c | No iniciado | — |
 | TE3 / TE4 | No iniciado | — |
