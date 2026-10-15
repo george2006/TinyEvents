@@ -1,6 +1,6 @@
 # TinyEvents — estado operativo de un outbox
 
-15 octubre 2026 · **Arquitectura y slicing aceptados para empezar TE1a; no implementada.**
+15 octubre 2026 · **TE1a aprobado por Jorge; proveedores aún sin implementar.**
 Base inspeccionada: `9c92375` (código de `1.0.0-beta.1`).
 Consumidor inicial: [Feelings Operations](../Feelings/OPERATIONS-READINESS-PLAN.md).
 Guías locales consultadas: TinyEvents-Coding-Guide.md y docs/way-of-working.md (no versionadas).
@@ -14,7 +14,7 @@ estado, no gestionar tenants ni descubrir workers.
 **Cambio respecto al encargo inicial, discutido el 15 de octubre:** la API HTTP la publica
 Feelings.Worker. TinyEvents aporta contrato y consulta; no añadimos ahora un paquete ASP.NET,
 `MapTinyEventsOperations`, políticas, API keys ni health checks web.
-La extracción futura de un mapper HTTP requiere un consumidor real adicional y aprobación.
+La interfaz queda como punto de extensión para un futuro paquete HTTP, fuera de este scope.
 
 Esto conserva la separación incluso con tres réplicas: todas pueden leer el mismo outbox.
 La respuesta representa ese almacén, no el trabajo exclusivo de la réplica que responde.
@@ -116,20 +116,21 @@ Si no hace falta, cerrar el subpaso con evidencia sin crear migración.
 
 ## Registro y uso
 
-Propuesta opt-in explícita, respetando IServiceCollection:
+La inicialización pública no cambia. Cada provider registra `ITinyOutboxStatusReader` como
+**scoped** dentro de su extensión habitual:
 
 ```csharp
 services.UsePostgreSqlEntityFrameworkCoreOutbox<ApplicationDbContext>();
-services.AddTinyEventsOperations();
 // Host resuelve ITinyOutboxStatusReader en el scope de la conexión apropiada.
 ```
 
-Los stores existentes implementarán opcionalmente `ITinyOutboxStatusReader`, igual que hoy
-implementan `ITinyOutboxCleanupStore`. `AddTinyEventsOperations` registra una factory scoped
-que obtiene el ITinyOutboxStore ya elegido y comprueba esa capacidad. Sin descriptor nuevo,
-reflection, segunda instancia del store ni I/O al registrar. El contrato de ITinyOutboxStore no cambia.
-Proveedor externo sin soporte debe fallar explícitamente al resolver operaciones: no devolver
-ceros, no impedirle seguir publicando/procesando cuando no ha habilitado esta capacidad.
+Cada provider registra directamente la interfaz con su implementación, siguiendo el patrón
+existente de `ITinyOutboxCleanupStore`. Sin resolver ITinyOutboxStore ni hacer casts para
+descubrir capacidades. El contrato de ITinyOutboxStore no cambia y la nueva interfaz no hereda de él.
+No hay una llamada AddTinyEventsOperations ni una opción para habilitar el reader.
+Registrar el servicio no consulta la BD ni arranca procesos; solo ReadAsync ejecuta la lectura.
+Proveedor externo sin reader puede seguir publicando/procesando. Si un consumidor solicita
+la interfaz sin registrar, DI produce el error habitual de servicio ausente.
 
 La interfaz nueva tiene dos consumidores reales: monitor del worker y endpoint del host.
 La responsabilidad del store sigue siendo persistencia del outbox; separar construcción de SQL
@@ -138,27 +139,34 @@ y lectura del resultado en métodos con una misión. No introducir una familia p
 ## Slicing
 
 Estados: propuesto / implementado / revisado / aprobado / commit / verificado en consumidor.
-No avanzar al siguiente commit sin revisión. Las rutas nuevas son propuestas, no archivos existentes.
+No avanzar al siguiente commit sin revisión. Las rutas de slices no iniciados siguen siendo propuestas.
 
-### TE1a — contrato y opt-in, sin SQL
+### TE1a — contrato público, sin SQL
 
 - **Objetivo:** acordar y compilar la superficie pública mínima, separada de cambios de provider.
-- **Base:** ITinyOutboxStore/ITinyOutboxCleanupStore y IServiceCollection existentes.
-- **Cambios:** `src/TinyEvents/Operations/{ITinyOutboxStatusReader,TinyOutboxStatus}.cs` y
-  registro opt-in. Ningún miembro añadido a contratos antiguos ni provider modificado.
-- **Pruebas:** incompatibilidad explícita del proveedor sin capacidad al resolver operaciones;
-  consumo sin opt-in no altera publicación/procesamiento. No tests de DTO o wiring trivial.
+- **Base:** contratos de outbox existentes, sin modificar sus miembros.
+- **Cambios:** `src/TinyEvents/Abstractions/ITinyOutboxStatusReader.cs` y
+  `src/TinyEvents/Operations/TinyOutboxStatus.cs`, ambos en el namespace público `TinyEvents`.
+  Los registros scoped se añaden con la implementación de cada provider en su slice.
+- **Pruebas:** edad calculada respecto a la observación, null sin pendientes y límite de cero
+  ante fechas futuras. No tests de propiedades triviales.
 - **No objetivos:** SQL, paquetes publicados, host HTTP o nuevas métricas históricas.
 - **Decisión:** aprobar la API pública y semántica retenida antes de implementar.
+
+Implementado para revisión: interfaz, resultado inmutable y cuatro casos de edad del snapshot.
+Tras revisión de Jorge se elimina el opt-in y su detección de capacidades; la inicialización
+habitual registrará el reader scoped. Jorge aprueba TE1a y autoriza commit y continuar con TE1b.
 
 ### TE1b — PostgreSQL EF Core
 
 - **Objetivo:** leer correctamente un outbox real, el proveedor usado por Feelings.
 - **Base:** contrato TE1a, provider EF, tabla configurable y TimeProvider existentes.
-- **Cambios:** `TinyPostgreSqlEfCoreOutboxStore` y `Sql/TinyPostgreSqlEfCoreSql`.
+- **Cambios:** `TinyPostgreSqlEfCoreOutboxStore`, `Sql/TinyPostgreSqlEfCoreSql` y registro
+  directo scoped de ITinyOutboxStatusReader en la extensión habitual del provider.
 - **Pruebas:** BD vacía; cada estado; retries futuros; processing expirado; edad de creation y
   límites de reloj; éxito retenido/purgado; tabla/esquema personalizados; cancelación y error de BD;
-  no mutaciones ni contenido en resultado. Proveedor externo sin capacidad falla al optar.
+  no mutaciones ni contenido en resultado; resolución del reader con la inicialización habitual,
+  lifetime scoped y aislamiento entre scopes.
 - **No objetivos:** otros proveedores, HTTP, métricas históricas, cambios al procesador.
 - **Decisiones:** forma SQL/aislamiento explícitos; no reabrir contrato sin evidencia.
 
@@ -176,7 +184,8 @@ No avanzar al siguiente commit sin revisión. Las rutas nuevas son propuestas, n
 
 - **Objetivo:** misma semántica en PostgreSQL ADO, SQL Server ADO y SQL Server EF, respectivamente.
 - **Base:** readers/factories/SQL/table names de cada proveedor, contrato TE1.
-- **Cambios:** store y SQL de cada proyecto; migración de índice si fue aprobada.
+- **Cambios:** store, SQL y registro directo scoped del reader en cada provider;
+  migración de índice si fue aprobada.
 - **Pruebas:** misma matriz de comportamiento contra cada motor, tabla no predeterminada,
   transacción EF existente y ausencia de cambios a claims/cleanup.
 - **No objetivos:** consolidar todo el SQL de cuatro paquetes como refactor colateral.
@@ -189,7 +198,7 @@ No avanzar al siguiente commit sin revisión. Las rutas nuevas son propuestas, n
   sample PackageSmoke y pipeline de release existente.
 - **Cambios:** `docs/operations.md`, índice docs/README y release notes; ejemplo simple sin HTTP.
   Actualizar gates de API pública/paquetes existentes, no inventar suite de wiring.
-- **Pruebas:** pack/restore en consumidor aislado; opt-in ausente conserva comportamiento;
+- **Pruebas:** pack/restore en consumidor aislado; inicialización habitual conserva comportamiento;
   cuatro proveedores soportados; serializer del contrato no expone contenido.
 - Antes de una release candidata: checkout limpio, build/tests de ambos motores habilitados,
   inspección de todos los paquetes y API pública, smoke consumidor y revisión humana. No
@@ -209,7 +218,8 @@ No avanzar al siguiente commit sin revisión. Las rutas nuevas son propuestas, n
 
 ## Aprobación y cierre
 
-TE0 aceptado para empezar el 15 de octubre: reader sin HTTP, una BD por scope, registro opt-in,
+TE0 aceptado para empezar el 15 de octubre y ajustado en revisión: reader sin HTTP, una BD por
+scope, registro directo scoped en cada provider sin cambiar la inicialización pública,
 paridad de cuatro proveedores y sin métricas por consumidor. Jorge pide trabajar como autores
 OSS, guardar el plan en main y crear rama. Revisar el contrato público concreto en TE1a;
 esta aprobación no permite saltarse las revisiones de slices ni publicar NuGet.
@@ -221,6 +231,7 @@ exclusión de procesos que la librería no proporciona. Auth pertenece completam
 | Slice | Estado | Commit / evidencia |
 | --- | --- | --- |
 | TE0 | Aceptado para empezar | Instrucción de Jorge, 15 octubre 2026 |
-| TE1a / TE1b / TE1c | No iniciado | — |
+| TE1a | Aprobado por Jorge | Compilación Release y 4/4 casos de edad del snapshot pasan tras ajuste |
+| TE1b / TE1c | No iniciado | — |
 | TE2a / TE2b / TE2c | No iniciado | — |
 | TE3 / TE4 | No iniciado | — |
