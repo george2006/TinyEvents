@@ -1,9 +1,10 @@
 # TinyEvents — trabajo actual
 
-15 octubre 2026. **TE2b aprobado y validado; siguiente TE2c.**
+15 octubre 2026. **TE2c aprobado por Jorge; siguiente TE3.**
 
 Leer [OPERATIONS-STATUS-PLAN.md](OPERATIONS-STATUS-PLAN.md). TE1c commiteado en `ebdb411`.
 TE2a (PostgreSQL ADO.NET) commiteado en `1787ca2`.
+TE2b (SQL Server ADO.NET) commiteado en `de7e227`.
 La propuesta añade un lector de estado para una BD/outbox; HTTP, tenants y auth pertenecen al host.
 Plan guardado en main en `200399a`; trabajo en `feature/outbox-operational-status`.
 TE1a añade contrato y resultado inmutable: dos archivos de producción y uno de tests.
@@ -40,7 +41,11 @@ Jorge aprueba el slice durante la validación. 10/10 nuevos y suite SQL Server A
 sin omitidos. Build Release sin warnings ni errores. Revisión de paridad, SQL y recursos cerrada.
 Docker: el endpoint genérico falló; validación completada usando DOCKER_HOST de proceso
 `npipe://./pipe/dockerDesktopLinuxEngine`, sin cambiar configuración del repositorio.
-Siguiente: TE2c (SQL Server EF Core).
+TE2c añade reader scoped en SQL Server EF Core, con la misma consulta COUNT_BIG de ADO.NET.
+Reutiliza la conexión/transacción del DbContext sin cerrarlas, no añade tracking ni guarda cambios.
+9/9 tests nuevos y suite SQL Server EF Core 46/46 con BD real, sin omitidos; build Release
+sin warnings/errores. Revisión de SQL, recursos y paridad completada, sin hallazgos nuevos.
+Aprobado por Jorge y cerrado en el commit de TE2c. Siguiente: TE3 (documentación y validación de paquetes).
 Objetivo acordado: nueva beta con la capacidad operativa; benchmark AWS aplazado. Completar
 paridad, validación y comprobación de paquetes antes de publicar; sin promesas de rendimiento cloud.
 No se ha publicado NuGet. Publicación posterior a implementación/revisión,

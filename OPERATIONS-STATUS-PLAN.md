@@ -1,6 +1,6 @@
 # TinyEvents — estado operativo de un outbox
 
-15 octubre 2026 · **TE2a commiteado; TE2b aprobado y validado. Siguiente TE2c.**
+15 octubre 2026 · **TE2c aprobado y validado; siguiente TE3.**
 Base inspeccionada: `9c92375` (código de `1.0.0-beta.1`).
 Consumidor inicial: [Feelings Operations](../Feelings/OPERATIONS-READINESS-PLAN.md).
 Guías locales consultadas: TinyEvents-Coding-Guide.md y docs/way-of-working.md (no versionadas).
@@ -276,6 +276,28 @@ el análisis de planes/lecturas SQL Server queda pendiente antes de cerrar la va
 La factory SQL Server comparte el seguimiento previo de PostgreSQL: revisar disposal si
 OpenAsync falla antes de devolver la conexión, en un slice separado.
 
+### Evidencia TE2c — SQL Server EF Core
+
+TinySqlServerEfCoreOutboxStore implementa el reader usando CreateCommandAsync existente:
+conexión del DbContext y transacción activa si la hay. Libera command/reader, conserva la
+conexión del contexto y no hace SaveChanges ni incorpora entidades al tracking.
+TinySqlServerEfCoreSql añade la misma consulta parametrizada COUNT_BIG de SQL Server ADO.NET;
+la extensión DI registra directamente el reader como scoped. Sin migraciones ni índices.
+
+Pruebas: dos casos nuevos en TinySqlServerEfCoreProviderTests (scoped sin conexión y
+cancelación previa) y siete en EfCoreSqlServerStatusRuntimeTests: vacío, estados/límite de
+lease/no mutación, retry futuro, cleanup, transacción actual/rollback/conexión conservada,
+tabla y schema configurados, error SQL propagado. No se cambia el aislamiento de SQL Server.
+
+Validación con TINYEVENTS_RUN_SQLSERVER_TESTS=true y DOCKER_HOST de proceso
+`npipe://./pipe/dockerDesktopLinuxEngine`:
+- `dotnet test tests/TinyEvents.SqlServer.EntityFrameworkCore.Tests/TinyEvents.SqlServer.EntityFrameworkCore.Tests.csproj -c Release --filter 'FullyQualifiedName~Status|FullyQualifiedName~status' --nologo`: 9/9.
+- Mismo proyecto, Release, `--no-build`, sin filtro: 46/46, sin fallos ni omitidos.
+- `dotnet build src/TinyEvents.SqlServer.EntityFrameworkCore/TinyEvents.SqlServer.EntityFrameworkCore.csproj -c Release --no-restore --nologo`: cero warnings/errores.
+- Revisión del diff, SQL, recursos y paridad completada; sin nuevos hallazgos.
+No se repiten suites de otros providers; la validación conjunta/paquetes queda en TE3.
+No se afirma cobertura de cancelación en ejecución ni rendimiento SQL Server medido.
+
 ### TE4 — entrega a Feelings
 
 - **Objetivo:** Feelings usa el paquete publicado, sin copia de SQL o ProjectReference local.
@@ -305,6 +327,6 @@ exclusión de procesos que la librería no proporciona. Auth pertenece completam
 | TE1b | Aprobado y commiteado | `5fb2908`; provider PostgreSQL EF Core 76/76; 9/9 tras ajuste de estilo |
 | TE1c | Medido; índice descartado por Jorge | Informe lectura/escritura PostgreSQL; conservar schema 2; `ebdb411` |
 | TE2a | Aprobado y commiteado | `1787ca2`; 10/10 nuevos; PostgreSQL ADO.NET 150/150, sin omitidos; Release sin warnings |
-| TE2b | Aprobado y validado para commit | 10/10 nuevos; SQL Server ADO.NET 165/165; Release sin warnings |
-| TE2c | No iniciado | — |
+| TE2b | Aprobado y commiteado | `de7e227`; 10/10 nuevos; SQL Server ADO.NET 165/165; Release sin warnings |
+| TE2c | Aprobado; cerrado en el commit de TE2c | 9/9 nuevos; SQL Server EF Core 46/46; Release sin warnings |
 | TE3 / TE4 | No iniciado | — |
