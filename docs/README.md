@@ -3,7 +3,6 @@
 TinyEvents is an outbox-first event library. The docs are organized around how users adopt it:
 
 - [Getting Started](getting-started.md)
-- [Changelog](../CHANGELOG.md)
 - [EF Core Providers](ef-core.md)
 - [ADO.NET Providers](ado-net.md)
 - SQL Server:
@@ -13,12 +12,10 @@ TinyEvents is an outbox-first event library. The docs are organized around how u
   - [EF Core](postgresql/ef-core.md)
   - [ADO.NET](postgresql/ado-net.md)
 - [Workers and Leases](workers.md)
-- [Outbox Operational Status](operations.md)
 - [Retention and Cleanup](retention-and-cleanup.md)
 - [Schema and Migrations](schema-and-migrations.md)
 - [Upgrading to 0.1.0-alpha.3](upgrading-to-alpha-3.md)
 - [Upgrading to 1.0.0-beta.1](upgrading-to-beta-1.md)
-- [Upgrading to 1.0.0-beta.2](upgrading-to-beta-2.md)
 - [The Tiny Suite](tiny-suite.md)
 - [Source Generator](source-generator.md)
 - [Event Contracts and Durable Names](event-contracts.md)
