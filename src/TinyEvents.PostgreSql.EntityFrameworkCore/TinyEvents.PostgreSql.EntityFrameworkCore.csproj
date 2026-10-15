@@ -22,19 +22,11 @@
   </ItemGroup>
   <PropertyGroup>
     <PackageReleaseNotes>
-      TinyEvents.PostgreSql.EntityFrameworkCore 1.0.0-beta.1
+      TinyEvents.PostgreSql.EntityFrameworkCore 1.0.0-beta.2
 
-      Added
-      - Bounded atomic cleanup of eligible processed messages.
-      - Migration 002_AddProcessedCleanupIndex for ordered cleanup lookups.
-
-      Hardened
-      - PostgreSQL processing, retries, lease recovery, cleanup, migrations, and rolling upgrades against a real database.
-      - Current migration history now rejects a missing outbox table instead of accepting inconsistent schema state.
-
-      Compatibility
-      - Evidence-backed pre-1.0 beta with caller-owned SaveChangesAsync publishing.
-      - Upgrade every TinyEvents package in the application to beta.1 together.
+      - Existing provider registration now includes scoped ITinyOutboxStatusReader for outbox counts and activity timestamps.
+      - No new migration is required when upgrading from beta.1.
+      - Upgrade every TinyEvents package in the application to beta.2 together.
     </PackageReleaseNotes>
   </PropertyGroup>
 </Project>

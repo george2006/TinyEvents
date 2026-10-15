@@ -26,6 +26,32 @@ jobs:
             8.0.x
             10.0.x
 
+      - name: Validate release version and prepare notes
+        shell: bash
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          VERSION=$(dotnet msbuild src/TinyEvents/TinyEvents.csproj -nologo -getProperty:Version)
+          if [ "$TAG" != "$VERSION" ]; then
+            echo "ERROR: Tag version $TAG does not match project version $VERSION."
+            exit 1
+          fi
+
+          NOTES_PATH="$RUNNER_TEMP/release-notes.md"
+          awk -v version="$TAG" '
+            $1 == "##" {
+              if (in_release) exit
+              in_release = ($2 == version)
+              next
+            }
+            in_release { print }
+          ' CHANGELOG.md |
+            sed "s|](docs/|](https://github.com/${GITHUB_REPOSITORY}/blob/${GITHUB_REF_NAME}/docs/|g" > "$NOTES_PATH"
+
+          if ! grep -q '[^[:space:]]' "$NOTES_PATH"; then
+            echo "ERROR: CHANGELOG.md has no release notes for $TAG."
+            exit 1
+          fi
+
       - name: Restore
         run: dotnet restore
 
@@ -43,12 +69,12 @@ jobs:
         run: |
           TAG="${GITHUB_REF_NAME#v}"
           echo "Packing TinyEvents version: $TAG"
-          dotnet pack src/TinyEvents/TinyEvents.csproj -c Release --no-build -o ./artifacts /p:PackageVersion="$TAG" /p:Version="$TAG"
-          dotnet pack src/TinyEvents.SqlServer.AdoNet/TinyEvents.SqlServer.AdoNet.csproj -c Release --no-build -o ./artifacts /p:PackageVersion="$TAG" /p:Version="$TAG"
-          dotnet pack src/TinyEvents.SqlServer.EntityFrameworkCore/TinyEvents.SqlServer.EntityFrameworkCore.csproj -c Release --no-build -o ./artifacts /p:PackageVersion="$TAG" /p:Version="$TAG"
-          dotnet pack src/TinyEvents.PostgreSql.AdoNet/TinyEvents.PostgreSql.AdoNet.csproj -c Release --no-build -o ./artifacts /p:PackageVersion="$TAG" /p:Version="$TAG"
-          dotnet pack src/TinyEvents.PostgreSql.EntityFrameworkCore/TinyEvents.PostgreSql.EntityFrameworkCore.csproj -c Release --no-build -o ./artifacts /p:PackageVersion="$TAG" /p:Version="$TAG"
-          dotnet pack src/TinyEvents.Worker/TinyEvents.Worker.csproj -c Release --no-build -o ./artifacts /p:PackageVersion="$TAG" /p:Version="$TAG"
+          dotnet pack src/TinyEvents/TinyEvents.csproj -c Release --no-build -o ./artifacts
+          dotnet pack src/TinyEvents.SqlServer.AdoNet/TinyEvents.SqlServer.AdoNet.csproj -c Release --no-build -o ./artifacts
+          dotnet pack src/TinyEvents.SqlServer.EntityFrameworkCore/TinyEvents.SqlServer.EntityFrameworkCore.csproj -c Release --no-build -o ./artifacts
+          dotnet pack src/TinyEvents.PostgreSql.AdoNet/TinyEvents.PostgreSql.AdoNet.csproj -c Release --no-build -o ./artifacts
+          dotnet pack src/TinyEvents.PostgreSql.EntityFrameworkCore/TinyEvents.PostgreSql.EntityFrameworkCore.csproj -c Release --no-build -o ./artifacts
+          dotnet pack src/TinyEvents.Worker/TinyEvents.Worker.csproj -c Release --no-build -o ./artifacts
 
       - name: Verify package version matches tag
         shell: bash
@@ -72,3 +98,5 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: ./artifacts/*.nupkg
+          body_path: ${{ runner.temp }}/release-notes.md
+          prerelease: ${{ contains(github.ref_name, '-') }}
