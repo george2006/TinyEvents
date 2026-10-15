@@ -1,6 +1,6 @@
 # TinyEvents — estado operativo de un outbox
 
-15 octubre 2026 · **TE1a commiteado; TE1b aprobado por Jorge. Siguiente: TE1c.**
+15 octubre 2026 · **TE1a y TE1b commiteados. TE1c medido; índice descartado por Jorge.**
 Base inspeccionada: `9c92375` (código de `1.0.0-beta.1`).
 Consumidor inicial: [Feelings Operations](../Feelings/OPERATIONS-READINESS-PLAN.md).
 Guías locales consultadas: TinyEvents-Coding-Guide.md y docs/way-of-working.md (no versionadas).
@@ -202,6 +202,27 @@ reverificados después del ajuste. Jorge aprueba TE1b y continuar.
 - **No objetivos:** benchmarks genéricos, caché en librería, índice por consumidor.
 - **Decisión:** aceptar medición o aprobar índice con coste explícito.
 
+Medición completada el 15 de octubre tras recuperar Docker. PostgreSQL 16.14, 2 CPU y 1 GiB,
+un millón de filas, schema/índices 001/002 y consulta de TE1b.
+[Informe con escenarios, planes, resultados y reproducción](docs/performance/postgresql-outbox-status.md).
+
+Resultados: mediana 0,311 ms con historial mayoritariamente procesado; 30,465 ms con 300.000
+Pending/Processing; 114,019 ms tras actualizar ese backlog antes de vacuum. El índice candidato
+(Status, CreatedAtUtc) reduce de 31–32 ms a 27,217 ms en comparación controlada y ocupa
+14.213.120 bytes. Sigue recorriendo el backlog. La medición adicional de escritura da
+5–11% de coste temporal en inserción masiva y 8–12% en actualización masiva de estados.
+No equivale al impacto exacto sobre el worker real. Jorge descarta el índice explícitamente:
+el procesamiento tiene prioridad. Se retiran los borradores de migración 003, modelos y tests.
+
+En comparación controlada, procesar mientras se consulta aproximadamente una vez por segundo
+no dio fallos y redujo throughput alrededor de 2–4% frente a las pasadas sin observador.
+Es una prueba SQL corta, no un benchmark del worker .NET ni una garantía de producción.
+Timeout de BD de 1 ms devuelve SQLSTATE 57014; cancelación previa y propagación de errores
+están cubiertas en TE1b. El candidato solo se creó en la BD desechable y se retiró.
+El resultado final de TE1c solo cambia documentación; no modifica código ni migraciones.
+Tras retirar el borrador, solución completa Release sin warnings/errores y tests del migrador
+PostgreSQL 8/8 + SQL Server 8/8 contra BD real, sin omitidos. Contenedor de medición eliminado.
+
 ### TE2a / TE2b / TE2c — paridad de proveedores, tres commits
 
 - **Objetivo:** misma semántica en PostgreSQL ADO, SQL Server ADO y SQL Server EF, respectivamente.
@@ -254,7 +275,7 @@ exclusión de procesos que la librería no proporciona. Auth pertenece completam
 | --- | --- | --- |
 | TE0 | Aceptado para empezar | Instrucción de Jorge, 15 octubre 2026 |
 | TE1a | Aprobado y commiteado | `b598465`; compilación Release y 4/4 casos de edad del snapshot |
-| TE1b | Aprobado por Jorge | 9 casos nuevos; provider PostgreSQL EF Core 76/76; 9/9 tras ajuste de estilo |
-| TE1c | No iniciado | Medir antes de decidir migración 003 |
+| TE1b | Aprobado y commiteado | `5fb2908`; provider PostgreSQL EF Core 76/76; 9/9 tras ajuste de estilo |
+| TE1c | Medido; índice descartado por Jorge | Informe lectura/escritura PostgreSQL; conservar schema 2; aprobado para commit |
 | TE2a / TE2b / TE2c | No iniciado | — |
 | TE3 / TE4 | No iniciado | — |
