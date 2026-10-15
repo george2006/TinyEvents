@@ -3,6 +3,7 @@
 TinyEvents is an outbox-first event library. The docs are organized around how users adopt it:
 
 - [Getting Started](getting-started.md)
+- [Changelog](../CHANGELOG.md)
 - [EF Core Providers](ef-core.md)
 - [ADO.NET Providers](ado-net.md)
 - SQL Server:

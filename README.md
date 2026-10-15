@@ -381,6 +381,7 @@ TinyEvents is intentionally small.
 
 ## Documentation
 
+- [Changelog](CHANGELOG.md)
 - [Getting Started](docs/getting-started.md)
 - [EF Core Providers](docs/ef-core.md)
 - [ADO.NET Providers](docs/ado-net.md)
