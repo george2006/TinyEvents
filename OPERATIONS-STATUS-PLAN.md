@@ -1,6 +1,6 @@
 # TinyEvents — estado operativo de un outbox
 
-15 octubre 2026 · **TE1a y TE1b commiteados. TE1c medido; índice descartado por Jorge.**
+15 octubre 2026 · **TE2a commiteado; TE2b aprobado y validado. Siguiente TE2c.**
 Base inspeccionada: `9c92375` (código de `1.0.0-beta.1`).
 Consumidor inicial: [Feelings Operations](../Feelings/OPERATIONS-READINESS-PLAN.md).
 Guías locales consultadas: TinyEvents-Coding-Guide.md y docs/way-of-working.md (no versionadas).
@@ -248,6 +248,33 @@ PostgreSQL 8/8 + SQL Server 8/8 contra BD real, sin omitidos. Contenedor de medi
   declarar `1.0.0` listo por terminar estos slices; respetar docs/way-of-working.md.
 - **No objetivos:** publicar NuGet sin instrucción, asignar nueva versión sin acuerdo.
 - **Decisión:** versión coordinada de paquetes y política de compatibilidad.
+- **Objetivo acordado el 15 de octubre:** publicar una nueva beta con esta capacidad una vez
+  cerrada la paridad y validación de paquetes. Benchmark AWS aplazado; las mediciones locales
+  no justifican promesas de rendimiento cloud. No implica publicar ni cambiar versión ahora.
+
+### Evidencia TE2b — SQL Server ADO.NET
+
+Store, SQL y registro scoped implementan el contrato existente. COUNT_BIG devuelve long;
+la consulta parametrizada usa la tabla validada y no cambia el aislamiento ni añade NOLOCK.
+La observación concurrente depende del aislamiento configurado, no garantiza un snapshot.
+Sin cambios de migraciones, índices, claims ni cleanup. Constructor interno actualizado en
+TinySqlServerAdoNetProviderTests; nuevos TinySqlServerAdoNetStatusTests y
+AdoNetSqlServerStatusRuntimeTests cubren la matriz de estados, tabla/schema, no mutación,
+registro scoped, cancelación previa/factory y liberación de conexiones tras lectura/error SQL.
+
+Validación final, con TINYEVENTS_RUN_SQLSERVER_TESTS=true:
+- `dotnet test tests/TinyEvents.SqlServer.AdoNet.Tests/TinyEvents.SqlServer.AdoNet.Tests.csproj -c Release --no-build --filter FullyQualifiedName~Status --nologo`: 10/10.
+- Mismo comando sin filtro: 165/165, sin fallos ni omitidos, SQL Server real.
+- `dotnet build src/TinyEvents.SqlServer.AdoNet/TinyEvents.SqlServer.AdoNet.csproj -c Release --no-restore --nologo`: cero warnings/errores.
+- Revisión del diff, semántica, recursos y paridad completada. Otros providers no se vuelven a ejecutar.
+
+La primera ejecución no conectó al endpoint Docker genérico; otra falló por formato de URI.
+Validación completada con DOCKER_HOST de proceso `npipe://./pipe/dockerDesktopLinuxEngine`.
+Sin cambios al entorno persistente ni al repositorio para resolverlo.
+No se mide rendimiento SQL Server en este slice ni se prueba cancelación durante una consulta;
+el análisis de planes/lecturas SQL Server queda pendiente antes de cerrar la validación de la beta.
+La factory SQL Server comparte el seguimiento previo de PostgreSQL: revisar disposal si
+OpenAsync falla antes de devolver la conexión, en un slice separado.
 
 ### TE4 — entrega a Feelings
 
@@ -277,6 +304,7 @@ exclusión de procesos que la librería no proporciona. Auth pertenece completam
 | TE1a | Aprobado y commiteado | `b598465`; compilación Release y 4/4 casos de edad del snapshot |
 | TE1b | Aprobado y commiteado | `5fb2908`; provider PostgreSQL EF Core 76/76; 9/9 tras ajuste de estilo |
 | TE1c | Medido; índice descartado por Jorge | Informe lectura/escritura PostgreSQL; conservar schema 2; `ebdb411` |
-| TE2a | Aprobado para commit | 10/10 nuevos; PostgreSQL ADO.NET 150/150, sin omitidos; Release sin warnings |
-| TE2b / TE2c | No iniciado | — |
+| TE2a | Aprobado y commiteado | `1787ca2`; 10/10 nuevos; PostgreSQL ADO.NET 150/150, sin omitidos; Release sin warnings |
+| TE2b | Aprobado y validado para commit | 10/10 nuevos; SQL Server ADO.NET 165/165; Release sin warnings |
+| TE2c | No iniciado | — |
 | TE3 / TE4 | No iniciado | — |

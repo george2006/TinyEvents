@@ -5,15 +5,18 @@ namespace TinyEvents.SqlServer.AdoNet;
 
 internal sealed class TinySqlServerAdoNetOutboxStore :
     ITinyOutboxStore,
-    ITinyOutboxCleanupStore
+    ITinyOutboxCleanupStore,
+    ITinyOutboxStatusReader
 {
     private readonly TinyEventsSqlServerAdoNetOptions options;
     private readonly ITinySqlServerAdoNetWorkerConnectionFactory connectionFactory;
     private readonly TinySqlServerAdoNetTableName tableName;
+    private readonly TimeProvider timeProvider;
 
     public TinySqlServerAdoNetOutboxStore(
         TinyEventsSqlServerAdoNetOptions options,
-        ITinySqlServerAdoNetWorkerConnectionFactory connectionFactory)
+        ITinySqlServerAdoNetWorkerConnectionFactory connectionFactory,
+        TimeProvider timeProvider)
     {
         if (options is null)
         {
@@ -25,9 +28,56 @@ internal sealed class TinySqlServerAdoNetOutboxStore :
             throw new ArgumentNullException(nameof(connectionFactory));
         }
 
+        if (timeProvider is null)
+        {
+            throw new ArgumentNullException(nameof(timeProvider));
+        }
+
+        this.timeProvider = timeProvider;
         this.options = options;
         this.connectionFactory = connectionFactory;
         tableName = TinySqlServerAdoNetTableName.Parse(options.TableName);
+    }
+
+    public async ValueTask<TinyOutboxStatus> ReadAsync(CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var observedAtUtc = timeProvider.GetUtcNow();
+        await using var connection = await CreateOpenConnectionAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        ConfigureStatusQuery(command, observedAtUtc);
+
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        if (!await reader.ReadAsync(cancellationToken))
+        {
+            throw new InvalidOperationException("The outbox status query did not return an observation.");
+        }
+
+        return ReadStatus(reader, observedAtUtc);
+    }
+
+    private void ConfigureStatusQuery(DbCommand command, DateTimeOffset observedAtUtc)
+    {
+        command.CommandText = TinySqlServerAdoNetSql.ReadStatus(tableName);
+        TinySqlServerAdoNetCommandParameters.Add(command, "@ObservedAtUtc", observedAtUtc);
+        TinySqlServerAdoNetCommandParameters.Add(command, "@PendingStatus", (int)TinyOutboxMessageStatus.Pending);
+        TinySqlServerAdoNetCommandParameters.Add(command, "@ProcessingStatus", (int)TinyOutboxMessageStatus.Processing);
+        TinySqlServerAdoNetCommandParameters.Add(command, "@FailedStatus", (int)TinyOutboxMessageStatus.Failed);
+        TinySqlServerAdoNetCommandParameters.Add(command, "@ProcessedStatus", (int)TinyOutboxMessageStatus.Processed);
+    }
+
+    private static TinyOutboxStatus ReadStatus(DbDataReader reader, DateTimeOffset observedAtUtc)
+    {
+        return new TinyOutboxStatus
+        {
+            ObservedAtUtc = observedAtUtc,
+            PendingCount = reader.GetInt64(0),
+            ProcessingCount = reader.GetInt64(1),
+            ExpiredProcessingCount = reader.GetInt64(2),
+            FailedCount = reader.GetInt64(3),
+            OldestPendingAtUtc = ReadNullableDateTimeOffset(reader, 4),
+            LastProcessedAtUtc = ReadNullableDateTimeOffset(reader, 5)
+        };
     }
 
     public async ValueTask<IReadOnlyList<TinyOutboxMessage>> ClaimPendingAsync(

@@ -1,8 +1,9 @@
 # TinyEvents — trabajo actual
 
-15 octubre 2026. **TE2a aprobado; siguiente slice TE2b.**
+15 octubre 2026. **TE2b aprobado y validado; siguiente TE2c.**
 
-Leer [OPERATIONS-STATUS-PLAN.md](OPERATIONS-STATUS-PLAN.md). TE1c commiteado en `ebdb411`. TE2a (PostgreSQL ADO.NET) aprobado para commit.
+Leer [OPERATIONS-STATUS-PLAN.md](OPERATIONS-STATUS-PLAN.md). TE1c commiteado en `ebdb411`.
+TE2a (PostgreSQL ADO.NET) commiteado en `1787ca2`.
 La propuesta añade un lector de estado para una BD/outbox; HTTP, tenants y auth pertenecen al host.
 Plan guardado en main en `200399a`; trabajo en `feature/outbox-operational-status`.
 TE1a añade contrato y resultado inmutable: dos archivos de producción y uno de tests.
@@ -32,7 +33,16 @@ Revisión: SQL parametrizado, sin cambios de estado, recursos liberados tras lec
 cancelación propagada y constructor interno actualizado en tests existentes.
 Seguimiento fuera de este slice: revisar disposal en la factory ADO si OpenAsync falla antes
 de devolver la conexión. No se modifica esa factory ni se afirma cobertura de ese fallo.
-Siguiente: TE2b (SQL Server ADO.NET).
+TE2b implementa el mismo reader en SQL Server ADO.NET con COUNT_BIG, tabla validada,
+parámetros y una conexión propia por observación. No cambia el aislamiento ni usa NOLOCK;
+la observación concurrente depende del aislamiento configurado, no es un snapshot garantizado.
+Jorge aprueba el slice durante la validación. 10/10 nuevos y suite SQL Server ADO.NET 165/165,
+sin omitidos. Build Release sin warnings ni errores. Revisión de paridad, SQL y recursos cerrada.
+Docker: el endpoint genérico falló; validación completada usando DOCKER_HOST de proceso
+`npipe://./pipe/dockerDesktopLinuxEngine`, sin cambiar configuración del repositorio.
+Siguiente: TE2c (SQL Server EF Core).
+Objetivo acordado: nueva beta con la capacidad operativa; benchmark AWS aplazado. Completar
+paridad, validación y comprobación de paquetes antes de publicar; sin promesas de rendimiento cloud.
 No se ha publicado NuGet. Publicación posterior a implementación/revisión,
 con instrucción expresa y actualización coordinada de paquetes en Feelings.
 
