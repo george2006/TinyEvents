@@ -221,7 +221,8 @@ public sealed class AdoNetPostgreSqlStoreRuntimeTests
 
         return new TinyPostgreSqlAdoNetOutboxStore(
             options,
-            new TinyPostgreSqlAdoNetWorkerConnectionFactory(options, new EmptyServiceProvider()));
+            new TinyPostgreSqlAdoNetWorkerConnectionFactory(options, new EmptyServiceProvider()),
+            TimeProvider.System);
     }
 
     private async Task InsertOutboxMessageAsync(

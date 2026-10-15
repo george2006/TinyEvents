@@ -228,7 +228,7 @@ PostgreSQL 8/8 + SQL Server 8/8 contra BD real, sin omitidos. Contenedor de medi
 - **Objetivo:** misma semántica en PostgreSQL ADO, SQL Server ADO y SQL Server EF, respectivamente.
 - **Base:** readers/factories/SQL/table names de cada proveedor, contrato TE1.
 - **Cambios:** store, SQL y registro directo scoped del reader en cada provider;
-  migración de índice si fue aprobada.
+  sin migraciones ni índices nuevos (decisión TE1c).
 - **Pruebas:** misma matriz de comportamiento contra cada motor, tabla no predeterminada,
   transacción EF existente y ausencia de cambios a claims/cleanup.
 - **No objetivos:** consolidar todo el SQL de cuatro paquetes como refactor colateral.
@@ -276,6 +276,7 @@ exclusión de procesos que la librería no proporciona. Auth pertenece completam
 | TE0 | Aceptado para empezar | Instrucción de Jorge, 15 octubre 2026 |
 | TE1a | Aprobado y commiteado | `b598465`; compilación Release y 4/4 casos de edad del snapshot |
 | TE1b | Aprobado y commiteado | `5fb2908`; provider PostgreSQL EF Core 76/76; 9/9 tras ajuste de estilo |
-| TE1c | Medido; índice descartado por Jorge | Informe lectura/escritura PostgreSQL; conservar schema 2; aprobado para commit |
-| TE2a / TE2b / TE2c | No iniciado | — |
+| TE1c | Medido; índice descartado por Jorge | Informe lectura/escritura PostgreSQL; conservar schema 2; `ebdb411` |
+| TE2a | Aprobado para commit | 10/10 nuevos; PostgreSQL ADO.NET 150/150, sin omitidos; Release sin warnings |
+| TE2b / TE2c | No iniciado | — |
 | TE3 / TE4 | No iniciado | — |

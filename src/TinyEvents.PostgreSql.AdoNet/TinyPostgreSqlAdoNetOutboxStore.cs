@@ -4,14 +4,17 @@ namespace TinyEvents.PostgreSql.AdoNet;
 
 internal sealed class TinyPostgreSqlAdoNetOutboxStore :
     ITinyOutboxStore,
-    ITinyOutboxCleanupStore
+    ITinyOutboxCleanupStore,
+    ITinyOutboxStatusReader
 {
     private readonly ITinyPostgreSqlAdoNetWorkerConnectionFactory connectionFactory;
     private readonly TinyPostgreSqlAdoNetTableName tableName;
+    private readonly TimeProvider timeProvider;
 
     public TinyPostgreSqlAdoNetOutboxStore(
         TinyEventsPostgreSqlAdoNetOptions options,
-        ITinyPostgreSqlAdoNetWorkerConnectionFactory connectionFactory)
+        ITinyPostgreSqlAdoNetWorkerConnectionFactory connectionFactory,
+        TimeProvider timeProvider)
     {
         if (options is null)
         {
@@ -23,8 +26,55 @@ internal sealed class TinyPostgreSqlAdoNetOutboxStore :
             throw new ArgumentNullException(nameof(connectionFactory));
         }
 
+        if (timeProvider is null)
+        {
+            throw new ArgumentNullException(nameof(timeProvider));
+        }
+
+        this.timeProvider = timeProvider;
         this.connectionFactory = connectionFactory;
         tableName = TinyPostgreSqlAdoNetTableName.Parse(options.TableName);
+    }
+
+    public async ValueTask<TinyOutboxStatus> ReadAsync(CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var observedAtUtc = timeProvider.GetUtcNow();
+        await using var connection = await CreateOpenConnectionAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        ConfigureStatusQuery(command, observedAtUtc);
+
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        if (!await reader.ReadAsync(cancellationToken))
+        {
+            throw new InvalidOperationException("The outbox status query did not return an observation.");
+        }
+
+        return ReadStatus(reader, observedAtUtc);
+    }
+
+    private void ConfigureStatusQuery(DbCommand command, DateTimeOffset observedAtUtc)
+    {
+        command.CommandText = TinyPostgreSqlAdoNetSql.ReadStatus(tableName);
+        TinyPostgreSqlAdoNetCommandParameters.Add(command, "@ObservedAtUtc", observedAtUtc);
+        TinyPostgreSqlAdoNetCommandParameters.Add(command, "@PendingStatus", (int)TinyOutboxMessageStatus.Pending);
+        TinyPostgreSqlAdoNetCommandParameters.Add(command, "@ProcessingStatus", (int)TinyOutboxMessageStatus.Processing);
+        TinyPostgreSqlAdoNetCommandParameters.Add(command, "@FailedStatus", (int)TinyOutboxMessageStatus.Failed);
+        TinyPostgreSqlAdoNetCommandParameters.Add(command, "@ProcessedStatus", (int)TinyOutboxMessageStatus.Processed);
+    }
+
+    private static TinyOutboxStatus ReadStatus(DbDataReader reader, DateTimeOffset observedAtUtc)
+    {
+        return new TinyOutboxStatus
+        {
+            ObservedAtUtc = observedAtUtc,
+            PendingCount = reader.GetInt64(0),
+            ProcessingCount = reader.GetInt64(1),
+            ExpiredProcessingCount = reader.GetInt64(2),
+            FailedCount = reader.GetInt64(3),
+            OldestPendingAtUtc = ReadNullableDateTimeOffset(reader, 4),
+            LastProcessedAtUtc = ReadNullableDateTimeOffset(reader, 5)
+        };
     }
 
     public async ValueTask<IReadOnlyList<TinyOutboxMessage>> ClaimPendingAsync(

@@ -46,6 +46,7 @@ public static class TinyEventsPostgreSqlAdoNetServiceCollectionExtensions
         services.Replace(ServiceDescriptor.Scoped<ITinyOutboxWriter, TinyPostgreSqlAdoNetOutboxWriter>());
         services.Replace(ServiceDescriptor.Scoped<ITinyOutboxStore, TinyPostgreSqlAdoNetOutboxStore>());
         services.Replace(ServiceDescriptor.Scoped<ITinyOutboxCleanupStore, TinyPostgreSqlAdoNetOutboxStore>());
+        services.Replace(ServiceDescriptor.Scoped<ITinyOutboxStatusReader, TinyPostgreSqlAdoNetOutboxStore>());
 
         return services;
     }

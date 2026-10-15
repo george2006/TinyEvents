@@ -1,8 +1,8 @@
 # TinyEvents — trabajo actual
 
-15 octubre 2026. **TE1c medido; Jorge descarta el índice para priorizar el procesamiento.**
+15 octubre 2026. **TE2a aprobado; siguiente slice TE2b.**
 
-Leer [OPERATIONS-STATUS-PLAN.md](OPERATIONS-STATUS-PLAN.md). TE1c aprobado. Siguiente slice: TE2a (PostgreSQL ADO.NET).
+Leer [OPERATIONS-STATUS-PLAN.md](OPERATIONS-STATUS-PLAN.md). TE1c commiteado en `ebdb411`. TE2a (PostgreSQL ADO.NET) aprobado para commit.
 La propuesta añade un lector de estado para una BD/outbox; HTTP, tenants y auth pertenecen al host.
 Plan guardado en main en `200399a`; trabajo en `feature/outbox-operational-status`.
 TE1a añade contrato y resultado inmutable: dos archivos de producción y uno de tests.
@@ -22,9 +22,17 @@ El candidato mejora unos 4–5 ms en lectura y ocupa 14 MB, pero añade 5–11% 
 masiva y 8–12% en actualización masiva sintética. Jorge descarta el índice: conservar schema 2,
 sin migración 003. Se retiran los cambios experimentales de migración, modelos y tests.
 Procesamiento concurrente sin fallos, con coste observable del sondeo; timeout verificado.
-Solo documentación nueva en este slice, pendiente de commit.
+Solo documentación nueva en TE1c, commiteada en `ebdb411`.
 Verificación final: solución Release sin warnings/errores y migrador PostgreSQL 8/8 + SQL Server
-8/8 con BD real, sin omitidos. No quedan diferencias en src/tests respecto al commit TE1b.
+8/8 con BD real, sin omitidos. TE1c no modifica src/tests respecto al commit TE1b.
+TE2a implementa el reader en PostgreSQL ADO.NET: misma consulta, TimeProvider y registro
+scoped; conexión propia por observación, sin participar en la transacción del publisher.
+10/10 tests nuevos y suite completa PostgreSQL ADO.NET 150/150, sin omitidos, en Release.
+Revisión: SQL parametrizado, sin cambios de estado, recursos liberados tras lectura/error,
+cancelación propagada y constructor interno actualizado en tests existentes.
+Seguimiento fuera de este slice: revisar disposal en la factory ADO si OpenAsync falla antes
+de devolver la conexión. No se modifica esa factory ni se afirma cobertura de ese fallo.
+Siguiente: TE2b (SQL Server ADO.NET).
 No se ha publicado NuGet. Publicación posterior a implementación/revisión,
 con instrucción expresa y actualización coordinada de paquetes en Feelings.
 
