@@ -17,20 +17,11 @@
   </ItemGroup>
   <PropertyGroup>
     <PackageReleaseNotes>
-      TinyEvents.Worker 1.0.0-beta.1
+      TinyEvents.Worker 1.0.0-beta.2
 
-      Added
-      - Independent hosted cleanup service for bounded processed-message retention.
-      - Configurable cleanup enablement, retention, batch size, and interval.
-
-      Hardened
-      - Cleanup failures remain isolated from event processing.
-      - Worker and cleanup options validate their active capabilities without blocking custom providers that disable cleanup.
-      - Package smoke tests exercise both hosted services through public registration.
-
-      Compatibility
-      - Evidence-backed pre-1.0 beta with documented at-least-once boundaries.
-      - Requires matching beta.1 TinyEvents core and database provider packages.
+      - Coordinated release with the new provider outbox status reader; hosted worker behavior is unchanged.
+      - No new migration is required when upgrading from beta.1.
+      - Upgrade every TinyEvents package in the application to beta.2 together.
     </PackageReleaseNotes>
   </PropertyGroup>
 </Project>

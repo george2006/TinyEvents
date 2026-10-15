@@ -21,20 +21,11 @@
   </ItemGroup>
   <PropertyGroup>
     <PackageReleaseNotes>
-      TinyEvents 1.0.0-beta.1
+      TinyEvents 1.0.0-beta.2
 
-      Added
-      - Explicit previous event-name mappings for durable namespace and type renames.
-      - Cleanup storage contract used by the hosted cleanup service.
-      - TEV002 compile-time diagnostic for unsupported generic event contracts.
-
-      Hardened
-      - Durable event identity, generated dispatch, retry, lease, and failure behavior.
-      - Package API, manifest, isolated restore, and runtime compatibility gates.
-
-      Compatibility
-      - Evidence-backed pre-1.0 beta with documented at-least-once boundaries.
-      - Upgrade every TinyEvents package in the application to beta.1 together.
+      - Added ITinyOutboxStatusReader and TinyOutboxStatus for read-only outbox counts and activity timestamps.
+      - No new migration is required when upgrading from beta.1.
+      - Upgrade every TinyEvents package in the application to beta.2 together.
     </PackageReleaseNotes>
   </PropertyGroup>
 </Project>

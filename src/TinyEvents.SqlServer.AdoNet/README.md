@@ -7,8 +7,8 @@ This package is for applications that own their ADO.NET connection and transacti
 ## Install
 
 ```bash
-dotnet add package TinyEvents --version 1.0.0-beta.1
-dotnet add package TinyEvents.SqlServer.AdoNet --version 1.0.0-beta.1
+dotnet add package TinyEvents --version 1.0.0-beta.2
+dotnet add package TinyEvents.SqlServer.AdoNet --version 1.0.0-beta.2
 ```
 
 ## Register

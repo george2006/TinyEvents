@@ -52,8 +52,8 @@ Empty worker ids are rejected.
 Install:
 
 ```bash
-dotnet add package TinyEvents --version 1.0.0-beta.1
-dotnet add package TinyEvents.Worker --version 1.0.0-beta.1
+dotnet add package TinyEvents --version 1.0.0-beta.2
+dotnet add package TinyEvents.Worker --version 1.0.0-beta.2
 ```
 
 `TinyEvents.Worker` contains the hosted-service integration. You still need one outbox provider package, such as:

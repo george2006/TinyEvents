@@ -8,21 +8,23 @@ It helps application code publish durable events without turning `PublishAsync` 
 
 In practice, TinyEvents gives you domain-event or application-event handlers with the reliability guarantees of the outbox pattern. The outbox message is the durable record of the event to handle; your `IEventConsumer<TEvent>` remains the handler. You get reliable event handling without requiring a message bus, broker, or separate async messaging platform.
 
-> Status: `1.0.0-beta.1` / beta.
+> Status: `1.0.0-beta.2` / beta.
 >
 > The beta is ready for evaluation and controlled production trials by teams
 > that accept pre-1.0 API evolution and the documented at-least-once delivery
 > boundaries.
 >
-> `1.0.0-beta.1` is the first evidence-backed beta. It is not the stable 1.0
+> This is not the stable 1.0
 > contract, and applications should upgrade the complete TinyEvents package
 > train together.
+
+Version `1.0.0-beta.2` adds a scoped [outbox status reader](docs/workers.md#outbox-status) for backlog counts and activity timestamps across all four database providers. Upgrade all TinyEvents packages together; no new migration or configuration change is required when upgrading from `beta.1`.
 
 ## Public Reliability Laboratory
 
 Want to see how TinyEvents earned its beta? The public [TinyEvents Dogfood laboratory](https://github.com/george2006/TinyEvents.DogFood) exercises worker crashes, competing workers, leases, database outages, retries, schema changes, and load against real infrastructure.
 
-The completed beta gate passed all 36 mandatory suites and all 543 product
+The completed `1.0.0-beta.1` gate passed all 36 mandatory suites and all 543 product
 tests. The laboratory publishes its reproducible scenarios, findings, measured
 limits, and accepted product boundaries.
 
@@ -65,9 +67,9 @@ That means TinyEvents sits in the space between plain in-process event handlers 
 Install the beta packages:
 
 ```bash
-dotnet add package TinyEvents --version 1.0.0-beta.1
-dotnet add package TinyEvents.SqlServer.EntityFrameworkCore --version 1.0.0-beta.1
-dotnet add package TinyEvents.Worker --version 1.0.0-beta.1
+dotnet add package TinyEvents --version 1.0.0-beta.2
+dotnet add package TinyEvents.SqlServer.EntityFrameworkCore --version 1.0.0-beta.2
+dotnet add package TinyEvents.Worker --version 1.0.0-beta.2
 ```
 
 Provider packages are database-specific. Use `TinyEvents.SqlServer.*` for SQL Server or `TinyEvents.PostgreSql.*` for PostgreSQL.
