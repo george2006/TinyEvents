@@ -1,23 +1,23 @@
 # PostgreSQL outbox status measurements
 
 15 October 2026. Query at commit `5fb2908`, PostgreSQL EF Core provider.
-This is development evidence for TE1c, not a production latency guarantee.
+This is local development evidence, not a production latency guarantee.
 
 ## Decision
 
-Jorge explicitly discarded the candidate after reviewing the write measurements:
-core processing takes priority over operational query latency. Keep schema version 2.
+The candidate index was rejected after reviewing the write measurements:
+core processing takes priority over operational query latency. Schema version 2 is retained.
 The existing indexes serve the status query. Adding
 `(Status, CreatedAtUtc)` saved about 4–5 ms on a 300,000-message backlog in the
 controlled comparison, at a cost of 14,213,120 bytes for one million rows plus
 index maintenance on writes. The write experiment below reinforces retaining the
-current indexes for occasional operational reads. The draft migration 003, model,
-catalog and test changes were removed before commit; existing migrations remain intact.
+current indexes for occasional operational reads. Existing migrations remain intact;
+this feature adds no migration.
 
 Exact counts and oldest-pending lookup still scale with outstanding work. Hosts
 must bound polling across databases and avoid multiplying identical reads across
 worker replicas. Revisit this decision using production query plans if observation
-cost becomes material. SQL Server requires its own measurements when implemented.
+cost becomes material. SQL Server requires its own measurements; none are claimed here.
 
 ## Environment and method
 
@@ -92,14 +92,11 @@ No additional index was present during these runs.
 
 With `statement_timeout='1ms'`, the large-backlog query failed with PostgreSQL SQLSTATE
 `57014` (`canceling statement due to statement timeout`). This validates the database
-timeout, not in-flight .NET token cancellation. TE1b separately covers a cancelled
+timeout, not in-flight .NET token cancellation. Provider tests separately cover a cancelled
 token before connection opening and database error propagation.
 
-TE1c retains no migration, production SQL or application code changes. Its final
-result is this evidence and the decision to keep the existing schema. After removing
-the draft, the full solution builds in Release with zero warnings/errors; all eight
-migrator integration tests pass on each real database (PostgreSQL and SQL Server),
-with no skips. The disposable measurement container has been removed.
+These measurements support retaining the existing schema. They do not replace
+provider integration tests or package release validation.
 
 ## Write cost
 

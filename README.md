@@ -389,6 +389,7 @@ TinyEvents is intentionally small.
 - [PostgreSQL EF Core](docs/postgresql/ef-core.md)
 - [PostgreSQL ADO.NET](docs/postgresql/ado-net.md)
 - [Workers and Leases](docs/workers.md)
+- [Outbox Operational Status](docs/operations.md)
 - [Schema and Migrations](docs/schema-and-migrations.md)
 - [Upgrading to 0.1.0-alpha.3](docs/upgrading-to-alpha-3.md)
 - [Upgrading to 1.0.0-beta.1](docs/upgrading-to-beta-1.md)
