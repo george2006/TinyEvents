@@ -170,6 +170,36 @@ Runtime logs use structured properties where applicable:
 TinyEvents does not log event payloads, serialized event bodies, connection
 strings, credentials, secrets, tokens, or arbitrary event property values.
 
+## Outbox Status
+
+The four database providers register `ITinyOutboxStatusReader` as scoped through
+their existing setup methods. Resolve it in a scope configured for the outbox
+you want to observe:
+
+```csharp
+using Microsoft.Extensions.DependencyInjection;
+using TinyEvents;
+
+await using var scope = host.Services.CreateAsyncScope();
+var reader = scope.ServiceProvider.GetRequiredService<ITinyOutboxStatusReader>();
+var status = await reader.ReadAsync(cancellationToken);
+```
+
+`TinyOutboxStatus` contains pending, processing, expired-processing and failed
+counts. Pending includes future retries; expired processing is a subset of
+processing. `OldestPendingAtUtc` and `OldestPendingAge` cover both pending and
+processing rows. `LastProcessedAtUtc` describes retained processed rows, so cleanup
+can remove it. Counts are `long`; absent activity timestamps and age are null.
+
+The reader captures `ObservedAtUtc` once using `TimeProvider`. EF Core uses the
+context connection and current transaction; ADO.NET owns a worker connection per
+read. Errors and cancellation propagate to the caller. Reads do not modify messages
+or load payloads, and require no new migration.
+
+Each observation describes one outbox, not one worker. It respects database
+isolation and is not a heartbeat or proof that processing has stopped. Exact counts
+have a database cost; the host owns polling, alerting and access control.
+
 ## Marking Processed Or Failed
 
 Providers mark messages only when:

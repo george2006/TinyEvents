@@ -72,6 +72,41 @@ public sealed class TinyPostgreSqlEfCoreOutboxStoreTests
     }
 
     [Fact]
+    public void Status_reader_is_scoped_and_resolves_without_connecting()
+    {
+        var services = new ServiceCollection();
+        services.AddDbContext<TestDbContext>(options =>
+            options.UseNpgsql("Host=localhost;Database=TinyEvents"));
+        services.UsePostgreSqlEntityFrameworkCoreOutbox<TestDbContext>();
+        using var provider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true });
+        using var firstScope = provider.CreateScope();
+        using var secondScope = provider.CreateScope();
+
+        var firstReader = firstScope.ServiceProvider.GetRequiredService<ITinyOutboxStatusReader>();
+        var repeatedReader = firstScope.ServiceProvider.GetRequiredService<ITinyOutboxStatusReader>();
+        var secondReader = secondScope.ServiceProvider.GetRequiredService<ITinyOutboxStatusReader>();
+
+        Assert.Same(firstReader, repeatedReader);
+        Assert.NotSame(firstReader, secondReader);
+        Assert.Equal(System.Data.ConnectionState.Closed,
+            firstScope.ServiceProvider.GetRequiredService<TestDbContext>().Database.GetDbConnection().State);
+    }
+
+    [Fact]
+    public async Task Cancelled_status_read_does_not_open_a_connection()
+    {
+        using var dbContext = NewTestDbContext();
+        ITinyOutboxStatusReader reader = NewStore(dbContext);
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            async () => await reader.ReadAsync(cancellation.Token));
+
+        Assert.Equal(System.Data.ConnectionState.Closed, dbContext.Database.GetDbConnection().State);
+    }
+
+    [Fact]
     public void EF_store_does_not_implement_writer()
     {
         Assert.False(typeof(ITinyOutboxWriter).IsAssignableFrom(typeof(TinyPostgreSqlEfCoreOutboxStore<TestDbContext>)));
@@ -83,7 +118,7 @@ public sealed class TinyPostgreSqlEfCoreOutboxStoreTests
         var options = new TinyEventsPostgreSqlEntityFrameworkCoreOptions();
 
         Assert.Throws<ArgumentNullException>(
-            () => new TinyPostgreSqlEfCoreOutboxStore<TestDbContext>(null!, options));
+            () => new TinyPostgreSqlEfCoreOutboxStore<TestDbContext>(null!, options, TimeProvider.System));
     }
 
     [Fact]
@@ -92,7 +127,7 @@ public sealed class TinyPostgreSqlEfCoreOutboxStoreTests
         using var dbContext = NewTestDbContext();
 
         Assert.Throws<ArgumentNullException>(
-            () => new TinyPostgreSqlEfCoreOutboxStore<TestDbContext>(dbContext, null!));
+            () => new TinyPostgreSqlEfCoreOutboxStore<TestDbContext>(dbContext, null!, TimeProvider.System));
     }
 
     [Fact]
@@ -209,7 +244,8 @@ public sealed class TinyPostgreSqlEfCoreOutboxStoreTests
     {
         return new TinyPostgreSqlEfCoreOutboxStore<TestDbContext>(
             dbContext,
-            new TinyEventsPostgreSqlEntityFrameworkCoreOptions());
+            new TinyEventsPostgreSqlEntityFrameworkCoreOptions(),
+            TimeProvider.System);
     }
 
     private static void AssertService<TService, TImplementation>(IServiceCollection services)

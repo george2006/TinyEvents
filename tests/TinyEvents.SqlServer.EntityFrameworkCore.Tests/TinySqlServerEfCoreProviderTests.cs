@@ -191,6 +191,45 @@ public sealed class TinySqlServerEfCoreProviderTests
     }
 
     [Fact]
+    public void Status_reader_is_scoped_and_resolves_without_connecting()
+    {
+        var services = new ServiceCollection();
+        services.AddDbContext<TestDbContext>(options =>
+            options.UseSqlServer("Server=localhost;Database=TinyEvents;Integrated Security=true;TrustServerCertificate=true"));
+        services.UseSqlServerEntityFrameworkCoreOutbox<TestDbContext>();
+        using var provider = services.BuildServiceProvider(new ServiceProviderOptions { ValidateScopes = true });
+        using var firstScope = provider.CreateScope();
+        using var secondScope = provider.CreateScope();
+
+        var firstReader = firstScope.ServiceProvider.GetRequiredService<ITinyOutboxStatusReader>();
+        var repeatedReader = firstScope.ServiceProvider.GetRequiredService<ITinyOutboxStatusReader>();
+        var secondReader = secondScope.ServiceProvider.GetRequiredService<ITinyOutboxStatusReader>();
+
+        Assert.Same(firstReader, repeatedReader);
+        Assert.NotSame(firstReader, secondReader);
+        Assert.Equal(System.Data.ConnectionState.Closed,
+            firstScope.ServiceProvider.GetRequiredService<TestDbContext>().Database.GetDbConnection().State);
+    }
+
+    [Fact]
+    public async Task Cancelled_status_read_does_not_open_a_connection()
+    {
+        var options = new DbContextOptionsBuilder<TestDbContext>()
+            .UseSqlServer("Server=localhost;Database=TinyEvents;Integrated Security=true;TrustServerCertificate=true")
+            .Options;
+        using var dbContext = new TestDbContext(options);
+        ITinyOutboxStatusReader reader = new TinySqlServerEfCoreOutboxStore<TestDbContext>(
+            dbContext, new TinyEventsSqlServerEntityFrameworkCoreOptions(), TimeProvider.System);
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            async () => await reader.ReadAsync(cancellation.Token));
+
+        Assert.Equal(System.Data.ConnectionState.Closed, dbContext.Database.GetDbConnection().State);
+    }
+
+    [Fact]
     public void EF_store_does_not_implement_writer()
     {
         Assert.False(typeof(ITinyOutboxWriter).IsAssignableFrom(typeof(TinySqlServerEfCoreOutboxStore<TestDbContext>)));

@@ -2,6 +2,52 @@ namespace TinyEvents.SqlServer.EntityFrameworkCore;
 
 internal static class TinySqlServerEfCoreSql
 {
+    public static string ReadStatus(TinySqlServerEfCoreTableName tableName)
+    {
+        if (tableName is null)
+        {
+            throw new ArgumentNullException(nameof(tableName));
+        }
+
+        var table = tableName.ToSqlServerName();
+
+        return $"""
+            SELECT
+                (
+                    SELECT COUNT_BIG(*)
+                    FROM {table}
+                    WHERE Status = @PendingStatus
+                ) AS PendingCount,
+                (
+                    SELECT COUNT_BIG(*)
+                    FROM {table}
+                    WHERE Status = @ProcessingStatus
+                ) AS ProcessingCount,
+                (
+                    SELECT COUNT_BIG(*)
+                    FROM {table}
+                    WHERE
+                        Status = @ProcessingStatus
+                        AND ClaimExpiresAtUtc <= @ObservedAtUtc
+                ) AS ExpiredProcessingCount,
+                (
+                    SELECT COUNT_BIG(*)
+                    FROM {table}
+                    WHERE Status = @FailedStatus
+                ) AS FailedCount,
+                (
+                    SELECT MIN(CreatedAtUtc)
+                    FROM {table}
+                    WHERE Status IN (@PendingStatus, @ProcessingStatus)
+                ) AS OldestPendingAtUtc,
+                (
+                    SELECT MAX(ProcessedAtUtc)
+                    FROM {table}
+                    WHERE Status = @ProcessedStatus
+                ) AS LastProcessedAtUtc;
+            """;
+    }
+
     public static string ClaimPending(TinySqlServerEfCoreTableName tableName)
     {
         if (tableName is null)

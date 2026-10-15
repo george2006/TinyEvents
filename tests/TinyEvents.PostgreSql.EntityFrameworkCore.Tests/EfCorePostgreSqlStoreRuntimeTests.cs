@@ -335,7 +335,8 @@ public sealed class EfCorePostgreSqlStoreRuntimeTests
     {
         return new TinyPostgreSqlEfCoreOutboxStore<TestDbContext>(
             dbContext,
-            new TinyEventsPostgreSqlEntityFrameworkCoreOptions());
+            new TinyEventsPostgreSqlEntityFrameworkCoreOptions(),
+            TimeProvider.System);
     }
 
     [PostgreSqlIntegrationFact]

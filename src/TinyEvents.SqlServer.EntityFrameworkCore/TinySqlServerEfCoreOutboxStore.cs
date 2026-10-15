@@ -7,17 +7,20 @@ namespace TinyEvents.SqlServer.EntityFrameworkCore;
 
 internal sealed class TinySqlServerEfCoreOutboxStore<TDbContext> :
     ITinyOutboxStore,
-    ITinyOutboxCleanupStore
+    ITinyOutboxCleanupStore,
+    ITinyOutboxStatusReader
     where TDbContext : DbContext
 {
     private const string SqlServerProviderName = "Microsoft.EntityFrameworkCore.SqlServer";
 
     private readonly TDbContext dbContext;
     private readonly TinySqlServerEfCoreTableName tableName;
+    private readonly TimeProvider timeProvider;
 
     public TinySqlServerEfCoreOutboxStore(
         TDbContext dbContext,
-        TinyEventsSqlServerEntityFrameworkCoreOptions options)
+        TinyEventsSqlServerEntityFrameworkCoreOptions options,
+        TimeProvider timeProvider)
     {
         if (dbContext is null)
         {
@@ -29,10 +32,56 @@ internal sealed class TinySqlServerEfCoreOutboxStore<TDbContext> :
             throw new ArgumentNullException(nameof(options));
         }
 
+        if (timeProvider is null)
+        {
+            throw new ArgumentNullException(nameof(timeProvider));
+        }
+
         ValidateDatabaseProvider(dbContext);
 
+        this.timeProvider = timeProvider;
         this.dbContext = dbContext;
         tableName = TinySqlServerEfCoreTableName.Parse(options.TableName);
+    }
+
+    public async ValueTask<TinyOutboxStatus> ReadAsync(CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var observedAtUtc = timeProvider.GetUtcNow();
+        await using var command = await CreateCommandAsync(cancellationToken);
+        ConfigureStatusQuery(command, observedAtUtc);
+
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        if (!await reader.ReadAsync(cancellationToken))
+        {
+            throw new InvalidOperationException("The outbox status query did not return an observation.");
+        }
+
+        return ReadStatus(reader, observedAtUtc);
+    }
+
+    private void ConfigureStatusQuery(DbCommand command, DateTimeOffset observedAtUtc)
+    {
+        command.CommandText = TinySqlServerEfCoreSql.ReadStatus(tableName);
+        AddParameter(command, "@ObservedAtUtc", observedAtUtc);
+        AddParameter(command, "@PendingStatus", (int)TinyOutboxMessageStatus.Pending);
+        AddParameter(command, "@ProcessingStatus", (int)TinyOutboxMessageStatus.Processing);
+        AddParameter(command, "@FailedStatus", (int)TinyOutboxMessageStatus.Failed);
+        AddParameter(command, "@ProcessedStatus", (int)TinyOutboxMessageStatus.Processed);
+    }
+
+    private static TinyOutboxStatus ReadStatus(DbDataReader reader, DateTimeOffset observedAtUtc)
+    {
+        return new TinyOutboxStatus
+        {
+            ObservedAtUtc = observedAtUtc,
+            PendingCount = reader.GetInt64(0),
+            ProcessingCount = reader.GetInt64(1),
+            ExpiredProcessingCount = reader.GetInt64(2),
+            FailedCount = reader.GetInt64(3),
+            OldestPendingAtUtc = ReadNullableDateTimeOffset(reader, 4),
+            LastProcessedAtUtc = ReadNullableDateTimeOffset(reader, 5)
+        };
     }
 
     private static void ValidateDatabaseProvider(TDbContext dbContext)

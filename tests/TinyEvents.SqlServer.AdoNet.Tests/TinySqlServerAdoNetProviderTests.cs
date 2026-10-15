@@ -474,7 +474,7 @@ public sealed class TinySqlServerAdoNetProviderTests
 
     private static TinySqlServerAdoNetOutboxStore NewStore(ITinySqlServerAdoNetWorkerConnectionFactory factory)
     {
-        return new TinySqlServerAdoNetOutboxStore(new TinyEventsSqlServerAdoNetOptions(), factory);
+        return new TinySqlServerAdoNetOutboxStore(new TinyEventsSqlServerAdoNetOptions(), factory, TimeProvider.System);
     }
 
     private static TinyOutboxMessage NewMessage()

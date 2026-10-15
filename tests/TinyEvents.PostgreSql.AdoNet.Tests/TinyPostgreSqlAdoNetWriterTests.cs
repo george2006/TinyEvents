@@ -380,7 +380,7 @@ public sealed class TinyPostgreSqlAdoNetWriterTests
     {
         var factory = new RecordingWorkerConnectionFactory(new RecordingConnection());
 
-        Assert.Throws<ArgumentNullException>(() => new TinyPostgreSqlAdoNetOutboxStore(null!, factory));
+        Assert.Throws<ArgumentNullException>(() => new TinyPostgreSqlAdoNetOutboxStore(null!, factory, TimeProvider.System));
     }
 
     [Fact]
@@ -388,7 +388,7 @@ public sealed class TinyPostgreSqlAdoNetWriterTests
     {
         var options = new TinyEventsPostgreSqlAdoNetOptions();
 
-        Assert.Throws<ArgumentNullException>(() => new TinyPostgreSqlAdoNetOutboxStore(options, null!));
+        Assert.Throws<ArgumentNullException>(() => new TinyPostgreSqlAdoNetOutboxStore(options, null!, TimeProvider.System));
     }
 
     [Fact]
@@ -498,7 +498,8 @@ public sealed class TinyPostgreSqlAdoNetWriterTests
     {
         return new TinyPostgreSqlAdoNetOutboxStore(
             new TinyEventsPostgreSqlAdoNetOptions(),
-            factory);
+            factory,
+            TimeProvider.System);
     }
 
     private static TinyPostgreSqlAdoNetOutboxWriter NewWriter(

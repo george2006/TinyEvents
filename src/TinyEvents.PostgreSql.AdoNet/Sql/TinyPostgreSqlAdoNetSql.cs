@@ -2,6 +2,52 @@ namespace TinyEvents.PostgreSql.AdoNet;
 
 internal static class TinyPostgreSqlAdoNetSql
 {
+    public static string ReadStatus(TinyPostgreSqlAdoNetTableName tableName)
+    {
+        if (tableName is null)
+        {
+            throw new ArgumentNullException(nameof(tableName));
+        }
+
+        var table = tableName.ToPostgreSqlName();
+
+        return $"""
+            SELECT
+                (
+                    SELECT COUNT(*)
+                    FROM {table}
+                    WHERE "Status" = @PendingStatus
+                ) AS "PendingCount",
+                (
+                    SELECT COUNT(*)
+                    FROM {table}
+                    WHERE "Status" = @ProcessingStatus
+                ) AS "ProcessingCount",
+                (
+                    SELECT COUNT(*)
+                    FROM {table}
+                    WHERE
+                        "Status" = @ProcessingStatus
+                        AND "ClaimExpiresAtUtc" <= @ObservedAtUtc
+                ) AS "ExpiredProcessingCount",
+                (
+                    SELECT COUNT(*)
+                    FROM {table}
+                    WHERE "Status" = @FailedStatus
+                ) AS "FailedCount",
+                (
+                    SELECT MIN("CreatedAtUtc")
+                    FROM {table}
+                    WHERE "Status" IN (@PendingStatus, @ProcessingStatus)
+                ) AS "OldestPendingAtUtc",
+                (
+                    SELECT MAX("ProcessedAtUtc")
+                    FROM {table}
+                    WHERE "Status" = @ProcessedStatus
+                ) AS "LastProcessedAtUtc";
+            """;
+    }
+
     public static string Insert(TinyPostgreSqlAdoNetTableName tableName)
     {
         if (tableName is null)

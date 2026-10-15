@@ -46,6 +46,7 @@ public static class TinyEventsSqlServerAdoNetServiceCollectionExtensions
         services.Replace(ServiceDescriptor.Scoped<ITinyOutboxWriter, TinySqlServerAdoNetOutboxWriter>());
         services.Replace(ServiceDescriptor.Scoped<ITinyOutboxStore, TinySqlServerAdoNetOutboxStore>());
         services.Replace(ServiceDescriptor.Scoped<ITinyOutboxCleanupStore, TinySqlServerAdoNetOutboxStore>());
+        services.Replace(ServiceDescriptor.Scoped<ITinyOutboxStatusReader, TinySqlServerAdoNetOutboxStore>());
 
         return services;
     }

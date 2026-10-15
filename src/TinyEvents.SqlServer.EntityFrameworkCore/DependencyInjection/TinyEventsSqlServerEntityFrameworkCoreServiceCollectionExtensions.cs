@@ -44,6 +44,7 @@ public static class TinyEventsSqlServerEntityFrameworkCoreServiceCollectionExten
         services.Replace(ServiceDescriptor.Scoped<ITinyOutboxWriter, TinySqlServerEfCoreOutboxWriter<TDbContext>>());
         services.Replace(ServiceDescriptor.Scoped<ITinyOutboxStore, TinySqlServerEfCoreOutboxStore<TDbContext>>());
         services.Replace(ServiceDescriptor.Scoped<ITinyOutboxCleanupStore, TinySqlServerEfCoreOutboxStore<TDbContext>>());
+        services.Replace(ServiceDescriptor.Scoped<ITinyOutboxStatusReader, TinySqlServerEfCoreOutboxStore<TDbContext>>());
 
         return services;
     }
